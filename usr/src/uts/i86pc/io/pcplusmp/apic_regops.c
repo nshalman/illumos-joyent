@@ -24,6 +24,7 @@
  */
 /*
  * Copyright 2014 Josef 'Jeff' Sipek <jeffpc@josefsipek.net>
+ * Copyright (c) 2014 by Delphix. All rights reserved.
  */
 
 #include <sys/cpuvar.h>
@@ -65,6 +66,9 @@ static void local_x2apic_write_int_cmd(uint32_t cpu_id, uint32_t cmd1);
  */
 int	x2apic_enable = 1;
 apic_mode_t apic_mode = LOCAL_APIC;	/* Default mode is Local APIC */
+
+/* Enable directed EOIs */
+boolean_t apic_allow_kvm_directed_eoi = B_FALSE;
 
 /* Uses MMIO (Memory Mapped IO) */
 static apic_reg_ops_t local_apic_regs_ops = {
@@ -293,6 +297,21 @@ int
 apic_directed_EOI_supported()
 {
 	uint32_t ver;
+
+	/*
+	 * There are some known issues with some versions of Linux KVM and QEMU
+	 * where by directed EOIs do not properly function and instead get
+	 * coalesced at the hypervisor, causing the host not to see interrupts.
+	 * Thus, when the platform is KVM, we disable it by default. If
+	 * apic_allow_kvm_directed_eoi is set to B_TRUE, then that will escape
+	 * this situation and allow them to be used.
+	 *
+	 * Note, at this time illumos KVM does not identify as KVM. If it does,
+	 * we'll need to do some work to determine if it should be caught by
+	 * this or if it should show up as its own value of platform_type.
+	 */
+	if (get_hwenv() == HW_KVM && apic_allow_kvm_directed_eoi == B_FALSE)
+		return (0);
 
 	ver = apic_reg_ops->apic_read(APIC_VERS_REG);
 	if (ver & APIC_DIRECTED_EOI_BIT)
