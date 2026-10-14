@@ -101,6 +101,8 @@ results or a failed operation; LOW = edge case or cosmetic behavior.
 | B8 | LOW | cmd/zfs/zfs_main.c:1285-1336 | OS-604 (954e970e290) | zfs destroy prints errors twice without -F |
 | B9 | LOW | cmd/cron/crontab.c:77-78,189; man1/crontab.1:67,77,92 | merge 82a64156a05 | usage/man advertise `-g` alone; code needs `-l` |
 | B10 | LOW | uts/common/fs/zfs/zfs_zone.c:1181-1184 | 4851e24d85b OS-6540 (2018) | no txg delay for a zone being torn down |
+| B11 | HIGH | uts/common/os/timer.c:622-627 | merge da28b8a59d9 (12789) | timer_setup leaks an itimer_t per call at timer_max (unprivileged) |
+| B12 | MED? | uts/common/os/pid.c:571-582 | fac1ecb479c vs upstream 17458 | sprunprlock() lacks 17458's SIGKILL runlwps() |
 | W1 | — | cmd/svc/milestone/net-early-admin:53-56 | merge 4822583a749 | live `XXX Until OS-8367` workaround |
 
 **B1. tmpfs xattr dir error path cleans up the parent.**  In
@@ -176,6 +178,28 @@ zpers_zfsp is NULL, where pre-OS-6540 code returned 10ms.  zpers_zfsp is
 only NULL after zone_shutdown frees it, so this affects writes from a
 dying zone only.  Probably harmless; listed for completeness.
 
+**B11. timer_setup() leaks itimer_t.**  When timer_get_id() fails
+(process already at timer_max, default MAX(4*NCPU, 32)), the path frees
+`sigq` but not `it` from kmem_cache_alloc(clock_timer_cache) at line
+618.  Upstream (BASE timer.c:679) frees both; joyent's pre-merge code
+used timer_alloc(), which freed it internally; merge da28b8a59d9
+(12789) took upstream's allocation without the free, and 3d070613ff2
+"fix mismerge" only renamed i to tid.  The other two error paths (682,
+694) are correct.  Any unprivileged process can create timer_max
+timers and then loop on timer_create() (native or lx) to leak kernel
+memory without bound.  Fix: add `kmem_cache_free(clock_timer_cache,
+it);` after mutex_exit (and `return (EAGAIN)`: callers set errno
+themselves).
+
+**B12. sprunprlock() vs upstream 17458.**  Joyent-only sprunprlock()
+(used by lx_pid.c:380, lx_ptrace.c:1273, lx_prsubr.c:275) releases
+P_PR_LOCK like sprunlock() but without the `SKILLED && p_tlist` ->
+runlwps(TS_XSTART|TS_PSTART) block upstream 17458 (82b7b979be1, 2025)
+added to sprunlock().  A SIGKILL posted while lx held P_PR_LOCK on a
+fully stopped process may then never be acted on (stuck process).
+Code difference VERIFIED; reachability through the lx paths NOT shown.
+Fix: share the SKILLED block via a helper used by both.
+
 **W1. varpd workaround.**  net-early-admin unconditionally runs
 `svcadm enable varpd` "XXX Until OS-8367 is sorted out".  No commit on
 master references OS-8367, so the workaround is live.  Check the ticket.
@@ -197,6 +221,24 @@ master references OS-8367, so the workaround is live.  Check the ticket.
 - DL_PROMISC_FIXUPS 0x05->0x07 (and DLS/MAC equivalents) renumbered to
   dodge new upstream values; consistent in-tree, an ABI change only for
   out-of-tree DLPI consumers.
+
+### Fix-mismerge commits (lead 5)
+
+77 joyent commits are labelled as mismerge fixes; 24 still own lines in
+the delta.  Reviewed so far (kernel core): f559d4b8282 restores the lx
+sys_int80/brand_sys_int80 entry points 12349 dropped (correct, needed);
+9408eb512c8 sizes the branded auxv for joyent's AT_SUN_BRAND_AUX4
+(correct, needed: exec fails if the count is off); 3d070613ff2 adapts
+timer.c to joyent's timer_setup() refactor (correct; B11 sits next to
+it).  685e6567cd5's elf_process_obj_scns() is a stale joyent-only
+two-loop variant of what upstream now has (14236, 15583); apart from B6
+it is equivalent (debug sections are written after, not before,
+CTF/symtab; dead `count > remain` code ~2030-2033).  Recommendation for
+the fix-up phase: take upstream's function and call site wholesale,
+which also removes B6.  Possible *upstream* issue, NOT verified:
+upstream timer_lwpexit/timer_lwpbind cache `p->p_itimer` across a
+p_lock drop while timer_get_id() may free/resize it; joyent re-reads
+the array each iteration and avoids it.
 
 ### Not reviewed
 
