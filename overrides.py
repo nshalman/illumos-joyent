@@ -133,7 +133,32 @@ test/util-tests/runfiles/default.run test/util-tests/tests/awk/tests/T.misc
 test/util-tests/tests/dis/distest.ksh
 '''),
 ('altexec', 'man/man1has/csh.1has'),
-('misc', 'uts/intel/pcbe/core_pcbe.c man/man8/reboot.8 man/man9f/bzero.9f'),
+# Split out of misc (Nahum, 2026-10-14).
+('sed', 'cmd/sed/main.c man/man1/sed.1'),
+('sysv-ipc', '''
+uts/common/os/ipc.c uts/common/os/shm.c uts/common/sys/ipc_impl.h
+uts/common/sys/shm.h uts/common/sys/shm_impl.h
+'''),
+('kernel-platform', '''
+uts/i86pc/os/cpr_impl.c uts/i86pc/os/ibft.c uts/i86pc/os/lgrpplat.c
+uts/intel/pcbe/core_pcbe.c uts/common/conf/param.c uts/common/sys/param.h
+'''),
+('sched', 'uts/common/disp/cmt.c uts/common/disp/disp.c'),
+('compiler-fixes', '''
+cmd/adbgen/common/adbsub.c lib/libc/inc/thr_inlines.h lib/libnisdb/db_mindex3.cc
+lib/libnisdb/db_table.cc lib/libnisdb/nis_db.cc cmd/vi/port/ex_cmdsub.c
+uts/sun4u/io/pci/pcisch.c
+'''),
+('nfs', 'cmd/fs.d/nfs/mount/mount.c cmd/fs.d/nfs/umount/umount.c cmd/fs.d/nfs/svc/nfs-server'),
+('man-fixes', '''
+man/man1/diff.1 man/man1/hostname.1 man/man3c/psignal.3c man/man4/swap.4
+man/man8/tunefs.8 man/man9f/ddi_fm_init.9f man/man9f/bzero.9f
+'''),
+('ctf', 'lib/libproc/common/Psymtab.c lib/libproc/common/Pcontrol.h'),
+('fm-topo', 'uts/intel/io/ipmi/ipmivars.h cmd/devfsadm/devlink.tab.sh'),
+('platform-config', 'cmd/halt/halt.c man/man8/reboot.8'),
+('ptools', 'uts/common/fs/proc/prcontrol.c'),
+('zone-kernel', 'uts/common/io/random.c'),
 ('bhyve', 'uts/intel/sys/vmm.h'),
 # parent Makefiles that wire in more than one feature
 ('integration', 'cmd/fs.d/Makefile'),

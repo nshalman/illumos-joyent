@@ -69,7 +69,9 @@ BUCKETS = [
     ('dtrace', 'DTrace enhancements', 'DTrace changes not upstream.'),
     ('mdb', 'mdb enhancements', 'mdb changes not upstream.'),
     ('rtld-sgs', 'rtld and sgs changes', 'Toxic libraries, PAX headers, branded symbol lookup.'),
-    ('ctf', 'CTF tooling differences', 'ctf conversion uses the native root.'),
+    ('ctf', 'CTF tooling differences',
+     'ctf conversion uses the native root; libproc can convert CTF on the '
+     'fly (OS-4573).'),
     ('fm-topo', 'FMA topology additions', 'Topology maps and modules for supported hardware.'),
     ('ptools', 'ptools and procfs enhancements',
      'Service FMRIs, process arguments via procfs, ps/pgrep/ptools additions.'),
@@ -94,6 +96,27 @@ BUCKETS = [
     ('lx', 'lx brand', 'The Linux-emulating lx brand: kernel, user-level '
      'emulation library, lx procfs/sysfs/cgroupfs/devfs, lxautofs, '
      'lx_netlink, and the lx test skip lists.'),
+    ('sed', 'sed: keep -i/-I with a required argument',
+     'Joyent reverted illumos 586 (sed -i optional argument, --in-place) '
+     'in 2011 and has kept the older behavior.'),
+    ('sysv-ipc', 'System V IPC: deferred shared memory removal',
+     'SHM_RMID marks a shared memory segment for removal at its last '
+     'detach instead of removing it immediately (OS-5223).'),
+    ('kernel-platform', 'kernel tunables and x86 platform tweaks',
+     'Larger default and maximum pid, CPR disabled for GCC builds, quieter '
+     'iBFT and lgroup boot messages, PCBE modules under the platform '
+     'directory.'),
+    ('sched', 'dispatcher: fewer thread migrations',
+     'Reduce thread migrations caused by pg_cmt_can_migrate() and by '
+     'high-priority threads (OS-2250, OS-2251).'),
+    ('compiler-fixes', 'compiler warning fixes in joyent-touched code',
+     'Small fixes for newer GCC and smatch.'),
+    ('nfs', 'NFS client and service tweaks',
+     'NFS mount transport selection (OS-2679) and nfs-server service '
+     'ordering (STOR-55).'),
+    ('man-fixes', 'manual page fixes and additions',
+     'Manual page corrections and additions not tied to a larger feature, '
+     'including swap(4).'),
     ('misc', 'miscellaneous fixes and enhancements',
      'Small changes that do not belong to a larger feature.'),
     ('copyright-residue', 'copyright and whitespace residue',
