@@ -98,9 +98,35 @@ BUCKETS = [
     ('hyprlofs', 'hyprlofs file system', 'Fast namespace virtual file system.'),
     ('tmpfs', 'tmpfs sizing and accounting', 'tmpfs size and accounting improvements.'),
     ('sdev', 'sdev: zvol and network device handling', '/dev plugin fixes.'),
-    ('zfs', 'ZFS changes', 'SmartOS ZFS changes not upstream, and test adjustments.'),
-    ('zfs-zone-io', 'ZFS zone I/O throttling and observability',
-     'Per-zone ZFS I/O throttling, plus vfsstat/ziostat/arcstat/zfscache.'),
+    ('zfs-arc', 'ZFS: zfs_arc_max tunable',
+     'Allow the ARC maximum to be specified (OS-8638).'),
+    ('zfs-props', 'ZFS: cached-only property listing and pool history',
+     '`zfs list/get -c` returning only cached properties (OS-1048, '
+     'OS-1104) through libzfs and zfs_ioctl, plus logging zpool modify '
+     'ioctls to the pool history (OS-7443).'),
+    ('zfs-cli', 'ZFS: zfs and zpool command changes',
+     '`zfs destroy -F` and clone creation retry on EBUSY (OS-604, OS-993), '
+     'and `zpool import -m` printing the last txg time (OS-6417).'),
+    ('zfs-zvol', 'ZFS: zvol kstats and probes',
+     'Per-zvol kstats and SDT probes for zvol_read/zvol_write (OS-525, '
+     'OS-530).'),
+    ('zfs-metaslab', 'ZFS: metaslab counters and condensing control',
+     'Metaslab load/unload counter kstats and a way to avoid condensing '
+     'metaslabs (OS-7646, OS-2711).'),
+    ('zfs-zio', 'ZFS: ZIO, ZIL and vdev_disk changes',
+     'Better handling of a dying SLOG (OS-5872), zil_commit latency '
+     '(OS-7917), the OS-2313 zil_close race fix (OS-6277), and vdev_disk '
+     'changes for pulled disks and ziostat (OS-1987, OS-393).'),
+    ('zfs', 'ZFS: other fixes',
+     'dbuf read behavior (OS-1792), abd chunk size guidance (OS-6387), a '
+     'zone reference leak on forced unmount (OS-1439), and a '
+     'zfs_write/zfs_putpage deadlock (OS-1811).'),
+    ('zfs-tests', 'ZFS test suite adjustments for SmartOS',
+     'zfstest scaffolding and test changes for running on SmartOS.'),
+    ('zfs-zone-io', 'ZFS: zone I/O throttling and observability',
+     'Per-zone ZFS I/O throttling and prioritization (zfs_zone.c and its '
+     'hooks in dmu_tx, dsl_dir, dsl_pool, txg and vdev_queue), plus '
+     'vfsstat, ziostat, arcstat and zfscache.'),
     ('dump-encryption', 'encrypted kernel crash dumps and arc4random',
      'Kernel crash dump encryption (OS-7828) and the chacha changes it uses.'),
     ('storage-drivers', 'drivers and storage support', 'Hardware driver changes.'),
@@ -156,9 +182,10 @@ BUCKETS = [
      'high-priority threads (OS-2250, OS-2251).'),
     ('compiler-fixes', 'compiler warning fixes in joyent-touched code',
      'Small fixes for newer GCC and smatch.'),
-    ('nfs', 'NFS client and service tweaks',
-     'NFS mount transport selection (OS-2679) and nfs-server service '
-     'ordering (STOR-55).'),
+    ('nfs', 'NFS client, server and sharing tweaks',
+     'NFS mount transport selection (OS-2679), nfs-server service '
+     'ordering (STOR-55), and NFS sharing from delegated datasets in '
+     'non-global zones (STOR-54).'),
     ('man-fixes', 'manual page fixes and additions',
      'Manual page corrections and additions not tied to a larger feature, '
      'including swap(4).'),

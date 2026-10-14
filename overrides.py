@@ -136,7 +136,7 @@ man/man3xnet/htonl.3xnet
 '''),
 ('zones-tools', 'lib/xml/os_dtd.c lib/xml/os_dtd.h'),
 ('boot', 'uts/common/io/tem_safe.c lib/libefi/common/crc32_efi.c lib/libefi/common/rdwr_efi.c cmd/fs.d/pcfs/mkfs/mkfs_main.c'),
-('zfs', 'lib/libbe/common/be_list.c lib/libgrubmgmt/common/libgrub_fs.c uts/common/sys/fs/zfs.h'),
+('zfs', 'lib/libbe/common/be_list.c lib/libgrubmgmt/common/libgrub_fs.c '),
 ('dump-encryption', 'lib/libc/port/gen/arc4random.c test/libc-tests/tests/random/chacha_tv.c'),
 ('bunyan', 'test/util-tests/tests/bunyan/btest.c test/util-tests/tests/bunyan/bunyan.ksh'),
 ('rtld-sgs', 'uts/common/sys/elf.h man/man1/ld.so.1.1'),
@@ -232,6 +232,64 @@ test/util-tests/tests/dladm/dynamic-methods.ksh
 uts/common/io/dld/dld_str.c uts/common/io/dld/dld_proto.c
 uts/common/io/dls/dls.c uts/common/io/dls/dls_link.c
 uts/common/sys/dld_impl.h uts/common/sys/dls.h
+'''),
+# ZFS: zfs_arc_max tunable (OS-8638).
+('zfs-arc', '''
+uts/common/fs/zfs/arc.c uts/common/fs/zfs/sys/arc.h uts/common/sys/fs/zfs.h
+'''),
+# ZFS: cached-only property listing (OS-1048) and pool history logging.
+('zfs-props', '''
+common/zfs/zfs_prop.c common/zfs/zfs_prop.h lib/libzfs/common/libzfs.h
+lib/libzfs/common/libzfs_dataset.c lib/libzfs/common/libzfs_impl.h
+lib/libzfs/common/libzfs_iter.c lib/libzfs/common/libzfs_util.c
+lib/libzfs/common/mapfile-vers uts/common/fs/zfs/zfs_ioctl.c
+'''),
+# ZFS: zfs and zpool command changes.
+('zfs-cli', '''
+cmd/zfs/zfs_main.c cmd/zpool/zpool_main.c lib/libzfs/common/libzfs_pool.c
+uts/common/fs/zfs/spa.c
+'''),
+# ZFS: zvol kstats and probes.
+('zfs-zvol', '''
+uts/common/fs/zfs/zvol.c
+'''),
+# ZFS: metaslab counters and condensing control.
+('zfs-metaslab', '''
+uts/common/fs/zfs/metaslab.c uts/common/fs/zfs/sys/metaslab_impl.h
+lib/libfakekernel/common/kstat.c lib/libfakekernel/common/mapfile-vers
+lib/libzpool/Makefile.com
+'''),
+# ZFS: ZIO, ZIL and vdev_disk changes.
+('zfs-zio', '''
+uts/common/fs/zfs/zio.c uts/common/fs/zfs/sys/zio.h uts/common/fs/zfs/zil.c
+uts/common/fs/zfs/vdev_disk.c
+'''),
+# ZFS zone I/O fairness hooks in generic ZFS files.
+('zfs-zone-io', '''
+uts/common/fs/zfs/dmu_tx.c uts/common/fs/zfs/dsl_dir.c
+uts/common/fs/zfs/dsl_pool.c uts/common/fs/zfs/txg.c
+uts/common/fs/zfs/vdev_queue.c uts/common/fs/zfs/sys/vdev_impl.h
+'''),
+# ZFS: remaining fixes.
+('zfs', '''
+uts/common/fs/zfs/dbuf.c uts/common/fs/zfs/abd.c
+uts/common/fs/zfs/zfs_vfsops.c uts/common/fs/zfs/zfs_vnops.c
+'''),
+# NFS sharing from delegated datasets in zones (STOR-54).
+('nfs', '''
+cmd/fs.d/nfs/lib/smfcfg.c cmd/fs.d/nfs/lib/smfcfg.h
+lib/libshare/nfs/libshare_nfs.c
+'''),
+# ZFS test suite adjustments for SmartOS.
+('zfs-tests', '''
+test/zfs-tests/cmd/scripts/zfstest.ksh test/zfs-tests/runfiles/common.run
+test/zfs-tests/tests/functional/cli_root/zfs_create/zfs_create_dryrun.ksh
+test/zfs-tests/tests/functional/nopwrite/nopwrite_sync.ksh
+test/zfs-tests/tests/functional/slog/slog.cfg
+'''),
+# inotify zfs-tests helpers (OS-8054).
+('inotify', '''
+test/zfs-tests/cmd/watch_dir/Makefile test/zfs-tests/include/commands.cfg
 '''),
 ]
 OVERRIDES = {}
