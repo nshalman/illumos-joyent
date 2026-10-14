@@ -104,6 +104,9 @@ results or a failed operation; LOW = edge case or cosmetic behavior.
 | B11 | HIGH | uts/common/os/timer.c:622-627 | merge da28b8a59d9 (12789) | timer_setup leaks an itimer_t per call at timer_max (unprivileged) |
 | B12 | MED? | uts/common/os/pid.c:571-582 | fac1ecb479c vs upstream 17458 | sprunprlock() lacks 17458's SIGKILL runlwps() |
 | B13 | LOW | cmd/mdb/common/modules/mdb_ks/mdb_ks.c:1900-1968 | OS-7201/OS-7979 (1cc6f4c0fcc) | ::status -v prints no build version for non-SmartOS buildversion |
+| B14 | LOW | cmd/nsadmin/Makefile:66,93,96 | d0ca2b08e18 OS-7685; 1cc6f4c0fcc | undefined ROOTETCBASH*DIR: dead `/%: %` rules, install works by accident |
+| B15 | LOW | uts/intel/os/driver_aliases | various | stale aliases vs upstream p5m (iwn pci vs pciex, others) |
+| B16 | LOW | /manifest | long-standing | svc-smbd not shipped; shipped smb/server.xml references it |
 | W1 | — | cmd/svc/milestone/net-early-admin:53-56 | merge 4822583a749 | live `XXX Until OS-8367` workaround |
 
 **B1. tmpfs xattr dir error path cleans up the parent.**  In
@@ -209,6 +212,31 @@ default (`BUILDVERSION_EXEC="git describe ..."`, tools/env/illumos.sh)
 gets nothing from ::status -v / kmdb.  Fix: fall back to the raw print
 (copy the string before strtok).
 
+**B14. nsadmin Makefile.**  Rules `$(ROOTETCBASHDIR)/%: %` (line 93,
+d0ca2b08e18 OS-7685) and `$(ROOTETCBASHCOMPLETIONDDIR)/%: %` (line 96,
+1cc6f4c0fcc) and the dir target at line 66 use variables that are never
+defined (the Makefile defines ETCBASHDIR / ETCBASHCOMPLETIONDDIR), so
+they collapse to `/%: %` / empty.  Install still works only because
+Makefile.cmd's generic `$(ROOTETC)/%: %` matches.  Fix: use the defined
+names.  (Also dead: bash_completion.d/machines and vms are in the tree
+but neither installed nor in the manifest.)
+
+**B15. driver_aliases drift.**  Joyent keeps its own 2,117-line table
+(upstream builds aliases from the p5m files).  VERIFIED: iwn has 30
+`pci8086,*` aliases where upstream's driver-network-iwn.p5m has 31
+`pciex8086,*`; PCIe devices bind by pciex names, so iwn likely never
+attaches on SmartOS.  Reported by agent, NOT individually verified:
+amr uses old subsystem-ID forms; joyent lacks upstream aliases qlc
+pci1077,2322, si3124 pci1095,3531, yge pciex1148,9e00, and 2 usbftdi;
+bge has 11 joyent-only aliases and cpqary3 IDs go to smrt (both likely
+deliberate).  Overall 228 joyent-only vs 221 p5m-only aliases: worth a
+systematic reconciliation.
+
+**B16. svc-smbd.**  usr/src/cmd/smbsrv/smbd/server.xml:127 (shipped)
+uses `/lib/svc/method/svc-smbd ipfilter` as its firewall method, but
+svc-smbd is not in /manifest (never has been).  Only matters for SMB
+server + ipfilter.  (Also never shipped: libzfsbootenv.)
+
 **W1. varpd workaround.**  net-early-admin unconditionally runs
 `svcadm enable varpd` "XXX Until OS-8367 is sorted out".  No commit on
 master references OS-8367, so the workaround is live.  Check the ticket.
@@ -256,6 +284,19 @@ node types; nothing outside fs/proc depends on them).  17297, 6342,
 8149, 12679/12693 and 14019 fixes are correct adaptations (linkprop.c
 differs from upstream only by line wrapping).  Cosmetic: vm_pageout.c
 274-276 indented 6 spaces instead of 5.
+Build/packaging: microcode manifest entries (535 paths) match upstream's
+system-microcode-{intel,amd}.p5m exactly (0 missing, 0 extra, all
+hardlink targets and modes match); libvarpd /lib move, cron CTF OBJS
+rename, libdladm TYPELIST, ixgbe X553 alias, inotify man pages and the
+tmpfs os-tests block are all correct.  Cleanup candidates: ptools
+ptree/pwdx link an unused ptools_common object; lint leftovers
+(LINTLIB, llib-l*, lint targets) in libzdoor, libbunyan, libresolv2_joy,
+libsmartsshd, libvnd, lx_vdso; lx_vdso passes its mapfile twice
+(MAPOPTS plus DYNFLAGS); cron could perhaps use CTF_MODE=link instead
+of renaming POBJS.  Method note: the SmartOS builder fails on a missing
+`f` entry, so stale file entries cannot hide in a passing build; the
+silent failure mode is the reverse (built but not listed, so not
+shipped).
 Possible *upstream* issue, NOT verified:
 upstream timer_lwpexit/timer_lwpbind cache `p->p_itimer` across a
 p_lock drop while timer_get_id() may free/resize it; joyent re-reads
