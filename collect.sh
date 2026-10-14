@@ -59,6 +59,9 @@ for l in sys.stdin:
         print(h + "\t" + who.strip())
 ' > "$DATA/contrib.tsv"
 
+# Author credit for removed lines, which blame cannot see.
+"$HERE/deletions.py"
+
 "$HERE/copyright_only.py" > "$DATA/copyright_only.txt"
 
 echo "base $BASE, $(wc -l < "$DATA/delta.txt") paths," \

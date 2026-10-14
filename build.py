@@ -95,6 +95,19 @@ def load_mailmap():
 MAILMAP = load_mailmap()
 
 
+def load_deletions():
+    out = {}
+    d = C.DATA + '/deletions'
+    if os.path.isdir(d):
+        for fn in os.listdir(d):
+            c = collections.Counter()
+            for l in open(os.path.join(d, fn)):
+                n, h = l.split()
+                c[h] += int(n)
+            out[fn.replace('%', '/')] = c
+    return out
+
+
 def load_contrib():
     out = collections.defaultdict(list)
     fn = C.DATA + '/contrib.tsv'
@@ -112,8 +125,10 @@ def messages():
     missing = set(assign.values()) - set(names)
     assert not missing, 'buckets.py lacks: %s' % sorted(missing)
 
-    # blame at commit granularity, to credit authors
+    # blame at commit granularity, to credit authors, plus credit for
+    # removed lines (deletions.py), which blame cannot see
     raw = C.load_raw_blame()
+    dele = load_deletions()
     by_sha = {}
     for l in open(C.DATA + '/commits.tsv'):
         h, p, d, a, s = l.rstrip('\n').split('\t', 4)
@@ -144,6 +159,9 @@ def messages():
                     authors[people.canonical(a)] += n
                 for w in contrib.get(h, []):
                     authors[people.canonical(w)] += n
+            for h, n in dele.get(f, {}).items():
+                if h in by_sha and not by_sha[h][1]:
+                    authors[people.canonical(by_sha[h][0])] += n
         tickets.pop('MERGE', None)
         feats, fixes, other = [], [], 0
         for t in sorted(tickets, key=lambda t: (-tickets[t], t)):
@@ -177,8 +195,8 @@ def messages():
             msg.append('')
         nd = sum(1 for f in files if status[f] == 'D')
         msg += wrap('%d files (%d removed).  Tickets are those whose lines '
-                    'survive in these files; changes that only delete '
-                    'lines are not attributed.' % (len(files), nd))
+                    'survive in these files.  Co-authors also include the '
+                    'authors of removed lines.' % (len(files), nd))
         if authors:
             msg.append('')
             for a, _ in authors.most_common():
