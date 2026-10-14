@@ -1,0 +1,6 @@
+# git-mailmap format: "Proper Name <proper@email> <commit@email>".
+# Applied when crediting co-authors.  Only add entries backed by evidence.
+#
+# The "Portions contributed by" line in their own commits reads
+# "Carlos Neira (Neirac) <cneira@edgecast.io>".
+Carlos Neira <cneira@edgecast.io> <cneira@edgecast.io>

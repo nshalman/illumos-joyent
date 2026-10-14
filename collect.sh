@@ -46,6 +46,19 @@ git log --format='%H%x09%P%x09%ad%x09%an <%ae>%x09%s' --date=short "$BASE..$JOYE
 awk -F'\t' '$1 != "D" { print $2 }' "$DATA/delta.txt" |
     xargs -P 10 -I{} "$HERE/blame-file.sh" {}
 
+# "Portions contributed by:" credits from commit messages (sometimes the
+# whole message is on the subject line, so match anywhere).
+git log --format='@@%H%n%B' "$BASE..$JOYENT" | python3 -c '
+import re, sys
+h = None
+for l in sys.stdin:
+    if l.startswith("@@"):
+        h = l[2:].strip()
+        continue
+    for who in re.findall(r"[Pp]ortions [Cc]ontributed [Bb]y:\s*([^<>]+<[^<>]+>)", l):
+        print(h + "\t" + who.strip())
+' > "$DATA/contrib.tsv"
+
 "$HERE/copyright_only.py" > "$DATA/copyright_only.txt"
 
 echo "base $BASE, $(wc -l < "$DATA/delta.txt") paths," \
