@@ -86,6 +86,70 @@ PGRPSYS_* constants (values checked identical).
    checked against source.  (Cosmetic: lx_socket.c:1216 ORs
    `f_getfd()|FD_CLOEXEC` into f_setfd_or, redundant.)
 
+### ZFS/VM (13 files) and kernel/boot/tools (17 files): no mismerges
+Merge-written lines correctly adapt joyent code to upstream changes
+(zfs mount_and_share / snapshot batching, txg_delay in ns, vdev_queue
+AVL, max_bonuslen, 13097 pageout rework, vm_usage uio_seg, VN_RELE_LOCKED,
+14890 dboot EFI memmap, 15583 core-file sizing, ucontext uc_filler,
+16700 eventfd wakeups, handle-based ctf_convert, FD_CLOFORK in truss).
+
+Bugs found in ordinary joyent commits along the way, each checked
+against source in master (all joyent-only code; upstream lacks it):
+
+10. **tmpfs xattr dir error path frees the wrong node (VERIFIED, real).**
+    `tmp_vnops.c` tmp_lookup(), ~line 924 (08280dbb7d3, OS-5539 era):
+    on `tdirinit()` failure (ENOSPC at the size limit) it does
+    `v_flag &= V_XATTRDIR` (should be `&= ~V_XATTRDIR`) and then
+    `tmpnode_cleanup(tp)` on the *parent* instead of `xdp`: zeroes the
+    parent's link count, truncates it if it is a directory, drops a hold
+    the caller owns, and leaks xdp.  Triggerable by creating an xattr
+    dir on a full size-limited tmpfs.  Most serious finding so far.
+11. **zfs_ioctl.c operator precedence (VERIFIED).**  ~lines 2221 and
+    2433: `(error = get_nvlist(...) != 0)` assigns 1 (EPERM) instead of
+    the real error (e4c080eef3a, OS-1048 cached props).
+12. **Core-file .debug_* output loop off by one (VERIFIED, low).**
+    `elf.c` ~line 2129 `off = 0;` with the loop starting at i = 1, so it
+    reads header i-1 and never the last header; the counting loop at
+    ~1963 correctly starts at `e_shentsize` (685e6567cd5).
+13. **Pconvert_file_ctf always returns NULL (VERIFIED, low).**
+    `Psymtab.c` ~line 801 returns NULL even after setting
+    `fptr->file_ctfp`, so the first Pbuild_file_ctf call fails
+    (092a4fbb8cf).
+14. Reported by review agents, NOT yet verified by me:
+    - zfs_zone_txg_delay() returns 0 (no wait) for zones without
+      zpers_zfsp, where upstream waits 10ms (4851e24d85b, OS-6540).
+    - vm_usage.c: VMUSAGE_A_ZONE stripped from flags but not flags_orig
+      for non-global callers, so req_zone_id is used uninitialized
+      (2f904f0710c); no cross-zone leak.
+    - zfs destroy without -F prints errors twice (OS-604).
+    - dboot_add_memlist drops upstream's `type == t` merge guard; only
+      matters for unsorted firmware maps.
+14b. **fm ipmi IPv6 route enumeration (VERIFIED).**  `ipmi_enum.c` ~837:
+    `inet_ntop(..., ipv6_routes[i], sizeof (ipv6_routes[i]))` passes
+    sizeof(char *) == 8 for an INET6_ADDRSTRLEN buffer, so any IPv6
+    route longer than 7 chars fails with ENOSPC and aborts the whole
+    service-processor node enumeration (4a99ae16188, joyent-only code).
+    Fix: INET6_ADDRSTRLEN.
+
+### datalink/zones/misc (28 files): no mismerges
+Includes the flag renumbering joyent did to dodge new upstream values
+(DL_PROMISC_FIXUPS 0x05 -> 0x07 etc.; in-tree consistent, an ABI change
+for any out-of-tree DLPI user), zonecfg token renumbering (checked
+index-for-index), and smartos-test header-tests switch (a correct fix
+made inside merge eab31c4851f).  Not yet verified by me:
+- net-early-admin:53-56 unconditional `svcadm enable varpd`, marked
+  "XXX Until OS-8367 is sorted out", added in merge 4822583a749.
+  Is OS-8367 resolved?
+- crontab usage string advertises `-g` alone, code requires `-l`
+  (merge 82a64156a05).
+- zcons.c:62 merge capitalized "Zcons driver" (cosmetic).
+
+15. Cosmetic leftovers (not worth a commit of their own): vm_pageout.c
+    comment lost its first line in e995d04dc2a; stray blank lines and
+    dropped braces in libzfs_iter.c; space indentation in zpool_main.c;
+    stale /*ARGSUSED*/ and wrong __unused in eventfd.c; exit.c comments
+    with tabs instead of double spaces (a13af751641).
+
 ## Questions for Nahum
 
 - `jerry <jerry@opensolaris.(none)>` authored joyent commits in
