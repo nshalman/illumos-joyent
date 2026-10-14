@@ -84,19 +84,14 @@ head/regexp.h cmd/truss/codes.c cmd/truss/print.c cmd/truss/systable.c
 cmd/prstat/prstat.c cmd/prstat/prstat.h man/man8/prstat.8
 '''),
 ('zone-kernel', '''
-uts/common/os/zone.c uts/common/sys/zone.h head/zone.h uts/common/syscall/sysconfig.c
-uts/common/vm/page.h uts/i86pc/vm/hment.c uts/i86pc/os/startup.c uts/sfmmu/vm/hat_sfmmu.c
-uts/common/vm/vm_usage.c uts/common/sys/vm_usage.h uts/common/os/vm_pageout.c uts/common/sys/vm.h
-uts/common/vm/vm_page.c uts/common/os/kstat_fr.c uts/common/sys/resource.h
-uts/common/syscall/rusagesys.c uts/i86pc/sys/vm_machparam.h uts/common/vm/hat.h
-uts/i86pc/vm/hat_i86.c uts/common/sys/buf.h uts/common/sys/mman.h uts/common/syscall/memcntl.c
-uts/common/vm/seg_vn.c uts/common/vm/vm_pvn.c uts/common/vm/vm_as.c
-uts/common/os/policy.c uts/common/sys/policy.h uts/common/os/priv_defs man/man7/privileges.7
-uts/common/disp/fx.c uts/common/sys/fx.h uts/common/disp/rt.c uts/common/sys/rt.h uts/common/disp/rt_dptbl.c
+uts/common/os/zone.c uts/common/sys/zone.h head/zone.h
+uts/common/sys/vm.h
+uts/common/sys/resource.h
+uts/common/syscall/rusagesys.c
 uts/common/contract/process.c uts/common/sys/contract/process.h
-uts/common/os/cred.c uts/common/sys/cred.h uts/common/io/ksyms.c uts/common/io/mem.c uts/common/io/physmem.c
+uts/common/os/cred.c uts/common/sys/cred.h
 uts/common/fs/nfs/nfs3_vfsops.c uts/common/fs/nfs/nfs4_vfsops.c uts/common/fs/nfs/nfs_vfsops.c
-cmd/prtconf/prtconf.c man/man7/resource_controls.7
+man/man7/resource_controls.7
 '''),
 ('inotify', '''
 uts/common/fs/fem.c uts/common/os/sched.c uts/common/disp/thread.c uts/intel/ml/swtch.S
@@ -185,7 +180,6 @@ man/man8/tunefs.8 man/man9f/ddi_fm_init.9f man/man9f/bzero.9f
 ('fm-topo', 'uts/intel/io/ipmi/ipmivars.h cmd/devfsadm/devlink.tab.sh'),
 ('platform-config', 'cmd/halt/halt.c man/man8/reboot.8'),
 ('ptools', 'uts/common/fs/proc/prcontrol.c'),
-('zone-kernel', 'uts/common/io/random.c'),
 ('bhyve', 'uts/intel/sys/vmm.h'),
 # parent Makefiles that wire in more than one feature
 ('integration', 'cmd/fs.d/Makefile'),
@@ -199,6 +193,29 @@ uts/intel/mac_ib/Makefile uts/intel/mac_wifi/Makefile
 ('openssl-sunw', '''
 cmd/cmd-inet/usr.lib/wpad/Makefile cmd/sendmail/src/Makefile
 lib/krb5/plugins/preauth/pkinit/Makefile.com lib/libkmf/plugins/kmf_openssl/Makefile.com
+'''),
+# Zone memory: caps, accurate RSS, page invalidation, vm_usage, rcapd.
+('zone-memory', '''
+uts/common/os/vm_pageout.c uts/common/sys/buf.h uts/common/sys/mman.h
+uts/common/syscall/memcntl.c uts/common/syscall/sysconfig.c
+uts/common/vm/hat.h uts/common/vm/page.h uts/common/vm/seg_vn.c
+uts/common/vm/vm_as.c uts/common/vm/vm_page.c uts/common/vm/vm_pvn.c
+uts/common/vm/vm_usage.c uts/common/sys/vm_usage.h uts/i86pc/os/startup.c
+uts/i86pc/sys/vm_machparam.h uts/i86pc/vm/hat_i86.c uts/i86pc/vm/hment.c
+uts/sfmmu/vm/hat_sfmmu.c uts/common/os/kstat_fr.c
+'''),
+# Zone CPU: caps with bursting, FX/RT high-priority zones.
+('zone-cpu', '''
+uts/common/disp/cpucaps.c uts/common/sys/cpucaps.h
+uts/common/sys/cpucaps_impl.h cmd/prtconf/prtconf.c uts/common/disp/fx.c
+uts/common/sys/fx.h uts/common/disp/rt.c uts/common/sys/rt.h
+uts/common/disp/rt_dptbl.c
+'''),
+# Zone privileges and restricted kernel memory access.
+('zone-security', '''
+uts/common/os/policy.c uts/common/sys/policy.h uts/common/os/priv_defs
+man/man7/privileges.7 uts/common/io/ksyms.c uts/common/io/mem.c
+uts/common/io/physmem.c uts/common/io/random.c
 '''),
 ]
 OVERRIDES = {}

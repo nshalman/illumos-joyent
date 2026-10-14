@@ -37,12 +37,22 @@ BUCKETS = [
     ('brand-native', 'native userland inside branded zones',
      'Native-root aware libc, libcurses and system(3C); truss decoding of '
      'lx-related calls; prstat changes.'),
-    ('zone-kernel', 'zones: kernel zone extensions and resource management',
-     'zone.c/zone.h extensions and per-zone resource management: physical '
-     'memory caps and accurate RSS tracking, in-kernel page invalidation, '
-     'vm_getusage improvements, CPU caps with bursting, FX/RT high-priority '
-     'zones, zone-aware privileges, restricting kmem/physmem access from '
-     'zones, and rcapd/rcapstat.'),
+    ('zone-kernel', 'zones: kernel zone core',
+     'zone.c/zone.h extensions: persistent zone IDs, init exit status and '
+     'restart control, zone datalink restrictions, VFS and ZFS I/O kstats, '
+     'sysevents, contract handling, zone_did for DTrace, and the resource '
+     'control documentation.'),
+    ('zone-memory', 'zones: memory caps, RSS tracking and page invalidation',
+     'Physical memory caps as an rctl with kstats, accurate in-kernel zone '
+     'RSS, in-kernel page invalidation for capped zones, vm_getusage '
+     'performance, per-process segment limits, and rcapd/rcapstat.'),
+    ('zone-cpu', 'zones: CPU caps with bursting and high-priority zones',
+     'CPU caps that allow bursting, with kstats to track it, and FX/RT '
+     'high-priority zone configuration.'),
+    ('zone-security', 'zones: privileges and kernel memory access',
+     'New privileges (hyprlofs, zfs receive), kmem/physmem/ksyms access '
+     'disabled from non-global zones, and a hardened random pool for '
+     'zones.'),
     ('zones-tools', 'zones: zoneadm, zoneadmd, zonecfg and libzonecfg extensions',
      'Userland zone management changes for SmartOS: additional zonecfg '
      'properties, zoneadmd logging and console handling, persistent zone '
