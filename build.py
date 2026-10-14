@@ -142,6 +142,27 @@ def messages():
         subj.setdefault(t, s.split(' Reviewed by')[0].strip())
 
     status = dict((f, st) for st, f in delta)
+    titles = dict((n, t) for n, t, _ in BUCKETS)
+
+    # Each ticket's home: the commit holding most of its surviving lines
+    # outside the shared buckets.  Used to explain the shared files.
+    home = collections.defaultdict(collections.Counter)
+    shared = collections.Counter()
+    for f, b in assign.items():
+        for t, n in blame[f].items():
+            if b in SHARED:
+                shared[t] += n
+            else:
+                home[t][b] += n
+    # A ticket has a home only if one commit holds at least 60% of its
+    # non-shared lines (sweeps fail this, as in classify.py's vote) and
+    # at least as many lines as the shared files do (a ticket that is
+    # mostly manifest edits is listed by name, not under a stray file).
+    home = dict((t, c.most_common(1)[0][0]) for t, c in home.items()
+                if t != 'MERGE' and
+                c.most_common(1)[0][1] >= 0.6 * sum(c.values()) and
+                c.most_common(1)[0][1] >= shared[t])
+
     out = []
     for b, title, body in BUCKETS:
         files = sorted(f for f, x in assign.items() if x == b)
@@ -187,6 +208,8 @@ def messages():
             msg.append('')
         if other:
             msg += wrap('Plus %d commits without a ticket ID.' % other) + ['']
+        if b == 'integration':
+            msg += by_feature(files, blame, home, titles, subj) + ['']
         notes = [FILE_NOTES[f] for f in files if f in FILE_NOTES]
         if notes:
             msg.append('Notes:')
@@ -204,6 +227,60 @@ def messages():
                     msg.append('Co-authored-by: ' + a)
         out.append((b, files, '\n'.join(msg) + '\n'))
     return out, status
+
+
+# Buckets whose files are shared by many features.  They never count as
+# a ticket's home; integration's message gets a per-feature breakdown.
+SHARED = ('integration', 'copyright-residue', 'misc')
+
+
+def by_feature(files, blame, home, titles, subj, per=6, ntix=10):
+    """Group the files' added lines by the home commit of their ticket;
+    lines from tickets with no single home are listed per ticket."""
+    g = collections.defaultdict(collections.Counter)
+    for f in files:
+        for t, n in blame[f].items():
+            if t in home:
+                key = ('bucket', home[t])
+            elif t == 'MERGE':
+                key = ('merge', None)
+            else:
+                key = ('ticket', t)
+            g[key][f] += n
+
+    def files_line(c):
+        items = ['%s +%d' % (f.replace('usr/src/', ''), n)
+                 for f, n in c.most_common(per)]
+        if len(c) > per:
+            items.append('and %d more files' % (len(c) - per))
+        return ['    ' + l for l in wrap(', '.join(items), 68)]
+
+    size = lambda k: sum(g[k].values())
+    lines = wrap('Changes by feature: lines added here, grouped by the commit '
+                 'that holds the rest of the ticket that wrote them.')
+    for k in sorted((k for k in g if k[0] == 'bucket'), key=lambda k: -size(k)):
+        lines.append('  %s (+%d):' % (titles.get(k[1], k[1]), size(k)))
+        lines += files_line(g[k])
+    tix = sorted((k for k in g if k[0] == 'ticket'), key=lambda k: -size(k))
+    if tix:
+        lines.append('')
+        lines += wrap('Tickets that span many commits (sweeps) or have no '
+                      'other home:')
+        for k in tix[:ntix]:
+            lines += ['  ' + l for l in wrap('%s (+%d)' % (
+                subj.get(k[1], k[1])[:80], size(k)), 70)]
+            lines += files_line(g[k])
+        rest = tix[ntix:]
+        if rest:
+            n = sum(size(k) for k in rest)
+            lines += ['  ' + l for l in wrap('%d more tickets (+%d): %s' % (
+                len(rest), n, ', '.join(k[1] for k in rest)), 70)]
+    if ('merge', None) in g:
+        lines.append('')
+        lines.append('  Written during merge conflict resolution (+%d):'
+                     % size(('merge', None)))
+        lines += files_line(g[('merge', None)])
+    return lines
 
 
 def ticket_key(t):
