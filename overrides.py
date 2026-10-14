@@ -1,5 +1,6 @@
 # Hand-assigned buckets for files the path rules in classify.py do not
 # cover (mostly generic kernel and libc files touched by several features).
+# B is a list, not a dict, so a bucket may appear more than once.
 # Each file was placed by looking at which tickets wrote its '+' lines
 # (see report_tickets.py).  Paths are relative to usr/src/.
 #
@@ -11,8 +12,8 @@
 #                zone privileges, kmem access restrictions
 #  inotify       file event monitoring: fem, vnode events, portfs, and the
 #                per-filesystem event emission inotify relies on
-B = {
-'brand-kernel': '''
+B = [
+('brand-kernel', '''
 uts/common/brand/sn1/sn1_brand.c uts/common/brand/sn1/sn1_brand.h
 uts/common/brand/solaris10/s10_brand.c uts/common/brand/solaris10/s10_brand.h
 uts/common/os/brand.c uts/common/sys/brand.h uts/intel/sys/machbrand.h uts/common/syscall/brandsys.c
@@ -55,8 +56,8 @@ head/regexp.h cmd/truss/codes.c cmd/truss/print.c cmd/truss/systable.c
 cmd/fs.d/nfs/lib/nfs_sec.c cmd/fs.d/nfs/lockd/lockd.c cmd/fs.d/mount.c
 cmd/cmd-inet/sbin/dhcpagent/defaults.c lib/libdhcpagent/common/dhcpagent_util.c
 cmd/cmd-inet/etc/sock2path.d/system%2Fkernel cmd/prstat/prstat.c cmd/prstat/prstat.h man/man8/prstat.8
-''',
-'zone-kernel': '''
+'''),
+('zone-kernel', '''
 uts/common/os/zone.c uts/common/sys/zone.h head/zone.h uts/common/syscall/sysconfig.c
 uts/common/vm/page.h uts/i86pc/vm/hment.c uts/i86pc/os/startup.c uts/sfmmu/vm/hat_sfmmu.c
 uts/common/vm/vm_usage.c uts/common/sys/vm_usage.h uts/common/os/vm_pageout.c uts/common/sys/vm.h
@@ -70,8 +71,8 @@ uts/common/contract/process.c uts/common/sys/contract/process.h
 uts/common/os/cred.c uts/common/sys/cred.h uts/common/io/ksyms.c uts/common/io/mem.c uts/common/io/physmem.c
 uts/common/fs/nfs/nfs3_vfsops.c uts/common/fs/nfs/nfs4_vfsops.c uts/common/fs/nfs/nfs_vfsops.c
 cmd/prtconf/prtconf.c man/man7/resource_controls.7
-''',
-'inotify': '''
+'''),
+('inotify', '''
 uts/common/fs/fem.c uts/common/os/sched.c uts/common/disp/thread.c uts/intel/ml/swtch.S
 uts/common/fs/vnode.c uts/common/sys/vnode.h uts/common/fs/portfs/port_fop.c
 uts/common/fs/nfs/nfs3_vnops.c uts/common/fs/nfs/nfs4_vnops.c uts/common/fs/nfs/nfs_vnops.c
@@ -79,8 +80,8 @@ uts/common/fs/pcfs/pc_vnops.c uts/common/fs/pcfs/pc_dir.c uts/common/fs/udfs/udf
 uts/common/fs/udfs/udf_dir.c uts/common/fs/ufs/ufs_vnops.c
 test/zfs-tests/cmd/watch_dir/watch_dir.c
 test/zfs-tests/tests/functional/cli_root/zfs_mount/zfs_mount_watched_portfs.ksh
-''',
-'datalink': '''
+'''),
+('datalink', '''
 uts/common/inet/ip.h uts/common/inet/ip/ip.c uts/common/inet/ip/ip_if.c uts/common/io/mac/mac_protect.c
 uts/common/sys/mac_flow.h uts/common/sys/mac_client_priv.h uts/common/io/mac/mac_client.c
 uts/common/sys/mac_client_impl.h uts/common/io/mac/mac.c uts/common/io/mac/mac_stat.c uts/common/sys/mac_client.h
@@ -88,68 +89,68 @@ common/net/dhcp/octet.c cmd/ibd_upgrade/ibd_delete_link.c
 test/util-tests/tests/dladm/allowed-cids.ksh test/util-tests/tests/dladm/allowed-ips.ksh
 test/util-tests/tests/dladm/common.ksh test/util-tests/tests/dladm/dynamic-methods.ksh
 test/util-tests/tests/dladm/vnic-mtu.ksh
-''',
-'vnd': '''
+'''),
+('vnd', '''
 uts/common/inet/squeue.c uts/common/sys/squeue.h uts/common/sys/squeue_impl.h
 uts/common/inet/ip/ip_squeue.c uts/common/sys/neti.h uts/common/sys/netstack.h uts/common/sys/dlpi.h
 uts/common/io/ksocket/ksocket.c lib/libdlpi/common/libdlpi.c lib/libdlpi/common/libdlpi.h
 lib/libdlpi/common/libdlpi_impl.h man/man3dlpi/dlpi_open.3dlpi cmd/cmd-inet/usr.sbin/snoop/snoop.c
 cmd/cmd-inet/usr.sbin/snoop/snoop_capture.c man/man8/snoop.8 uts/common/io/rsm/rsm.c
 test/os-tests/tests/OS-6097.c
-''',
-'overlay-svp': '''
+'''),
+('overlay-svp', '''
 cmd/cmd-inet/usr.sbin/snoop/snoop.h cmd/cmd-inet/usr.sbin/snoop/snoop_rport.c
 cmd/cmd-inet/usr.sbin/snoop/snoop_svp.c
-''',
-'icmp-bpf': '''
+'''),
+('icmp-bpf', '''
 uts/common/inet/ip/icmp.c uts/common/inet/ip/icmp_opt_data.c uts/common/inet/rawip_impl.h
 uts/common/inet/sockmods/sockmod_pfp.c
-''',
-'datafilt': '''
+'''),
+('datafilt', '''
 uts/common/fs/sockfs/sockfilter.c uts/common/fs/sockfs/sockfilter_impl.h uts/common/sys/socketvar.h
 uts/common/sys/sockfilter.h uts/common/fs/sockfs/sockcommon_sops.c
-''',
-'zfd': 'cmd/devfsadm/misc_link.c uts/common/io/pseudo.conf',
-'net-misc': '''
+'''),
+('zfd', 'cmd/devfsadm/misc_link.c uts/common/io/pseudo.conf'),
+('net-misc', '''
 cmd/cmd-inet/usr.sbin/arp.c cmd/cmd-inet/usr.sbin/ndp.c cmd/cmd-inet/usr.sbin/route.c man/man8/route.8
 cmd/cmd-inet/sbin/dhcpagent/request.c uts/common/inet/ipd/ipd.c uts/common/sys/ipd.h
 man/man3xnet/htonl.3xnet
-''',
-'zones-tools': 'lib/xml/os_dtd.c lib/xml/os_dtd.h',
-'boot': 'uts/common/io/tem_safe.c lib/libefi/common/crc32_efi.c lib/libefi/common/rdwr_efi.c cmd/fs.d/pcfs/mkfs/mkfs_main.c',
-'zfs': 'lib/libbe/common/be_list.c lib/libgrubmgmt/common/libgrub_fs.c uts/common/sys/fs/zfs.h',
-'dump-encryption': 'lib/libc/port/gen/arc4random.c test/libc-tests/tests/random/chacha_tv.c',
-'bunyan': 'test/util-tests/tests/bunyan/btest.c test/util-tests/tests/bunyan/bunyan.ksh',
-'rtld-sgs': 'uts/common/sys/elf.h man/man1/ld.so.1.1',
-'platform-config': '''
+'''),
+('zones-tools', 'lib/xml/os_dtd.c lib/xml/os_dtd.h'),
+('boot', 'uts/common/io/tem_safe.c lib/libefi/common/crc32_efi.c lib/libefi/common/rdwr_efi.c cmd/fs.d/pcfs/mkfs/mkfs_main.c'),
+('zfs', 'lib/libbe/common/be_list.c lib/libgrubmgmt/common/libgrub_fs.c uts/common/sys/fs/zfs.h'),
+('dump-encryption', 'lib/libc/port/gen/arc4random.c test/libc-tests/tests/random/chacha_tv.c'),
+('bunyan', 'test/util-tests/tests/bunyan/btest.c test/util-tests/tests/bunyan/bunyan.ksh'),
+('rtld-sgs', 'uts/common/sys/elf.h man/man1/ld.so.1.1'),
+('platform-config', '''
 cmd/auditd/auditd.xml cmd/cmd-crypto/etc/pkcs11.conf cmd/cmd-inet/etc/services cmd/coreadm/coreadm.xml
 cmd/dispadmin/dispadmin.conf cmd/localedef/UTF-8.x cmd/cmd-inet/usr.sbin/routeadm/routeadm.c
-''',
-'smartos-test': '''
+'''),
+('smartos-test', '''
 test/os-tests/tests/secflags/secflags_zonecfg.sh test/util-tests/tests/grep_xpg4/grep_test.ksh
 test/test-runner/cmd/run test/libc-tests/runfiles/default.run test/os-tests/runfiles/default.run
 test/util-tests/runfiles/default.run test/util-tests/tests/awk/tests/T.misc
 test/util-tests/tests/dis/distest.ksh
-''',
-'altexec': 'man/man1has/csh.1has',
-'misc': 'uts/intel/pcbe/core_pcbe.c man/man8/reboot.8 man/man9f/bzero.9f',
-'bhyve': 'uts/intel/sys/vmm.h',
+'''),
+('altexec', 'man/man1has/csh.1has'),
+('misc', 'uts/intel/pcbe/core_pcbe.c man/man8/reboot.8 man/man9f/bzero.9f'),
+('bhyve', 'uts/intel/sys/vmm.h'),
 # parent Makefiles that wire in more than one feature
-'integration': 'cmd/fs.d/Makefile',
+('integration', 'cmd/fs.d/Makefile'),
 # OS-5549 moved bpf_filter into ip; these drop the io/bpf include path
-'icmp-bpf': '''
+('icmp-bpf', '''
 uts/intel/bpf/Makefile uts/intel/dld/Makefile uts/intel/dls/Makefile uts/intel/icmp/Makefile
 uts/intel/iptun/Makefile uts/intel/mac/Makefile uts/intel/mac_ether/Makefile
 uts/intel/mac_ib/Makefile uts/intel/mac_wifi/Makefile
-''',
+'''),
 # consumers of the platform OpenSSL link the sunw_-prefixed libraries
-'openssl-sunw': '''
+('openssl-sunw', '''
 cmd/cmd-inet/usr.lib/wpad/Makefile cmd/sendmail/src/Makefile
 lib/krb5/plugins/preauth/pkinit/Makefile.com lib/libkmf/plugins/kmf_openssl/Makefile.com
-''',
-}
+'''),
+]
 OVERRIDES = {}
-for _b, _s in B.items():
+for _b, _s in B:
     for _p in _s.split():
         _k = 'usr/src/' + _p
         assert _k not in OVERRIDES, 'duplicate override: ' + _k
