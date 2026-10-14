@@ -1,53 +1,102 @@
 # illumos-joyent restructure
 
-Tooling to re-express illumos-joyent `master` as a series of curated,
-ticket-annotated commits on top of the illumos-gate commit it last merged,
-such that the resulting tree is identical to `master`.
+Tooling that re-expresses illumos-joyent `master` as a series of
+curated, ticket-annotated commits on top of the illumos-gate commit it
+last merged, such that the resulting tree is identical to `master`.
 
 Each commit carries the *final* state of a group of files (a "bucket"),
-not the history that produced it.  Whole files go to exactly one bucket.
-Shared hub files that many features touch (`manifest`, top-level and
-kernel Makefiles, package manifests, exception lists, driver tables) land
+not the history that produced it.  Every changed path goes to exactly
+one bucket.  Files shared by many features (`manifest`, top-level and
+kernel Makefiles, package manifests, exception lists, driver tables) go
 in a final `integration` commit.
+
+What the analysis has found (bugs, divergences, cleanup candidates,
+decisions) is in `FINDINGS.md`.
 
 ## Running
 
-    ./collect.sh            # ~30s; writes data/ (not committed)
-    ./classify.py           # bucket summary; writes data/assign.json
-    ./report.py ...         # see `./report.py help`
+    ./collect.sh                          # ~45s; writes data/ (not committed)
+    ./classify.py                         # bucket summary; writes data/assign.json
+    ./build.py --messages data/messages   # preview the commit messages
+    ./build.py --branch joyent-restructure
+
+`build.py --branch` recreates the branch at BASE in the illumos clone,
+commits one bucket at a time, checks that the final tree equals
+`JOYENT`, and returns the clone to the branch it was on.  The clone's
+working tree must be clean.
 
 Environment: `ILLUMOS` (clone path, default `~/Workspace/illumos`),
 `JOYENT` (ref, default `master`), `BASE` (default: upstream parent of the
 newest `[illumos-gate merge]` on `JOYENT`).
 
+After the next upstream merge into `master`, rerun all of the above and
+review what moved with `./classify.py` and `./report.py files`.
+
+## Files
+
+| File | Role |
+|------|------|
+| `collect.sh` | Gathers the delta, commit list, attribution and residue list into `data/` |
+| `blame-file.sh` | Per-file diff-restricted blame (called by `collect.sh`) |
+| `deletions.py` | Credits commits for lines they removed that are still gone (called by `collect.sh`) |
+| `copyright_only.py` | Lists files that differ from upstream only in copyright/comment noise (called by `collect.sh`) |
+| `classify.py` | Assigns every delta path to a bucket |
+| `overrides.py` | Hand placement for files the path rules don't cover |
+| `buckets.py` | Commit order, subjects and descriptions; `FILE_NOTES` for undocumented divergences |
+| `mailmap` | Identity fixes for co-author credit (git-mailmap format) |
+| `build.py` | Writes commit messages and builds the branch |
+| `report.py` | Reports over the classification (`./report.py help`) |
+| `merge_lines.py` | Shows a file's lines written during merge resolution, or by one commit |
+
 ## How files are placed
 
-1. **Path rules** (`RULES` in `classify.py`), first match wins.
-2. **Added hub files** (a new Makefile/mapfile/manifest in a feature's
-   own directory) follow their feature rather than `integration`.
-3. **Overrides** (`overrides.py`): hand placement for generic files that
-   several features touch, decided from `./report.py why <path>`.
-4. **Ticket vote** for anything left: each ticket learns the bucket where
-   most of its path-placed lines live (sweep tickets that spread across
-   buckets stay neutral), and a file goes where its lines' tickets point.
-   If the biggest share belongs to an unplaced ticket the file goes to
-   `misc` for review instead.
+In order of precedence (see the header of `classify.py`):
 
-## Attribution: why diff-restricted blame
+1. **Copyright residue.**  Files whose diff is only copyright lines,
+   blank comment lines or whitespace go to `copyright-residue`.
+2. **Overrides** (`overrides.py`): hand placement for generic files that
+   several features touch, decided with `./report.py why <path>`.
+3. **Path rules** (`RULES` in `classify.py`), first match wins.
+4. **Hub files.**  A Makefile, mapfile or package manifest that lives in
+   one feature's directory follows that feature rather than
+   `integration`; hubs shared between features stay in `integration`.
+5. **Ticket vote** for anything left: each ticket learns the bucket
+   where most of its path-placed lines live (sweep tickets spread across
+   buckets stay neutral), and a file goes where its lines' tickets
+   point.  If the biggest share belongs to an unplaced ticket, the file
+   goes to `misc`.
+
+## Commit messages
+
+Each commit message has the bucket's description, its feature tickets
+with subjects, the IDs of fix tickets, any `FILE_NOTES`, and a
+`Co-authored-by` trailer for everyone whose surviving or removed lines
+are in the commit.  The `integration` message also groups its changes
+by the feature commit each ticket belongs to.  Commits are authored by
+Claude and committed by whoever runs the build.
+
+Co-author identities are collapsed when they share a name or an email,
+credited under the newest one, then corrected by `mailmap`.  Bot
+identities (`BOTS` in `build.py`) are not credited.
+
+## Attribution
 
 `collect.sh` blames `BASE..JOYENT` but counts only lines that are `+`
-relative to `BASE`.  Plain blame over-credits joyent: on a merge, blame
+relative to BASE.  Plain blame over-credits joyent: on a merge, blame
 tries the first (joyent) parent first, so a line identical in both
-parents is credited to the joyent commit.  Example: KPTI (OS-6547) was
-upstreamed, yet plain blame credits it with ~1,800 lines; restricted to
-real differences it is ~22.
+parents is credited to the joyent commit.  For example, KPTI (OS-6547)
+was upstreamed, yet plain blame credits it with ~1,800 lines; restricted
+to real differences it is ~22.
 
-Two by-products are bug leads (see `FINDINGS.md`):
+Blame cannot see removed lines, so `deletions.py` matches each joyent
+commit's removed lines against the lines still missing from `JOYENT`.
+It uses `git log --full-history`, because path-limited log otherwise
+prunes joyent commits on merged side branches.  The match is by text,
+so it over-counts repeated removals; it is used only for author credit.
+
+Two by-products of attribution are bug leads (see `FINDINGS.md`):
 
 - `+` lines blamed to `BOUNDARY` are lines joyent carries from an
-  *older* upstream version: possible stale merges.
+  *older* upstream version (`./report.py boundary`).
 - `+` lines blamed to merge commits were written during conflict
-  resolution: possible mismerges.
-
-Deleted lines are not attributed (blame cannot see them); files whose
-delta is only deletions show up with no tickets.
+  resolution (`./report.py merge-lines`, `./merge_lines.py <path>`).
