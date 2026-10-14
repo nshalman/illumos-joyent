@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""merge_lines.py PATH [CONTEXT]
+"""merge_lines.py PATH [CONTEXT] [--commit SHA]
 
 Print the lines of PATH (as of JOYENT) that differ from BASE and were
 written in a merge commit (i.e. during conflict resolution), with CONTEXT
-lines around each run (default 5).  Each line is prefixed with its line
+lines around each run (default 5).  With --commit, show instead the
+lines that SHA (any prefix) wrote.  Each line is prefixed with its line
 number and the short sha of the commit blame credits ('^' for upstream).
 """
 import os
@@ -27,8 +28,14 @@ def git(*a):
 
 
 def main():
-    path = sys.argv[1]
-    ctx = int(sys.argv[2]) if len(sys.argv) > 2 else 5
+    args = sys.argv[1:]
+    want = None
+    if '--commit' in args:
+        i = args.index('--commit')
+        want = args[i + 1]
+        del args[i:i + 2]
+    path = args[0]
+    ctx = int(args[1]) if len(args) > 1 else 5
     plus = set()
     for l in git('diff', '--no-ext-diff', '-U0', refs['BASE'], refs['JOYENT'],
                  '--', path).splitlines():
@@ -47,7 +54,12 @@ def main():
             sha = '^' + sha[:10]
         elif l.startswith('\t'):
             rows.append((ln, sha, l[1:]))
-    hot = [i for i, (ln, s, _) in enumerate(rows) if ln in plus and s in merges]
+    if want:
+        hot = [i for i, (ln, s, _) in enumerate(rows)
+               if ln in plus and s.startswith(want)]
+    else:
+        hot = [i for i, (ln, s, _) in enumerate(rows)
+               if ln in plus and s in merges]
     show = set()
     for i in hot:
         show.update(range(max(0, i - ctx), min(len(rows), i + ctx + 1)))
@@ -59,8 +71,9 @@ def main():
         mark = 'M' if i in hot else ('+' if ln in plus else ' ')
         print('%5d %s %-11s %s' % (ln, mark, s[:11], t))
         last = i
-    print('# %d merge-written lines; M = written in a merge, + = other joyent '
-          'change, blank = same as upstream' % len(hot))
+    print('# %d %s lines; M = %s, + = other joyent change, blank = same as '
+          'upstream' % (len(hot), 'selected' if want else 'merge-written',
+          'written by ' + want if want else 'written in a merge'))
 
 
 if __name__ == '__main__':
