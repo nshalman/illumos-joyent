@@ -51,7 +51,7 @@ Nothing here has been fixed; these are leads for review.
    before BASE.  Nearly all are upstream content joyent moved or copied
    (bpf_filter.c 551, brand XMLs copied from ipkg).  The useful signal
    is a file whose joyent diff has *no* joyent commit behind it, which
-   is how the sed revert (6) was found.  `./report.py boundary`.
+   is how the sed revert (lead 6) was found.  `./report.py boundary`.
 5. Several joyent commits are labelled "fix mismerge" of upstream
    tickets and still own lines that differ from upstream (13925 elf.c,
    12349 syscall_asm_amd64.S, 13097 vm_pageout.c, 11909 pid.c, 12789
@@ -79,86 +79,145 @@ Nothing here has been fixed; these are leads for review.
    shrink the delta by 60 files with no functional change.  List:
    `data/copyright_only.txt`.
 
-## Mismerge review results
+## Bugs
 
-### lx (12 files): no bugs, 1 suspect
-All merge-written lx lines adapt correctly to upstream 16624 FD_CLOFORK
-(4-arg kernel fcntl, f_setfd_or), 17689 posix_spawn (exec_common
-UIO_USERSPACE), 18213 (stdio.h includes), 7882 /dev/full, and the
-PGRPSYS_* constants (values checked identical).
+Every entry was checked by reading the code on master (da512a7e2e6);
+"origin" is the commit that introduced it (found with git log/blame).
+None exist upstream unless stated.  Nothing has been fixed: the branch is
+byte-identical to master by design.  Line numbers are as of master.
 
-9. **lx F_SETFD leaks FD_CLOFORK (VERIFIED, low).**
-   `lx_fcntl.c:301` does `fcntl(fd, F_SETFD, arg, 0)` with the Linux arg
-   unmasked.  Since 16624, `f_setfd_int` (`fio.c:1591`) honors
-   `FD_CLOEXEC | FD_CLOFORK` (FD_CLOFORK == 2), so a Linux program
-   passing bit 0x2 gets close-on-fork; Linux ignores all bits but
-   FD_CLOEXEC.  Fix: pass `arg & FD_CLOEXEC`.  Found by review agent,
-   checked against source.  (Cosmetic: lx_socket.c:1216 ORs
-   `f_getfd()|FD_CLOEXEC` into f_setfd_or, redundant.)
+Severity: HIGH = data corruption or a security boundary; MED = wrong
+results or a failed operation; LOW = edge case or cosmetic behavior.
 
-### ZFS/VM (13 files) and kernel/boot/tools (17 files): no mismerges
-Merge-written lines correctly adapt joyent code to upstream changes
-(zfs mount_and_share / snapshot batching, txg_delay in ns, vdev_queue
-AVL, max_bonuslen, 13097 pageout rework, vm_usage uio_seg, VN_RELE_LOCKED,
-14890 dboot EFI memmap, 15583 core-file sizing, ucontext uc_filler,
-16700 eventfd wakeups, handle-based ctf_convert, FD_CLOFORK in truss).
+| ID | Sev | Where | Origin | Summary |
+|----|-----|-------|--------|---------|
+| B1 | HIGH | uts/common/fs/tmpfs/tmp_vnops.c:924-925 | 08280dbb7d3 OS-5539 (2016) | xattr-dir error path cleans up the parent node |
+| B2 | MED? | uts/common/vm/vm_usage.c:2057-2059,2072-2083,1948-1950 | 2f904f0710c OS-750 (2012) | uninitialized req_zone_id; plausible cross-zone disclosure |
+| B3 | MED | lib/fm/topo/modules/common/ipmi/ipmi_enum.c:837-838 | 4a99ae16188 OS-6527 (2017) | inet_ntop given sizeof(char *) |
+| B4 | MED | uts/common/fs/zfs/zfs_ioctl.c:2221-2223, 2433-2435 | e4c080eef3a OS-1048 (2012) | `(error = get_nvlist(...) != 0)` precedence |
+| B5 | LOW | uts/common/brand/lx/syscall/lx_fcntl.c:302 | merge 28a6b3a036f (2024) | Linux F_SETFD can set FD_CLOFORK |
+| B6 | LOW | uts/common/exec/elf/elf.c:2129 | 685e6567cd5 13925 fix-mismerge (2021) | .debug_* output loop off by one |
+| B7 | LOW | lib/libproc/common/Psymtab.c:801 | 092a4fbb8cf OS-4573 (2015) | Pconvert_file_ctf always returns NULL |
+| B8 | LOW | cmd/zfs/zfs_main.c:1285-1336 | OS-604 (954e970e290) | zfs destroy prints errors twice without -F |
+| B9 | LOW | cmd/cron/crontab.c:77-78,189; man1/crontab.1:67,77,92 | merge 82a64156a05 | usage/man advertise `-g` alone; code needs `-l` |
+| B10 | LOW | uts/common/fs/zfs/zfs_zone.c:1181-1184 | 4851e24d85b OS-6540 (2018) | no txg delay for a zone being torn down |
+| W1 | — | cmd/svc/milestone/net-early-admin:53-56 | merge 4822583a749 | live `XXX Until OS-8367` workaround |
 
-Bugs found in ordinary joyent commits along the way, each checked
-against source in master (all joyent-only code; upstream lacks it):
+**B1. tmpfs xattr dir error path cleans up the parent.**  In
+tmp_lookup(), when `tdirinit(tp, xdp)` fails (ENOSPC on a size-limited
+tmpfs) the code does `xdp->tn_vnode->v_flag &= V_XATTRDIR;` (meant
+`&= ~V_XATTRDIR`) and `tmpnode_cleanup(tp);` where `tp` is the *parent*
+file/dir, not the new `xdp`.  That zeroes the parent's link count,
+truncates it if it is a directory, releases a hold its caller still
+owns, and leaks xdp.  Trigger: open an xattr directory (e.g. runat,
+openat O_XATTR) on a file in a full tmpfs with a size limit.
+tmp_dir.c:1160-1161 does the equivalent cleanup correctly on the new
+node.  Likely fix: `&= ~V_XATTRDIR; tmpnode_cleanup(xdp);` (hold/lock
+state of xdp at that point not yet checked).
 
-10. **tmpfs xattr dir error path frees the wrong node (VERIFIED, real).**
-    `tmp_vnops.c` tmp_lookup(), ~line 924 (08280dbb7d3, OS-5539 era):
-    on `tdirinit()` failure (ENOSPC at the size limit) it does
-    `v_flag &= V_XATTRDIR` (should be `&= ~V_XATTRDIR`) and then
-    `tmpnode_cleanup(tp)` on the *parent* instead of `xdp`: zeroes the
-    parent's link count, truncates it if it is a directory, drops a hold
-    the caller owns, and leaks xdp.  Triggerable by creating an xattr
-    dir on a full size-limited tmpfs.  Most serious finding so far.
-11. **zfs_ioctl.c operator precedence (VERIFIED).**  ~lines 2221 and
-    2433: `(error = get_nvlist(...) != 0)` assigns 1 (EPERM) instead of
-    the real error (e4c080eef3a, OS-1048 cached props).
-12. **Core-file .debug_* output loop off by one (VERIFIED, low).**
-    `elf.c` ~line 2129 `off = 0;` with the loop starting at i = 1, so it
-    reads header i-1 and never the last header; the counting loop at
-    ~1963 correctly starts at `e_shentsize` (685e6567cd5).
-13. **Pconvert_file_ctf always returns NULL (VERIFIED, low).**
-    `Psymtab.c` ~line 801 returns NULL even after setting
-    `fptr->file_ctfp`, so the first Pbuild_file_ctf call fails
-    (092a4fbb8cf).
-14. Reported by review agents, NOT yet verified by me:
-    - zfs_zone_txg_delay() returns 0 (no wait) for zones without
-      zpers_zfsp, where upstream waits 10ms (4851e24d85b, OS-6540).
-    - vm_usage.c: VMUSAGE_A_ZONE stripped from flags but not flags_orig
-      for non-global callers, so req_zone_id is used uninitialized
-      (2f904f0710c); no cross-zone leak.
-    - zfs destroy without -F prints errors twice (OS-604).
-    - dboot_add_memlist drops upstream's `type == t` merge guard; only
-      matters for unsorted firmware maps.
-14b. **fm ipmi IPv6 route enumeration (VERIFIED).**  `ipmi_enum.c` ~837:
-    `inet_ntop(..., ipv6_routes[i], sizeof (ipv6_routes[i]))` passes
-    sizeof(char *) == 8 for an INET6_ADDRSTRLEN buffer, so any IPv6
-    route longer than 7 chars fails with ENOSPC and aborts the whole
-    service-processor node enumeration (4a99ae16188, joyent-only code).
-    Fix: INET6_ADDRSTRLEN.
+**B2. vm_getusage VMUSAGE_A_ZONE from a non-global zone.**  For an NGZ
+caller, `flags` has VMUSAGE_A_ZONE replaced by VMUSAGE_ZONE, but
+`flags_orig` (passed to vmu_copyout_results) keeps it, while
+`req_zone_id` is only assigned when `flags` has A_ZONE, so it is used
+uninitialized.  In vmu_copyout_results, VMUSAGE_ZONE results are then
+filtered only by `vmu_zoneid != req_zone_id`, with no check against the
+caller's zone.  The result cache is shared: if a global-zone caller
+recently computed ALL_ZONES, an NGZ request (flags=ZONE) is satisfied
+from that cache, so whether the NGZ sees nothing, its own zone, or
+*another zone's* memory usage depends on stack garbage.  The disclosure
+is plausible from reading the code but NOT demonstrated; the review
+agent thought there was no leak and missed the shared cache.  Fix:
+strip A_ZONE from flags_orig too (or initialize req_zone_id to the
+caller's zone).
 
-### datalink/zones/misc (28 files): no mismerges
-Includes the flag renumbering joyent did to dodge new upstream values
-(DL_PROMISC_FIXUPS 0x05 -> 0x07 etc.; in-tree consistent, an ABI change
-for any out-of-tree DLPI user), zonecfg token renumbering (checked
-index-for-index), and smartos-test header-tests switch (a correct fix
-made inside merge eab31c4851f).  Not yet verified by me:
-- net-early-admin:53-56 unconditional `svcadm enable varpd`, marked
-  "XXX Until OS-8367 is sorted out", added in merge 4822583a749.
-  Is OS-8367 resolved?
-- crontab usage string advertises `-g` alone, code requires `-l`
-  (merge 82a64156a05).
-- zcons.c:62 merge capitalized "Zcons driver" (cosmetic).
+**B3. fm ipmi IPv6 routes.**  `inet_ntop(AF_INET6, ...,
+ipv6_routes[i], sizeof (ipv6_routes[i]))` passes 8 (a `char *`) for an
+INET6_ADDRSTRLEN buffer, so any route longer than 7 characters fails
+with ENOSPC and the whole service-processor node enumeration aborts.
+Fix: `INET6_ADDRSTRLEN`.
 
-15. Cosmetic leftovers (not worth a commit of their own): vm_pageout.c
-    comment lost its first line in e995d04dc2a; stray blank lines and
-    dropped braces in libzfs_iter.c; space indentation in zpool_main.c;
-    stale /*ARGSUSED*/ and wrong __unused in eventfd.c; exit.c comments
-    with tabs instead of double spaces (a13af751641).
+**B4. zfs_ioctl get_nvlist precedence.**  `(error = get_nvlist(...) !=
+0)` assigns the comparison, so callers get 1 (EPERM) instead of the real
+error.  Two sites, both from the cached-props work.
+
+**B5. lx F_SETFD.**  `fcntl(fd, F_SETFD, arg, 0)` passes the Linux
+argument unmasked.  Since upstream 16624, f_setfd_int (os/fio.c:1591)
+honors `FD_CLOEXEC | FD_CLOFORK` (FD_CLOFORK == 2), so a Linux program
+setting bit 0x2 gets close-on-fork, which Linux would ignore.  Fix:
+`arg & FD_CLOEXEC`.  Related, harmless on its own: lx_ioctl.c:1838
+FIOCLEX/FIONCLEX use f_setfd_error (assign), which would clear a
+FD_CLOFORK set via B5.  Cosmetic: lx_socket.c:1215-1216 ORs
+`f_getfd()|FD_CLOEXEC` into f_setfd_or, redundant.
+
+**B6. Core-file .debug_* output.**  Joyent restructured upstream 13925's
+single-loop debug-section handling into separate count and output loops.
+The count loop starts at `off = ehdr.e_shentsize` (line 1963); the
+output loop sets `off = 0` with `i = 1`, so it reads header i-1 and
+never the last header.  A .debug_* section in the last slot is counted
+but not written.  Fix: `off = ehdr.e_shentsize;`.
+
+**B7. libproc on-the-fly CTF.**  Pconvert_file_ctf sets
+`fptr->file_ctfp` then `return (NULL)`, so the first Pbuild_file_ctf
+call reports no CTF; later calls work.  Fix: `return (fp);`.  Also, if
+ctf_convert_init fails, file_cvt is never set and conversion is retried
+on every call.
+
+**B8. zfs destroy double error.**  libzfs print_on_error is on unless
+`-F`, and destroy_callback also prints libzfs_error_action/description,
+so failures print twice.
+
+**B9. crontab -g usage.**  The merge with upstream 13066 (crontab -u)
+renders joyent's `-g` as `{ -e | -g | -l | -r }`, in the usage string
+and crontab.1, but line 189 rejects `-g` without `-l`.  Pre-merge usage
+was `crontab -l [-g] [username]`.
+
+**B10. zfs_zone_txg_delay.**  Returns 0 (no delay) when the zone's
+zpers_zfsp is NULL, where pre-OS-6540 code returned 10ms.  zpers_zfsp is
+only NULL after zone_shutdown frees it, so this affects writes from a
+dying zone only.  Probably harmless; listed for completeness.
+
+**W1. varpd workaround.**  net-early-admin unconditionally runs
+`svcadm enable varpd` "XXX Until OS-8367 is sorted out".  No commit on
+master references OS-8367, so the workaround is live.  Check the ticket.
+
+### Reviewed and not bugs
+
+- All ~70 files with merge-written lines (four review agents, see
+  README for method): every merge resolution is a correct adaptation to
+  an upstream API change.  Notables: FD_CLOFORK (4-arg fcntl,
+  f_setfd_or), 17689 posix_spawn (fork.c took upstream's spawn path
+  intact plus joyent's GETPROC_ZSCHED and lwp_ctmpl_clear arg), zfs
+  mount_and_share / snapshot batching, txg_delay in ns, vdev_queue AVL,
+  13097 pageout, dboot EFI memmap (14890), core-file sizing (15583),
+  ucontext uc_filler alias, eventfd wakeups (16700), handle-based
+  ctf_convert, zonecfg token renumbering (checked index-for-index).
+- dboot_add_memlist drops upstream's `size != 0 && type == t` merge
+  guard: joyent selects the list by type first, so only adjacent
+  reserved ranges of different reserved types merge; harmless.
+- DL_PROMISC_FIXUPS 0x05->0x07 (and DLS/MAC equivalents) renumbered to
+  dodge new upstream values; consistent in-tree, an ABI change only for
+  out-of-tree DLPI consumers.
+
+### Not reviewed
+
+- posix_spawn (17689) for branded processes: fork.c calls
+  b_forklwp for the spawn LWP, but whether lx needs more (e.g. its own
+  spawn emulation) was not examined.
+- The upstream 18213 stdio.h fallout may affect other lx userland files;
+  only a build shows that.
+- Deliberate divergence in large diffs (libzonecfg.c, ip_fil_solaris.c,
+  net-physical) was only reviewed next to merge-written lines.
+
+### Cosmetic leftovers (all confirmed)
+
+vm_pageout.c:1364 comment lost its first line ("If scanning because the
+system is low on memory,") in e995d04dc2a; libzfs_iter.c:129-131
+dropped braces and :156-158 double blank lines; zpool_main.c:2836 space
+indentation; eventfd.c:239 stale `/*ARGSUSED*/` and :272 `__unused` on
+used args; exit.c four comments with tabs for double spaces
+(a13af751641); zcons.c:62 "Zcons driver" capitalized in merge
+f3389cfd79d; cron.h:79 stale "anything below here can be changed"
+comment that upstream 3206 removed.
 
 ## Questions for Nahum
 
