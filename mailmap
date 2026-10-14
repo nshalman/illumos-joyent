@@ -15,10 +15,10 @@ Jerry Jelinek <jerry.jelinek@joyent.com> <jerry@bh1-build.(none)>
 # commit email is kept.
 Ulyssa Mello <cody.mello@joyent.com>
 #
-# Name update requested by Nahum (2026-10-14).  Both of her commit
-# emails are listed so either identity maps.
-Lexi Wilson <alex@cooperi.net>
-Lexi Wilson <alex.wilson@joyent.com>
+# Name update requested by Nahum (2026-10-14).  Her current identity is
+# from her own 2026-07-09 commit in illumos-gate (seen via OmniOS).
+Lexi Wilson <lexi@cooperi.net> <alex@cooperi.net>
+Lexi Wilson <lexi@cooperi.net> <alex.wilson@joyent.com>
 #
 # Another 2010-2011 build-host placeholder; confirmed by Nahum
 # (2026-10-14).
