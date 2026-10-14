@@ -10,3 +10,7 @@ Carlos Neira <cneira@edgecast.io> <cneira@edgecast.io>
 # by Nahum 2026-10-14.
 Jerry Jelinek <jerry.jelinek@joyent.com> <jerry@opensolaris.(none)>
 Jerry Jelinek <jerry.jelinek@joyent.com> <jerry@bh1-build.(none)>
+#
+# Name update requested by Nahum (2026-10-14).  Name-only form: the
+# commit email is kept.
+Ulyssa Mello <cody.mello@joyent.com>

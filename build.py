@@ -84,6 +84,11 @@ def load_mailmap():
         r = re.match(r'(.+?<[^>]+>)\s*<([^>]+)>$', l)
         if r:
             m[r.group(2).lower()] = r.group(1)
+            continue
+        # name-only form: "Proper Name <commit@email>" keeps the email
+        r = re.match(r'(.+?)\s*<([^>]+)>$', l)
+        if r:
+            m[r.group(2).lower()] = '%s <%s>' % (r.group(1), r.group(2))
     return m
 
 
