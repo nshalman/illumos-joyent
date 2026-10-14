@@ -225,7 +225,8 @@ def messages():
             for a, _ in authors.most_common():
                 if People.split(a)[1].lower() not in BOTS:
                     msg.append('Co-authored-by: ' + a)
-        out.append((b, files, '\n'.join(msg) + '\n'))
+        # git strips trailing whitespace from messages; match it
+        out.append((b, files, '\n'.join(l.rstrip() for l in msg) + '\n'))
     return out, status
 
 
