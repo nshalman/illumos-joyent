@@ -103,6 +103,7 @@ results or a failed operation; LOW = edge case or cosmetic behavior.
 | B10 | LOW | uts/common/fs/zfs/zfs_zone.c:1181-1184 | 4851e24d85b OS-6540 (2018) | no txg delay for a zone being torn down |
 | B11 | HIGH | uts/common/os/timer.c:622-627 | merge da28b8a59d9 (12789) | timer_setup leaks an itimer_t per call at timer_max (unprivileged) |
 | B12 | MED? | uts/common/os/pid.c:571-582 | fac1ecb479c vs upstream 17458 | sprunprlock() lacks 17458's SIGKILL runlwps() |
+| B13 | LOW | cmd/mdb/common/modules/mdb_ks/mdb_ks.c:1900-1968 | OS-7201/OS-7979 (1cc6f4c0fcc) | ::status -v prints no build version for non-SmartOS buildversion |
 | W1 | — | cmd/svc/milestone/net-early-admin:53-56 | merge 4822583a749 | live `XXX Until OS-8367` workaround |
 
 **B1. tmpfs xattr dir error path cleans up the parent.**  In
@@ -200,6 +201,14 @@ fully stopped process may then never be acted on (stuck process).
 Code difference VERIFIED; reachability through the lx paths NOT shown.
 Fix: share the SKILLED block via a helper used by both.
 
+**B13. mdb build version.**  Joyent replaced upstream 11626's raw
+`build version: %s` print with a parser for smartos-live's
+build_etcrelease JSON, printing git branch/rev only for a
+`"repo": "illumos-joyent"` entry.  A plain nightly using the in-tree
+default (`BUILDVERSION_EXEC="git describe ..."`, tools/env/illumos.sh)
+gets nothing from ::status -v / kmdb.  Fix: fall back to the raw print
+(copy the string before strtok).
+
 **W1. varpd workaround.**  net-early-admin unconditionally runs
 `svcadm enable varpd` "XXX Until OS-8367 is sorted out".  No commit on
 master references OS-8367, so the workaround is live.  Check the ticket.
@@ -235,7 +244,19 @@ two-loop variant of what upstream now has (14236, 15583); apart from B6
 it is equivalent (debug sections are written after, not before,
 CTF/symtab; dead `count > remain` code ~2030-2033).  Recommendation for
 the fix-up phase: take upstream's function and call site wholesale,
-which also removes B6.  Possible *upstream* issue, NOT verified:
+which also removes B6.  Filesystems/tools: no functional bugs.  b573326a8ab (zil.c, OS-6277
+restoring OS-2313) is now redundant: upstream 8585's zl_dirty_max_txg
+already makes zil_close wait for the dirty txg; joyent's extra
+`txg_wait_synced(dp, 0)` is stricter (up to ~2 extra txg syncs on
+closing a dirty zil) but harmless; cleanup candidate, revert to
+upstream.  vm_pageout.c zone-cap scanning is a consistent port of
+OS-6355/OS-6484 onto 13097.  OS-8389 procfs PR_ARGV/PR_CMDLINE
+numbering checked end to end across all four prvnops tables (joyent-only
+node types; nothing outside fs/proc depends on them).  17297, 6342,
+8149, 12679/12693 and 14019 fixes are correct adaptations (linkprop.c
+differs from upstream only by line wrapping).  Cosmetic: vm_pageout.c
+274-276 indented 6 spaces instead of 5.
+Possible *upstream* issue, NOT verified:
 upstream timer_lwpexit/timer_lwpbind cache `p->p_itimer` across a
 p_lock drop while timer_get_id() may free/resize it; joyent re-reads
 the array each iteration and avoids it.
