@@ -267,6 +267,9 @@ def main():
     a = ap.parse_args()
     if a.messages:
         os.makedirs(a.messages, exist_ok=True)
+        for old in os.listdir(a.messages):
+            if old.endswith('.txt'):
+                os.unlink(os.path.join(a.messages, old))
         out, _ = messages()
         for i, (b, files, msg) in enumerate(out):
             with open('%s/%02d-%s.txt' % (a.messages, i, b), 'w') as f:
