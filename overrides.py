@@ -4,58 +4,84 @@
 # Each file was placed by looking at which tickets wrote its '+' lines
 # (see report_tickets.py).  Paths are relative to usr/src/.
 #
-#  brand-kernel  generic kernel/libc hooks whose changes are predominantly
-#                for lx: brand ops, exec/signal/lwp, Linux-flavored
-#                syscall semantics (epoll, eventfd, timers, fifos, sockets)
+#  brand-*       generic kernel/libc hooks whose changes are predominantly
+#                for lx, split by subsystem: brand ops, exec, process and
+#                signals, poll/events/timers, sockets, fs syscalls, lx NFS,
+#                x86 context/trap, native-root userland
 #  zone-kernel   zone.c/zone.h and zone resource management: memory caps,
 #                RSS tracking, vm_usage, page invalidation, FX/RT priority,
 #                zone privileges, kmem access restrictions
 #  inotify       file event monitoring: fem, vnode events, portfs, and the
 #                per-filesystem event emission inotify relies on
 B = [
-('brand-kernel', '''
+# brand-kernel split by subsystem (Nahum, 2026-10-14).  These are the
+# generic kernel/libc files whose changes are predominantly for lx.
+('brand-ops', '''
+uts/common/os/brand.c uts/common/sys/brand.h uts/intel/sys/machbrand.h
+uts/common/syscall/brandsys.c
 uts/common/brand/sn1/sn1_brand.c uts/common/brand/sn1/sn1_brand.h
 uts/common/brand/solaris10/s10_brand.c uts/common/brand/solaris10/s10_brand.h
-uts/common/os/brand.c uts/common/sys/brand.h uts/intel/sys/machbrand.h uts/common/syscall/brandsys.c
+'''),
+('brand-exec', '''
 uts/common/exec/elf/elf.c uts/common/exec/elf/elf_notes.c uts/common/exec/intp/intp.c
-uts/common/exec/java/java.c uts/common/exec/shbin/shbin.c
-uts/common/os/exec.c uts/common/sys/exec.h uts/common/os/exit.c uts/common/os/fork.c
-uts/common/os/lwp.c uts/common/sys/klwp.h uts/common/os/sig.c uts/common/sys/thread.h
-uts/common/sys/proc.h uts/common/os/grow.c uts/common/os/mmapobj.c uts/common/sys/auxv.h
-uts/common/os/pid.c uts/common/os/contract.c uts/common/os/acct.c uts/common/sys/acct.h
-uts/common/os/core.c uts/common/fs/vfs.c uts/common/os/main.c uts/common/os/timer.c
-uts/common/sys/timer.h uts/common/syscall/poll.c uts/common/sys/poll_impl.h
-uts/common/io/eventfd.c uts/common/sys/eventfd.h uts/common/io/signalfd.c
-uts/common/fs/fifofs/fifosubr.c uts/common/fs/fifofs/fifovnops.c uts/common/sys/fs/fifonode.h
-uts/common/syscall/chdir.c uts/common/syscall/fcntl.c uts/common/syscall/open.c
-uts/common/syscall/stat.c uts/common/syscall/umount.c uts/common/syscall/uadmin.c uts/common/sys/uadmin.h
-uts/common/sys/uio.h uts/common/fs/sockfs/sockcommon_subr.c uts/common/fs/sockfs/socksubr.c
-uts/common/fs/sockfs/socktpi_impl.h uts/common/sys/socket.h
+uts/common/exec/java/java.c uts/common/exec/shbin/shbin.c uts/common/os/exec.c
+uts/common/sys/exec.h uts/common/sys/auxv.h uts/common/os/mmapobj.c
+uts/common/os/core.c uts/common/fs/vfs.c lib/libc/port/gen/getauxv.c
+'''),
+('brand-process', '''
+uts/common/os/exit.c uts/common/os/fork.c uts/common/os/lwp.c uts/common/sys/klwp.h
+uts/common/os/sig.c uts/common/sys/thread.h uts/common/sys/proc.h uts/common/os/pid.c
+uts/common/os/contract.c uts/common/os/acct.c uts/common/sys/acct.h uts/common/os/main.c
+uts/common/sys/signal.h uts/common/sys/iso/signal_iso.h uts/common/sys/user.h
+uts/common/sys/procfs.h uts/common/disp/priocntl.c uts/common/sys/fss.h
+uts/common/sys/ia.h uts/common/sys/ts.h uts/common/os/rctl.c uts/common/os/rctl_proc.c
+uts/common/os/grow.c uts/common/sys/vmsystm.h uts/i86pc/vm/vm_machdep.c
+uts/common/os/sysent.c uts/common/os/cpu.c uts/common/sys/cpuvar.h
+lib/libc/amd64/gen/siginfolst.c lib/libc/i386/gen/siginfolst.c
+lib/libc/sparc/gen/siginfolst.c lib/libc/sparcv9/gen/siginfolst.c
+lib/libc/port/gen/siglist.c lib/libc/port/gen/str2sig.c
+lib/libc/port/threads/sigaction.c lib/libc/port/threads/thr.c lib/libc/inc/thr_uberdata.h
+lib/libproc/common/Pcontrol.c
+'''),
+('brand-events', '''
+uts/common/syscall/poll.c uts/common/sys/poll_impl.h uts/common/io/eventfd.c
+uts/common/sys/eventfd.h uts/common/io/signalfd.c uts/common/os/timer.c
+uts/common/sys/timer.h uts/common/sys/time.h uts/common/fs/fifofs/fifosubr.c
+uts/common/fs/fifofs/fifovnops.c uts/common/sys/fs/fifonode.h uts/common/os/streamio.c
+'''),
+('brand-net', '''
+uts/common/fs/sockfs/sockcommon_subr.c uts/common/fs/sockfs/socksubr.c
+uts/common/fs/sockfs/socktpi_impl.h uts/common/sys/socket.h uts/common/sys/uio.h
 uts/common/inet/udp/udp.c uts/common/inet/udp/udp_opt_data.c uts/common/inet/udp_impl.h
 uts/common/netinet/udp.h uts/common/inet/ip/conn_opt.c uts/common/inet/ip/ipclassifier.c
-uts/common/inet/ipclassifier.h uts/common/os/rctl.c uts/common/os/rctl_proc.c
-uts/common/disp/priocntl.c uts/common/sys/fss.h uts/common/sys/ia.h uts/common/sys/ts.h
-uts/common/io/ptm.c uts/common/sys/ptms.h uts/common/sys/termios.h uts/common/sys/signal.h
-uts/common/sys/iso/signal_iso.h uts/common/sys/file.h uts/common/os/fio.c uts/common/fs/lookup.c
-uts/common/os/cpu.c uts/common/sys/cpuvar.h uts/common/os/streamio.c uts/common/sys/user.h
-uts/common/sys/procfs.h uts/common/sys/netconfig.h
-uts/common/klm/klmmod.c uts/common/klm/nlm_dispatch.c uts/common/klm/nlm_impl.c uts/common/klm/nlm_impl.h
-uts/common/nfs/nfssys.h uts/common/fs/nfs/nfs_sys.c
+uts/common/inet/ipclassifier.h cmd/cmd-inet/etc/sock2path.d/system%2Fkernel
+cmd/cmd-inet/sbin/dhcpagent/defaults.c lib/libdhcpagent/common/dhcpagent_util.c
+'''),
+('brand-fs', '''
+uts/common/syscall/chdir.c uts/common/syscall/fcntl.c uts/common/syscall/open.c
+uts/common/syscall/stat.c uts/common/syscall/umount.c uts/common/syscall/uadmin.c
+uts/common/sys/uadmin.h uts/common/sys/file.h uts/common/os/fio.c uts/common/fs/lookup.c
+uts/common/io/ptm.c uts/common/sys/ptms.h uts/common/sys/termios.h
+'''),
+('brand-nfs', '''
+uts/common/klm/klmmod.c uts/common/klm/nlm_dispatch.c uts/common/klm/nlm_impl.c
+uts/common/klm/nlm_impl.h uts/common/klm/mapfile-mod uts/common/nfs/nfssys.h
+uts/common/fs/nfs/nfs_sys.c cmd/fs.d/nfs/lib/nfs_sec.c cmd/fs.d/nfs/lockd/lockd.c
+cmd/fs.d/mount.c lib/libnsl/netselect/netselect.c
+'''),
+('brand-x86', '''
 uts/intel/syscall/getcontext.c uts/sparc/syscall/getcontext.c uts/intel/os/sendsig.c
 uts/intel/os/archdep.c uts/i86pc/ml/offsets.in uts/intel/genassym/offsets.in
-uts/i86pc/ml/syscall_asm_amd64.S uts/i86pc/os/trap.c uts/i86pc/sys/apic.h uts/intel/os/desctbls.c
-uts/intel/sys/segments.h uts/intel/sys/ucontext.h uts/i86pc/sys/comm_page.h
-uts/intel/os/comm_page_util.c uts/i86pc/vm/vm_machdep.c uts/common/sys/vmsystm.h
-uts/intel/os/cpuid.c man/man4d/cpuid.4d uts/common/os/sysent.c
-lib/libc/amd64/gen/siginfolst.c lib/libc/i386/gen/siginfolst.c lib/libc/sparc/gen/siginfolst.c
-lib/libc/sparcv9/gen/siginfolst.c lib/libc/port/gen/siglist.c lib/libc/port/gen/str2sig.c
-lib/libc/port/threads/sigaction.c lib/libc/port/threads/thr.c lib/libc/inc/thr_uberdata.h
-lib/libc/port/gen/getauxv.c lib/libc/port/sys/zone.c lib/libc/port/stdio/system.c
-lib/libcurses/screen/setupterm.c lib/libnsl/netselect/netselect.c lib/libproc/common/Pcontrol.c
+uts/intel/genassym/Makefile uts/i86pc/ml/syscall_asm_amd64.S uts/i86pc/os/trap.c
+uts/i86pc/sys/apic.h uts/intel/os/desctbls.c uts/intel/sys/segments.h
+uts/intel/sys/ucontext.h uts/i86pc/sys/comm_page.h uts/intel/os/comm_page_util.c
+uts/intel/os/cpuid.c man/man4d/cpuid.4d uts/i86pc/ml/kpti_trampolines.S
+uts/intel/ml/modstubs.S
+'''),
+('brand-native', '''
+lib/libc/port/sys/zone.c lib/libcurses/screen/setupterm.c lib/libc/port/stdio/system.c
 head/regexp.h cmd/truss/codes.c cmd/truss/print.c cmd/truss/systable.c
-cmd/fs.d/nfs/lib/nfs_sec.c cmd/fs.d/nfs/lockd/lockd.c cmd/fs.d/mount.c
-cmd/cmd-inet/sbin/dhcpagent/defaults.c lib/libdhcpagent/common/dhcpagent_util.c
-cmd/cmd-inet/etc/sock2path.d/system%2Fkernel cmd/prstat/prstat.c cmd/prstat/prstat.h man/man8/prstat.8
+cmd/prstat/prstat.c cmd/prstat/prstat.h man/man8/prstat.8
 '''),
 ('zone-kernel', '''
 uts/common/os/zone.c uts/common/sys/zone.h head/zone.h uts/common/syscall/sysconfig.c

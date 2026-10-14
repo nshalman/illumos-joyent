@@ -3,13 +3,40 @@
 #
 # (bucket, subject, body)
 BUCKETS = [
-    ('brand-kernel', 'kernel and libc hooks for branded zones (lx)',
-     'Generic kernel and libc changes driven mostly by the lx brand: brand '
-     'operations and their callers in exec, fork, exit, lwp and signal '
-     'delivery; native-root handling; Linux-flavored semantics in poll/'
-     'epoll, eventfd, signalfd, timers, fifos, sockets and rctls; truss '
-     'and libproc support.  Also the sn1/s10 brand updates for the new '
-     'brand ops.'),
+    ('brand-ops', 'brand framework: new and changed brand operations',
+     'The brand operations vector and its plumbing as extended for lx '
+     '(sys/brand.h, os/brand.c, machbrand.h, brandsys), plus the sn1 and '
+     'solaris10 brands updated to fill in the new operations.'),
+    ('brand-exec', 'exec and ELF loading hooks for branded processes',
+     'Interpreter (.interp) handling and native-root lookup for branded '
+     'binaries, auxv additions (AT_RANDOM, AT_SECURE, brand aux entries), '
+     'PT_GNU_STACK, prelinked binaries, shebang and nested interpreter '
+     'behavior, and core-file changes.'),
+    ('brand-process', 'process, LWP and signal hooks for branded processes',
+     'Brand hooks in fork, exit, lwp creation and signal delivery; more '
+     'real-time signals; ptrace support (OS-3820); Linux accounting; '
+     'per-process RLIMIT_MEMLOCK; MAP_32BIT; contract and init handling.'),
+    ('brand-events', 'poll, epoll, eventfd, signalfd, timers and pipes',
+     'Kernel support for Linux-flavored event semantics: nested epoll, '
+     'eventfd overflow, SIGEV_THREAD_ID timers, larger pipe buffers and '
+     'splice support, ppoll overflow fixes.'),
+    ('brand-net', 'socket and UDP/IP behavior for lx',
+     'SO_REUSEPORT, recvmsg MSG_PEEK|MSG_TRUNC, async socket errors, '
+     'rtnetlink socket registration, UDP changes for Linux NFS, and DHCP '
+     'client options for lx zones.'),
+    ('brand-fs', 'file and terminal syscalls for lx',
+     'open/close/fcntl moved into the kernel for lx, O_PATH emulation, '
+     'chdir with CLONE_FS, umount and uadmin locking fixes, pty changes.'),
+    ('brand-nfs', 'NFS locking and mounting for lx zones',
+     'lockd/statd interaction with Linux clients, NFS mount without a '
+     'native nfssec.conf, netconfig lookup in the native root.'),
+    ('brand-x86', 'x86 context, trap and syscall entry for lx',
+     'lx system call entry points (int80 and fast paths), signal frames on '
+     'an alternate stack, ucontext brand data, comm page/vdso support, '
+     'CPUID limits for glibc, and descriptor table entries.'),
+    ('brand-native', 'native userland inside branded zones',
+     'Native-root aware libc, libcurses and system(3C); truss decoding of '
+     'lx-related calls; prstat changes.'),
     ('zone-kernel', 'zones: kernel zone extensions and resource management',
      'zone.c/zone.h extensions and per-zone resource management: physical '
      'memory caps and accurate RSS tracking, in-kernel page invalidation, '
