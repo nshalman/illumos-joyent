@@ -69,6 +69,23 @@ Nothing here has been fixed; these are leads for review.
    shrink the delta by 60 files with no functional change.  List:
    `data/copyright_only.txt`.
 
+## Mismerge review results
+
+### lx (12 files): no bugs, 1 suspect
+All merge-written lx lines adapt correctly to upstream 16624 FD_CLOFORK
+(4-arg kernel fcntl, f_setfd_or), 17689 posix_spawn (exec_common
+UIO_USERSPACE), 18213 (stdio.h includes), 7882 /dev/full, and the
+PGRPSYS_* constants (values checked identical).
+
+9. **lx F_SETFD leaks FD_CLOFORK (VERIFIED, low).**
+   `lx_fcntl.c:301` does `fcntl(fd, F_SETFD, arg, 0)` with the Linux arg
+   unmasked.  Since 16624, `f_setfd_int` (`fio.c:1591`) honors
+   `FD_CLOEXEC | FD_CLOFORK` (FD_CLOFORK == 2), so a Linux program
+   passing bit 0x2 gets close-on-fork; Linux ignores all bits but
+   FD_CLOEXEC.  Fix: pass `arg & FD_CLOEXEC`.  Found by review agent,
+   checked against source.  (Cosmetic: lx_socket.c:1216 ORs
+   `f_getfd()|FD_CLOEXEC` into f_setfd_or, redundant.)
+
 ## Questions for Nahum
 
 - `jerry <jerry@opensolaris.(none)>` authored joyent commits in
