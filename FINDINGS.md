@@ -333,9 +333,15 @@ Jelinek (mailmap); newest-name crediting is correct; keep sed divergence.
 ## Known limitations of the current branch
 
 - Ticket lists in commit messages include every ticket with at least
-  one surviving line in the bucket's files, so a few look misplaced
-  (e.g. OS-6547 KPTI shows in brand-kernel because desctbls.c has lx
-  and KPTI lines interleaved).  That is accurate to the whole-file
-  rule, not a classification error.
+  one surviving line in the commit's files, so large commits list
+  100-800 tickets and some look misplaced (whole-file rule).  Thinning
+  them (e.g. a line-share threshold) is deferred (Nahum, 2026-10-14).
 - The feature/fix split is a subject-line heuristic.
-- `misc` (54 files) is a catch-all that deserves splitting.
+- Co-author credit for removed lines (deletions.py) is a text match and
+  over-counts repeated removals (9,340 credited vs 8,192 deleted); it
+  only affects ordering of Co-authored-by trailers.  Tickets are still
+  attributed from surviving lines only.
+- Commit descriptions in buckets.py are summaries written from ticket
+  subjects and code reading; no subsystem owner has reviewed them.
+- Intermediate commits are not expected to build.
+- `misc` holds 14 genuine singletons.
