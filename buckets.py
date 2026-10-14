@@ -53,19 +53,27 @@ BUCKETS = [
      'New privileges (hyprlofs, zfs receive), kmem/physmem/ksyms access '
      'disabled from non-global zones, and a hardened random pool for '
      'zones.'),
-    ('zones-tools', 'zones: zoneadm, zoneadmd, zonecfg and libzonecfg extensions',
-     'Userland zone management changes for SmartOS: additional zonecfg '
-     'properties, zoneadmd logging and console handling, persistent zone '
-     'IDs, native-root awareness.'),
+    ('zones-admin', 'zones: zoneadmd and zlogin',
+     'zoneadmd logging (generic zfd logging, JSON log output), console '
+     'handling, platform setup (vplat) and state-transition changes, and '
+     'zlogin options for zfd-backed zones.'),
+    ('zones-tools', 'zones: zonecfg, libzonecfg and zoneadm extensions',
+     'Additional zonecfg resources and properties (net, device, and more), '
+     'native-root awareness in libzonecfg, zoneadm changes, and the zones '
+     'SMF services.'),
     ('zone-brands', 'zones: joyent, joyent-minimal, builder, bhyve and kvm brands',
      'The SmartOS native and HVM zone brands.  See joyent(7).'),
     ('zfd', 'zfd(4D) zone file descriptor devices',
      'Zone fd devices used to connect zone stdio (e.g. docker-style '
      'containers) to zoneadmd.'),
-    ('datalink', 'per-zone datalinks and link protection',
-     'Per-zone datalink names (every zone has its own net0), dlmgmtd/'
-     'libdladm/dls/dld support, ipmgmtd/ipadm counterparts, and VNIC '
-     'protection: allowed-ips, allowed-dhcp-cids, dynamic methods.'),
+    ('datalink', 'per-zone datalinks',
+     'Per-zone datalink names (every zone has its own net0) through '
+     'dlmgmtd, libdladm, dls and dld; link kstats by zone; ipmgmtd and '
+     'libipadm in branded zones; flowadm, flowstat and dlstat zone '
+     'support.'),
+    ('link-protection', 'VNIC link protection',
+     'Link protection properties allowed-ips (with dynamic methods) and '
+     'allowed-dhcp-cids, enforced in mac_protect and ip, with tests.'),
     ('vnd', 'vnd: Project Bardiche (vnd, frameio, gsqueue, sdev plugins)',
      'The vnd(4D) virtual network device, libvnd, vndadm/vndstat, generalized '
      'squeues, and the libdlpi/snoop support for them.'),

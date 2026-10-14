@@ -47,6 +47,7 @@ RULES = [
     ('zone-brands', r'lib/brand/|lib/libbrand/'),
     ('zone-memory', r'cmd/rcap/'),
     ('datalink', r'cmd/dladm/|cmd/dlmgmtd/|lib/libdladm/|cmd/dlstat/|cmd/flowadm|cmd/flowstat|uts/common/io/dl[sd]/|sys/dl[sd][_.]|sys/dls_|sys/dld_|lib/libipadm|cmd/cmd-inet/lib/ipmgmtd|/dladm\.8|/flowadm\.8'),
+    ('zones-admin', r'cmd/zoneadmd/|cmd/zlogin/|/zlogin\.1$'),
     ('zones-tools', r'cmd/zoneadm|cmd/zonecfg|cmd/zlogin|lib/libzonecfg|head/libzonecfg|cmd/zonename|cmd/zonestat|/zoneadm\.8|/zonecfg\.8|/zlogin\.1'),
     ('ptools', r'cmd/ptools/|cmd/pgrep/|cmd/ps/|fs/proc/prargv|/pgrep\.1|/ps\.1b?$|/process\.5$|/proc\.5$'),
     ('platform-config', r'cmd/svc/milestone|cmd/Adm/|cmd/nsadmin/|cmd/cron/|cmd/logadm/|cmd/syslogd/|cmd/init/|cmd/initpkg/|cmd/login/|tools/protocmp/stdusers|crontab\.1|lib/libsecdb/user_attr'),

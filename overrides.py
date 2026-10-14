@@ -103,12 +103,9 @@ test/zfs-tests/cmd/watch_dir/watch_dir.c
 test/zfs-tests/tests/functional/cli_root/zfs_mount/zfs_mount_watched_portfs.ksh
 '''),
 ('datalink', '''
-uts/common/inet/ip.h uts/common/inet/ip/ip.c uts/common/inet/ip/ip_if.c uts/common/io/mac/mac_protect.c
-uts/common/sys/mac_flow.h uts/common/sys/mac_client_priv.h uts/common/io/mac/mac_client.c
+uts/common/io/mac/mac_client.c
 uts/common/sys/mac_client_impl.h uts/common/io/mac/mac.c uts/common/io/mac/mac_stat.c uts/common/sys/mac_client.h
-common/net/dhcp/octet.c cmd/ibd_upgrade/ibd_delete_link.c
-test/util-tests/tests/dladm/allowed-cids.ksh test/util-tests/tests/dladm/allowed-ips.ksh
-test/util-tests/tests/dladm/common.ksh test/util-tests/tests/dladm/dynamic-methods.ksh
+cmd/ibd_upgrade/ibd_delete_link.c
 test/util-tests/tests/dladm/vnic-mtu.ksh
 '''),
 ('vnd', '''
@@ -216,6 +213,25 @@ uts/common/disp/rt_dptbl.c
 uts/common/os/policy.c uts/common/sys/policy.h uts/common/os/priv_defs
 man/man7/privileges.7 uts/common/io/ksyms.c uts/common/io/mem.c
 uts/common/io/physmem.c uts/common/io/random.c
+'''),
+# VNIC link protection: allowed-ips, allowed-dhcp-cids, dynamic methods.
+('link-protection', '''
+uts/common/io/mac/mac_protect.c uts/common/sys/mac_flow.h
+uts/common/sys/mac_client_priv.h uts/common/inet/ip.h
+uts/common/inet/ip/ip.c uts/common/inet/ip/ip_if.c
+lib/libdladm/common/libdladm.c lib/libdladm/common/libdladm.h
+lib/libdladm/common/libdladm_impl.h lib/libdladm/common/linkprop.c
+common/net/dhcp/octet.c uts/common/sys/dld.h
+test/util-tests/tests/dladm/allowed-cids.ksh
+test/util-tests/tests/dladm/allowed-ips.ksh
+test/util-tests/tests/dladm/common.ksh
+test/util-tests/tests/dladm/dynamic-methods.ksh
+'''),
+# Bardiche (OS-2800) changes to dld and dls.
+('vnd', '''
+uts/common/io/dld/dld_str.c uts/common/io/dld/dld_proto.c
+uts/common/io/dls/dls.c uts/common/io/dls/dls_link.c
+uts/common/sys/dld_impl.h uts/common/sys/dls.h
 '''),
 ]
 OVERRIDES = {}
