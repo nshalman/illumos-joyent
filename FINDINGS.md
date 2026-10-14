@@ -9,7 +9,7 @@ to `master` by design, so it carries every bug listed below.
 
 ## Status
 
-- Branch `joyent-restructure` (in the illumos clone): 65 commits on
+- Branch `joyent-restructure` (in the illumos clone): 82 commits on
   479a4a914dc, the illumos-gate commit merged into `master`
   da512a7e2e6.  Its tree is identical to `master`'s.
 - Delta: 1,778 paths (852 added, 915 modified, 11 deleted, counting a
@@ -197,6 +197,26 @@ These differ from upstream on purpose and stay as they are.
   avoid new upstream values.  Consistent in-tree; an ABI change only for
   out-of-tree DLPI consumers.
 
+## illumos-joyent's lx compared with OmniOS's
+
+Compared against OmniOS master 88c163d5a22, which has merged
+illumos-gate up to 6a2df4aa538, 5 commits behind our base.
+
+- Every lx file OmniOS carries is also in joyent: 217 shared, 175 of them
+  byte-identical, 42 different by +882/-1050 lines (joyent relative to
+  OmniOS).  The largest differences are in the lx cgroup file system,
+  lx_init (lxinit.c), lx procfs (lx_prvnops.c) and the zone boot
+  scripts.
+- 19 lx files are joyent-only: the lx zone brand scripts and XML
+  (lib/brand/lx/zone/), the legacy lxproc file system, and the lx(7)
+  and lxproc(4FS) manual pages.
+- Of the 138 generic kernel/libc files in the brand-* commits, 102 are
+  byte-identical to OmniOS's; in 35 OmniOS differs from both joyent and
+  upstream (presumably OmniOS's own changes; not examined); 1 matches
+  upstream in OmniOS.
+- The branch shows this directly: the `lx-omnios` commit is OmniOS's lx,
+  and the `lx` commit after it is exactly joyent's difference.
+
 ## Cleanup candidates
 
 None of these change behavior; all would shrink the delta or remove dead
@@ -282,6 +302,11 @@ code.
   userland files beyond the two already fixed; only a build will tell.
 - Deliberate divergence in large diffs (libzonecfg.c, ip_fil_solaris.c,
   net-physical) was reviewed only next to merge-written lines.
+- dladm(8) and flowadm(8): most of joyent's lines (116 and 32) were
+  written in merge commits, probably joyent's additions re-applied when
+  upstream converted the pages; not verified.
+- The 35 brand-* files where OmniOS differs from both joyent and
+  upstream.
 - Possible *upstream* bug, unverified: upstream timer_lwpexit() and
   timer_lwpbind() cache `p->p_itimer` across a p_lock drop while
   timer_get_id() may resize and free it.  Joyent re-reads the array on
@@ -290,9 +315,8 @@ code.
 ## Open questions
 
 - Is OS-8367 resolved, so W1's workaround can go?
-- Ulyssa Mello's and Lexi Wilson's credits use email addresses that
-  contain their old names (the only ones in history).  Current
-  preferred addresses?
+- Ulyssa Mello's credit uses cody.mello@joyent.com, the only address in
+  either history.  Current preferred address?
 - Brianna Bennett's history also contains "Brie Bennett"; Brianna is
   what is credited now.  Confirm with Dan, along with any other name
   changes the automatic merging cannot catch.
@@ -319,8 +343,9 @@ code.
 From `mailmap` (explicit) and automatic merging of identities that share
 a name or email (credited under the newest).
 
-- Name updates: Ulyssa Mello (was Cody Peter Mello); Lexi Wilson (was
-  Alex Wilson, both addresses).
+- Name updates: Ulyssa Mello (was Cody Peter Mello); Lexi Wilson
+  <lexi@cooperi.net> (was Alex Wilson, both addresses; her current
+  address is from her own 2026-07-09 illumos-gate commit).
 - Placeholder identities: `jerry@opensolaris.(none)` and
   `jerry@bh1-build.(none)` are Jerry Jelinek; `bmc@bh1-build.(none)` is
   Bryan Cantrill.

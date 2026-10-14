@@ -164,9 +164,16 @@ BUCKETS = [
     ('onbld-tools', 'build tool changes', 'onbld checks, webrev, build environment.'),
     ('smartos-test', 'smartos-test and test suite adjustments',
      'The smartos-test runner and SmartOS-specific test changes.'),
-    ('lx', 'lx brand', 'The Linux-emulating lx brand: kernel, user-level '
-     'emulation library, lx procfs/sysfs/cgroupfs/devfs, lxautofs, '
-     'lx_netlink, and the lx test skip lists.'),
+    ('lx-omnios', 'lx brand as delivered by OmniOS',
+     'The Linux-emulating lx brand files exactly as OmniOS has them: '
+     'kernel brand module, user-level emulation library, lx procfs, sysfs, '
+     'cgroupfs and devfs, lxautofs, lx_netlink and tests.  The next commit '
+     'layers the illumos-joyent differences on top.'),
+    ('lx', 'lx brand: illumos-joyent changes on top of OmniOS',
+     'Brings the lx files from OmniOS\'s versions to illumos-joyent\'s, '
+     'and adds what OmniOS does not carry: the lx zone brand scripts and '
+     'configuration, the legacy lxproc file system, and the lx(7) and '
+     'lxproc(4FS) manual pages.'),
     ('sed', 'sed: keep -i/-I with a required argument',
      'Joyent reverted illumos 586 (sed -i optional argument, --in-place) '
      'in 2011 and has kept the older behavior.'),

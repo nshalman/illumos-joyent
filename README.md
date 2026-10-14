@@ -6,16 +6,17 @@ last merged, such that the resulting tree is identical to `master`.
 
 Each commit carries the *final* state of a group of files (a "bucket"),
 not the history that produced it.  Every changed path goes to exactly
-one bucket.  Files shared by many features (`manifest`, top-level and
-kernel Makefiles, package manifests, exception lists, driver tables) go
-in a final `integration` commit.
+one bucket.  Files shared by many features go in the final
+`integration` commits, divided by kind: build Makefiles and mapfiles,
+package manifests, driver tables, checker configuration, and the
+platform image manifests.
 
 What the analysis has found (bugs, divergences, cleanup candidates,
 decisions) is in `FINDINGS.md`.
 
 ## Running
 
-    ./collect.sh                          # ~45s; writes data/ (not committed)
+    ./collect.sh                          # ~1min; writes data/ (not committed)
     ./classify.py                         # bucket summary; writes data/assign.json
     ./build.py --messages data/messages   # preview the commit messages
     ./build.py --branch joyent-restructure
@@ -27,7 +28,9 @@ working tree must be clean.
 
 Environment: `ILLUMOS` (clone path, default `~/Workspace/illumos`),
 `JOYENT` (ref, default `master`), `BASE` (default: upstream parent of the
-newest `[illumos-gate merge]` on `JOYENT`).
+newest `[illumos-gate merge]` on `JOYENT`), `OMNIOS` (default
+`omniosce/master`; empty skips the OmniOS lx staging).  The resolved
+shas are recorded in `data/refs`.
 
 After the next upstream merge into `master`, rerun all of the above and
 review what moved with `./classify.py` and `./report.py files`.
@@ -40,6 +43,7 @@ review what moved with `./classify.py` and `./report.py files`.
 | `blame-file.sh` | Per-file diff-restricted blame (called by `collect.sh`) |
 | `deletions.py` | Credits commits for lines they removed that are still gone (called by `collect.sh`) |
 | `copyright_only.py` | Lists files that differ from upstream only in copyright/comment noise (called by `collect.sh`) |
+| `omnios.py` | Attribution for the OmniOS-based lx commits (called by `collect.sh`) |
 | `classify.py` | Assigns every delta path to a bucket |
 | `overrides.py` | Hand placement for files the path rules don't cover |
 | `buckets.py` | Commit order, subjects and descriptions; `FILE_NOTES` for undocumented divergences |
@@ -65,6 +69,17 @@ In order of precedence (see the header of `classify.py`):
    buckets stay neutral), and a file goes where its lines' tickets
    point.  If the biggest share belongs to an unplaced ticket, the file
    goes to `misc`.
+
+## lx on top of OmniOS
+
+The lx files that OmniOS also carries are committed first exactly as
+OmniOS has them (`lx-omnios`, pinned by `OMNIOS` in `data/refs`), and
+the `lx` commit then brings them to joyent's versions and adds the lx
+files OmniOS lacks.  So the `lx` commit is precisely how illumos-joyent's
+lx differs from OmniOS's.  Credit for `lx-omnios` comes from blaming
+OmniOS's versions; credit for those files in `lx` comes from blaming
+joyent's lines that differ from OmniOS.  Generic kernel hooks for lx
+stay in the brand-* commits.
 
 ## Commit messages
 

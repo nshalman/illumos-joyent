@@ -108,6 +108,33 @@ def load_deletions():
     return out
 
 
+def load_counts(sub):
+    """data/<sub>/<path with % for /> -> {path: Counter(sha: lines)}."""
+    out = {}
+    d = os.path.join(C.DATA, sub)
+    if os.path.isdir(d):
+        for fn in os.listdir(d):
+            c = collections.Counter()
+            for l in open(os.path.join(d, fn)):
+                n, h = l.split()
+                c[h] += int(n)
+            out[fn.replace('%', '/')] = c
+    return out
+
+
+def load_omnios():
+    """(staged files, OmniOS commits {sha: (author, subject)}) or None."""
+    refs = dict(l.strip().split('=') for l in open(C.DATA + '/refs'))
+    fn = C.DATA + '/omnios_files.txt'
+    if 'OMNIOS' not in refs or not os.path.exists(fn):
+        return None
+    commits = {}
+    for l in open(C.DATA + '/omnios_commits.tsv'):
+        h, p, d, a, s = l.rstrip('\n').split('\t', 4)
+        commits[h] = (a, s)
+    return refs['OMNIOS'], open(fn).read().split(), commits
+
+
 def load_contrib():
     out = collections.defaultdict(list)
     fn = C.DATA + '/contrib.tsv'
@@ -163,71 +190,129 @@ def messages():
                 c.most_common(1)[0][1] >= 0.6 * sum(c.values()) and
                 c.most_common(1)[0][1] >= shared[t])
 
+    # The lx files OmniOS also has are first committed as OmniOS has them
+    # (lx-omnios), then brought to joyent's versions by the lx commit.
+    om = load_omnios()
+    staged = set()
+    if om:
+        omnios_ref, ofiles, ocommits = om
+        staged = set(ofiles) & set(f for f, x in assign.items() if x == 'lx')
+        oblame = load_counts('omnios_blame')
+        vblame = load_counts('blame_vs_omnios')
+        people = People([a for a, _ in by_sha.values()] +
+                        [a for a, _ in ocommits.values()] +
+                        [w for ws in contrib.values() for w in ws])
+
+    def ticket_of(subject):
+        m = C.TICKET.match(subject)
+        return m.group(1) if m else None
+
+    def joyent_credit(f, shas, tickets, authors, with_deletions=True):
+        for h, n in shas.items():
+            if h == 'BOUNDARY' or h not in by_sha:
+                continue
+            a, is_merge = by_sha[h]
+            t = commits[h][0]
+            if t != 'MERGE':
+                tickets[t] += n
+            if not is_merge:
+                authors[people.canonical(a)] += n
+            for w in contrib.get(h, []):
+                authors[people.canonical(w)] += n
+        if with_deletions:
+            for h, n in dele.get(f, {}).items():
+                if h in by_sha and not by_sha[h][1]:
+                    authors[people.canonical(by_sha[h][0])] += n
+
     out = []
     for b, title, body in BUCKETS:
         files = sorted(f for f, x in assign.items() if x == b)
         if not files:
             continue
-        tickets = collections.Counter()
-        authors = collections.Counter()
-        for f in files:
-            tickets.update(blame[f])
-            for h, n in raw.get(f, {}).items():
-                if h == 'BOUNDARY' or h not in by_sha:
-                    continue
-                a, is_merge = by_sha[h]
-                if not is_merge:
+        if b == 'lx-omnios':
+            continue    # written together with lx, below
+        if b == 'lx' and staged:
+            tickets, authors = collections.Counter(), collections.Counter()
+            osubj = {}
+            for f in sorted(staged):
+                for h, n in oblame.get(f, {}).items():
+                    if h not in ocommits:
+                        continue
+                    a, s = ocommits[h]
+                    t = ticket_of(s) or 'untagged:' + h[:11]
+                    tickets[t] += n
+                    osubj.setdefault(t, s.split(' Reviewed by')[0].strip())
                     authors[people.canonical(a)] += n
-                for w in contrib.get(h, []):
-                    authors[people.canonical(w)] += n
-            for h, n in dele.get(f, {}).items():
-                if h in by_sha and not by_sha[h][1]:
-                    authors[people.canonical(by_sha[h][0])] += n
-        tickets.pop('MERGE', None)
-        feats, fixes, other = [], [], 0
-        for t in sorted(tickets, key=lambda t: (-tickets[t], t)):
-            if t.startswith('untagged:'):
-                other += 1
-            elif FEATURE.search(subj.get(t, '')):
-                feats.append(t)
+            ot, obody = [(t, x) for n, t, x in BUCKETS if n == 'lx-omnios'][0]
+            obody += '  Source: omniosorg/illumos-omnios %s.' % omnios_ref[:12]
+            out.append(('lx-omnios', sorted(staged), write_message(
+                'lx-omnios', ot, obody, sorted(staged), tickets, authors,
+                dict(subj, **osubj), status, blame, home, titles,
+                credit_note='Tickets and co-authors are from OmniOS\'s '
+                'history of these files.'), omnios_ref))
+        tickets, authors = collections.Counter(), collections.Counter()
+        for f in files:
+            if f in staged:
+                joyent_credit(f, vblame.get(f, {}), tickets, authors, False)
             else:
-                fixes.append(t)
-
-        msg = ['SmartOS: ' + title, '']
-        if body:
-            msg += wrap(body) + ['']
-        if feats:
-            msg.append('Features:')
-            for t in sorted(feats, key=ticket_key):
-                msg.append('  ' + subj[t][:110])
-            msg.append('')
-        if fixes:
-            msg += wrap('Also includes the final state of fixes from %d '
-                        'tickets: %s.' % (len(fixes),
-                        ', '.join(sorted(fixes, key=ticket_key))))
-            msg.append('')
-        if other:
-            msg += wrap('Plus %d commits without a ticket ID.' % other) + ['']
-        if b.startswith('integration'):
-            msg += by_feature(files, blame, home, titles, subj) + ['']
-        notes = [FILE_NOTES[f] for f in files if f in FILE_NOTES]
-        if notes:
-            msg.append('Notes:')
-            for n in notes:
-                msg += ['  ' + l for l in wrap(n, 70)]
-            msg.append('')
-        nd = sum(1 for f in files if status[f] == 'D')
-        msg += wrap('%d files (%d removed).  Tickets are those whose lines '
-                    'survive in these files.  Co-authors also include the '
-                    'authors of removed lines.' % (len(files), nd))
-        if authors:
-            msg.append('')
-            for a, _ in authors.most_common():
-                if People.split(a)[1].lower() not in BOTS:
-                    msg.append('Co-authored-by: ' + a)
-        # git strips trailing whitespace from messages; match it
-        out.append((b, files, '\n'.join(l.rstrip() for l in msg) + '\n'))
+                joyent_credit(f, raw.get(f, {}), tickets, authors)
+        note = ('Tickets are those whose lines survive in these files.  '
+                'Co-authors also include the authors of removed lines.')
+        if b == 'lx' and staged:
+            note = ('For the %d files that start from OmniOS\'s version, '
+                    'tickets and co-authors cover only the lines that differ '
+                    'from it.  ' % len(staged)) + note
+        out.append((b, files, write_message(
+            b, title, body, files, tickets, authors, subj, status, blame,
+            home, titles, credit_note=note), None))
     return out, status
+
+
+def write_message(b, title, body, files, tickets, authors, subj, status,
+                  blame, home, titles, credit_note):
+    tickets = collections.Counter(tickets)
+    tickets.pop('MERGE', None)
+    feats, fixes, other = [], [], 0
+    for t in sorted(tickets, key=lambda t: (-tickets[t], t)):
+        if t.startswith('untagged:'):
+            other += 1
+        elif FEATURE.search(subj.get(t, '')):
+            feats.append(t)
+        else:
+            fixes.append(t)
+
+    msg = ['SmartOS: ' + title, '']
+    if body:
+        msg += wrap(body) + ['']
+    if feats:
+        msg.append('Features:')
+        for t in sorted(feats, key=ticket_key):
+            msg.append('  ' + subj[t][:110])
+        msg.append('')
+    if fixes:
+        msg += wrap('Also includes the final state of fixes from %d '
+                    'tickets: %s.' % (len(fixes),
+                    ', '.join(sorted(fixes, key=ticket_key))))
+        msg.append('')
+    if other:
+        msg += wrap('Plus %d commits without a ticket ID.' % other) + ['']
+    if b.startswith('integration'):
+        msg += by_feature(files, blame, home, titles, subj) + ['']
+    notes = [FILE_NOTES[f] for f in files if f in FILE_NOTES]
+    if notes:
+        msg.append('Notes:')
+        for n in notes:
+            msg += ['  ' + l for l in wrap(n, 70)]
+        msg.append('')
+    nd = sum(1 for f in files if status[f] == 'D')
+    msg += wrap('%d files (%d removed).  %s' % (len(files), nd, credit_note))
+    if authors:
+        msg.append('')
+        for a, _ in authors.most_common():
+            if People.split(a)[1].lower() not in BOTS:
+                msg.append('Co-authored-by: ' + a)
+    # git strips trailing whitespace from messages; match it
+    return '\n'.join(l.rstrip() for l in msg) + '\n'
 
 
 # Buckets whose files are shared by many features.  They never count as
@@ -315,7 +400,10 @@ def build(branch):
     env = dict(os.environ, GIT_LITERAL_PATHSPECS='1')
     start = git('rev-parse', '--abbrev-ref', 'HEAD').strip()
     git('checkout', '-q', '-B', branch, refs['BASE'])
-    for b, files, msg in out:
+    for b, files, msg, src in out:
+        # src: the ref this commit's file contents come from (JOYENT
+        # unless the commit is staged from another tree, like lx-omnios)
+        src = src or refs['JOYENT']
         with tempfile.NamedTemporaryFile('w', delete=False) as live, \
              tempfile.NamedTemporaryFile('w', delete=False) as dead, \
              tempfile.NamedTemporaryFile('w', delete=False) as m:
@@ -323,8 +411,7 @@ def build(branch):
             dead.write('\n'.join(f for f in files if status[f] == 'D') + '\n')
             m.write(msg)
         if any(status[f] != 'D' for f in files):
-            git('checkout', refs['JOYENT'], '--pathspec-from-file=' + live.name,
-                env=env)
+            git('checkout', src, '--pathspec-from-file=' + live.name, env=env)
         if any(status[f] == 'D' for f in files):
             git('rm', '-q', '--pathspec-from-file=' + dead.name, env=env)
         git('commit', '-q', '-F', m.name, env=dict(os.environ,
@@ -352,7 +439,7 @@ def main():
             if old.endswith('.txt'):
                 os.unlink(os.path.join(a.messages, old))
         out, _ = messages()
-        for i, (b, files, msg) in enumerate(out):
+        for i, (b, files, msg, src) in enumerate(out):
             with open('%s/%02d-%s.txt' % (a.messages, i, b), 'w') as f:
                 f.write(msg + '\n# files:\n' + ''.join('#   %s\n' % x for x in files))
         print('wrote %d messages to %s' % (len(out), a.messages))

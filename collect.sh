@@ -7,6 +7,8 @@
 #   JOYENT    the joyent ref to analyze (default master)
 #   BASE      upstream illumos-gate commit (default: upstream parent of the
 #             most recent "[illumos-gate merge]" on $JOYENT)
+#   OMNIOS    OmniOS ref whose lx is the starting point for the lx commits
+#             (default omniosce/master; set empty to skip)
 #
 set -e
 
@@ -23,11 +25,15 @@ if [ -z "$BASE" ]; then
 fi
 BASE=$(git rev-parse "$BASE")
 JOYENT_SHA=$(git rev-parse "$JOYENT")
+OMNIOS=${OMNIOS-omniosce/master}
+OMNIOS_SHA=
+[ -n "$OMNIOS" ] && OMNIOS_SHA=$(git rev-parse "$OMNIOS")
 export BASE
 
 rm -rf "$DATA"
 mkdir -p "$DATA/blame"
 printf 'BASE=%s\nJOYENT=%s\n' "$BASE" "$JOYENT_SHA" > "$DATA/refs"
+[ -n "$OMNIOS_SHA" ] && printf 'OMNIOS=%s\n' "$OMNIOS_SHA" >> "$DATA/refs"
 
 # Every path that differs, without rename pairing (a rename is a delete
 # plus an add, and each side gets its own bucket).
@@ -63,6 +69,9 @@ for l in sys.stdin:
 "$HERE/deletions.py"
 
 "$HERE/copyright_only.py" > "$DATA/copyright_only.txt"
+
+# OmniOS's lx as the base of the lx commits.
+[ -n "$OMNIOS_SHA" ] && "$HERE/omnios.py"
 
 echo "base $BASE, $(wc -l < "$DATA/delta.txt") paths," \
     "$(wc -l < "$DATA/commits.tsv") commits"
