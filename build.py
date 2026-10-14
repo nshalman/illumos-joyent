@@ -18,7 +18,7 @@ import sys
 import tempfile
 
 import classify as C
-from buckets import BUCKETS
+from buckets import BUCKETS, FILE_NOTES
 
 ILLUMOS = os.environ.get('ILLUMOS', os.path.expanduser('~/Workspace/illumos'))
 
@@ -156,6 +156,12 @@ def messages():
             msg.append('')
         if other:
             msg += wrap('Plus %d commits without a ticket ID.' % other) + ['']
+        notes = [FILE_NOTES[f] for f in files if f in FILE_NOTES]
+        if notes:
+            msg.append('Notes:')
+            for n in notes:
+                msg += ['  ' + l for l in wrap(n, 70)]
+            msg.append('')
         nd = sum(1 for f in files if status[f] == 'D')
         msg += wrap('%d files (%d removed).  Tickets are those whose lines '
                     'survive in these files; changes that only delete '

@@ -105,3 +105,14 @@ BUCKETS = [
      'Makefiles, Makefile.files, driver tables, package manifests, '
      'exception lists, the platform `manifest`.'),
 ]
+
+# Notes about individual files, printed in the message of whichever
+# commit carries the file.  For deliberate divergences from upstream
+# that no ticket explains.
+FILE_NOTES = {
+    'usr/src/cmd/sed/main.c':
+        'cmd/sed and sed(1) deliberately lack illumos 586 ("sed -i should '
+        'take an optional argument"): joyent reverted it in 58474c20a52 '
+        '(2011) and has kept the older behavior, where -i and -I require '
+        'an argument and there is no --in-place.',
+}

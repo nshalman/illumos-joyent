@@ -11,6 +11,13 @@ Nothing here has been fixed; these are leads for review.
 - Feature tickets are listed in commit messages; bug-fix tickets are
   summarized collectively.
 - Intermediate commits are not expected to build.
+- First pass is byte-identical to master, bugs and all: that proves the
+  restructuring broke nothing.  Fixes come later as follow-up commits,
+  possibly folded in afterwards.  (Nahum, 2026-10-14)
+- Deliberate divergences with no ticket are documented via FILE_NOTES
+  in buckets.py, which prints them in the carrying commit's message.
+- Co-authors are credited under their newest name/email only.
+  (Nahum confirmed for Brianna Bennett.)
 
 ## Context
 
@@ -53,8 +60,8 @@ Nothing here has been fixed; these are leads for review.
    it was never reinstated.  Joyent sed lacks `--in-place` and the
    optional `-i`/`-I` argument; sed.1 documents the old behavior too.
    Hypothesis (unverified): kept so BSD-style `sed -i ''`/`sed -i .bak`
-   in SmartOS scripts keeps working.  Needs a decision: keep (and
-   document in README-SmartOS) or drop.
+   in SmartOS scripts keeps working.  DECIDED: keep, documented in the
+   carrying commit via FILE_NOTES.
 7. **Audit of joyent reverts of upstream changes.**  Seven upstream
    commits were reverted in joyent history.  Checking whether the
    upstream lines still present in BASE are missing from master: only
@@ -152,15 +159,12 @@ made inside merge eab31c4851f).  Not yet verified by me:
 
 ## Questions for Nahum
 
-- `jerry <jerry@opensolaris.(none)>` authored joyent commits in
-  2010-2011 (OS-49, OS-52, OS-57, OS-66, OS-138: zone multi-tenancy,
-  zfs_zone).  Almost certainly Jerry Jelinek; add a mailmap entry?
 - `Joyent Automation <releng@joyent.com>` is credited as a co-author
   (e.g. OS-8027, OS-8022).  Keep bot identities in Co-authored-by, or
   drop them?
-- Co-author identity uses each person's newest name/email (so Brian
-  Bennett is credited as Brianna Bennett <bahamat@digitalelf.net>).
-  OK as the default?
+
+Answered: jerry@opensolaris.(none) and jerry@bh1-build.(none) are Jerry
+Jelinek (mailmap); newest-name crediting is correct; keep sed divergence.
 
 ## Known limitations of the current branch
 

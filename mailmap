@@ -4,3 +4,9 @@
 # The "Portions contributed by" line in their own commits reads
 # "Carlos Neira (Neirac) <cneira@edgecast.io>".
 Carlos Neira <cneira@edgecast.io> <cneira@edgecast.io>
+#
+# Placeholder identities from 2010-2011 build hosts.  Same OS-ticket
+# series as Jerry's other work (zone multi-tenancy, zfs_zone); confirmed
+# by Nahum 2026-10-14.
+Jerry Jelinek <jerry.jelinek@joyent.com> <jerry@opensolaris.(none)>
+Jerry Jelinek <jerry.jelinek@joyent.com> <jerry@bh1-build.(none)>
