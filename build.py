@@ -22,6 +22,14 @@ from buckets import BUCKETS, FILE_NOTES
 
 ILLUMOS = os.environ.get('ILLUMOS', os.path.expanduser('~/Workspace/illumos'))
 
+# The restructured commits are authored by Claude (the committer stays
+# whoever runs the build); the people whose code it is are credited
+# with Co-authored-by trailers.
+AUTHOR = ('Claude', 'noreply@anthropic.com')
+
+# Automation identities, never credited as co-authors.
+BOTS = {'releng@joyent.com'}
+
 # A ticket whose subject reads like this is listed as a feature; anything
 # else counts as a fix.  A heuristic: it decides where a ticket appears in
 # the message, not whether it appears.
@@ -169,7 +177,8 @@ def messages():
         if authors:
             msg.append('')
             for a, _ in authors.most_common():
-                msg.append('Co-authored-by: ' + a)
+                if People.split(a)[1].lower() not in BOTS:
+                    msg.append('Co-authored-by: ' + a)
         out.append((b, files, '\n'.join(msg) + '\n'))
     return out, status
 
@@ -214,7 +223,8 @@ def build(branch):
                 env=env)
         if any(status[f] == 'D' for f in files):
             git('rm', '-q', '--pathspec-from-file=' + dead.name, env=env)
-        git('commit', '-q', '-F', m.name)
+        git('commit', '-q', '-F', m.name, env=dict(os.environ,
+            GIT_AUTHOR_NAME=AUTHOR[0], GIT_AUTHOR_EMAIL=AUTHOR[1]))
         for fn in (live.name, dead.name, m.name):
             os.unlink(fn)
         print('%-18s %4d files  %s' % (b, len(files),

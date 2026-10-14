@@ -16,6 +16,9 @@ Nothing here has been fixed; these are leads for review.
   possibly folded in afterwards.  (Nahum, 2026-10-14)
 - Deliberate divergences with no ticket are documented via FILE_NOTES
   in buckets.py, which prints them in the carrying commit's message.
+- Commits are authored by Claude <noreply@anthropic.com>, committed by
+  whoever runs the build; bot identities (BOTS in build.py) are not
+  credited.  (Nahum, 2026-10-14)
 - Co-authors are credited under their newest name/email only.
   (Nahum confirmed for Brianna Bennett.)
 
@@ -159,9 +162,7 @@ made inside merge eab31c4851f).  Not yet verified by me:
 
 ## Questions for Nahum
 
-- `Joyent Automation <releng@joyent.com>` is credited as a co-author
-  (e.g. OS-8027, OS-8022).  Keep bot identities in Co-authored-by, or
-  drop them?
+- (answered) Joyent Automation bot: dropped from co-authors.
 
 Answered: jerry@opensolaris.(none) and jerry@bh1-build.(none) are Jerry
 Jelinek (mailmap); newest-name crediting is correct; keep sed divergence.
