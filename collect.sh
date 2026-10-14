@@ -35,7 +35,7 @@ git diff --no-ext-diff --no-renames --name-status "$BASE" "$JOYENT" \
     > "$DATA/delta.txt"
 
 # All joyent-side commits, including merges.
-git log --format='%H%x09%P%x09%ad%x09%s' --date=short "$BASE..$JOYENT" \
+git log --format='%H%x09%P%x09%ad%x09%an <%ae>%x09%s' --date=short "$BASE..$JOYENT" \
     > "$DATA/commits.tsv"
 
 # For each surviving file, credit every line that is '+' relative to BASE
@@ -45,6 +45,8 @@ git log --format='%H%x09%P%x09%ad%x09%s' --date=short "$BASE..$JOYENT" \
 # earlier come out as BOUNDARY: joyent carries an older upstream line.
 awk -F'\t' '$1 != "D" { print $2 }' "$DATA/delta.txt" |
     xargs -P 10 -I{} "$HERE/blame-file.sh" {}
+
+"$HERE/copyright_only.py" > "$DATA/copyright_only.txt"
 
 echo "base $BASE, $(wc -l < "$DATA/delta.txt") paths," \
     "$(wc -l < "$DATA/commits.tsv") commits"

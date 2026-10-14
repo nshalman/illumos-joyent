@@ -134,6 +134,19 @@ test/util-tests/tests/dis/distest.ksh
 'altexec': 'man/man1has/csh.1has',
 'misc': 'uts/intel/pcbe/core_pcbe.c man/man8/reboot.8 man/man9f/bzero.9f',
 'bhyve': 'uts/intel/sys/vmm.h',
+# parent Makefiles that wire in more than one feature
+'integration': 'cmd/fs.d/Makefile',
+# OS-5549 moved bpf_filter into ip; these drop the io/bpf include path
+'icmp-bpf': '''
+uts/intel/bpf/Makefile uts/intel/dld/Makefile uts/intel/dls/Makefile uts/intel/icmp/Makefile
+uts/intel/iptun/Makefile uts/intel/mac/Makefile uts/intel/mac_ether/Makefile
+uts/intel/mac_ib/Makefile uts/intel/mac_wifi/Makefile
+''',
+# consumers of the platform OpenSSL link the sunw_-prefixed libraries
+'openssl-sunw': '''
+cmd/cmd-inet/usr.lib/wpad/Makefile cmd/sendmail/src/Makefile
+lib/krb5/plugins/preauth/pkinit/Makefile.com lib/libkmf/plugins/kmf_openssl/Makefile.com
+''',
 }
 OVERRIDES = {}
 for _b, _s in B.items():

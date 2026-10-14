@@ -63,12 +63,25 @@ RULES = [
 ]
 RULES = [(b, re.compile(r)) for b, r in RULES]
 
+# Hub files that always stay in integration, even if a feature rule or
+# their siblings would claim them.
+GLOBAL_HUB = re.compile(r'^manifest$|^boot\.manifest$|^Jenkinsfile$|'
+    r'^exception_lists/|^mancheck\.conf$|^usr/src/[^/]+$|'
+    r'^usr/src/(cmd|lib|man|test|tools|uts|head|ucbhead)/(Makefile[^/]*|\.gitignore)$|'
+    r'^usr/src/uts/[^/]+/Makefile[^/]*$|^usr/src/uts/common/sys/Makefile$|'
+    r'/man[0-9a-z]+/(Makefile|Manlink)$|^usr/src/pkg/manifests/|'
+    r'^usr/src/uts/intel/os/|^usr/src/lib/libc/|/\.gitignore$')
+
 TICKET = re.compile(r'(?:Revert "?|backout )?([A-Z]+-\d+|\d{4,5})\b')
 
+AUTHORS = {}
+
 def load():
+    authors = AUTHORS
     commits = {}
     for l in open(DATA + '/commits.tsv'):
-        h, p, d, s = l.rstrip('\n').split('\t', 3)
+        h, p, d, a, s = l.rstrip('\n').split('\t', 4)
+        authors[h] = a
         if len(p.split()) > 1:
             t = 'MERGE'
         else:
@@ -116,18 +129,24 @@ MERGE_BUCKETS = {'cpucaps': 'zone-kernel', 'rcap': 'zone-kernel'}
 def classify():
     commits, delta, blame = load()
     assign, how = {}, {}
+    residue = set()
+    if os.path.exists(DATA + '/copyright_only.txt'):
+        residue = set(open(DATA + '/copyright_only.txt').read().split())
     for st, f in delta:
-        if f in OVERRIDES:
+        if f in residue:
+            # differs from upstream only in copyright/comment noise
+            assign[f], how[f] = 'copyright-residue', 'residue'
+        elif f in OVERRIDES:
             assign[f], how[f] = OVERRIDES[f], 'override'
         else:
             b = path_bucket(f)
             if b:
                 assign[f], how[f] = b, 'path'
-    # An added hub-type file (new Makefile, mapfile, package manifest)
-    # belongs with its feature, not with integration.
-    status = dict((f, st) for st, f in delta)
+    # A hub-type file (Makefile, mapfile, package manifest) that lives
+    # in a single feature's directory belongs with that feature; only
+    # hubs shared between features stay in integration.
     for f, b in list(assign.items()):
-        if b != 'integration' or status[f] != 'A' or how[f] != 'path':
+        if b != 'integration' or how[f] != 'path' or GLOBAL_HUB.search(f):
             continue
         nb = path_bucket(f, skip_integration=True)
         if nb is None:
@@ -141,7 +160,7 @@ def classify():
     # learn ticket -> bucket from path-assigned, non-integration files
     tb = collections.defaultdict(collections.Counter)
     for f, b in assign.items():
-        if b == 'integration':
+        if b in ('integration', 'copyright-residue'):
             continue
         for t, n in blame[f].items():
             tb[t][b] += n
