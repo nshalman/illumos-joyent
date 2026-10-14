@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
-# Assign every delta path to exactly one bucket.
-#  1. explicit path rules (RULES, first match wins)
-#  2. for the rest: blame-weighted vote of tickets, where each ticket's
-#     bucket is learned from the path-ruled files it wrote lines in
-#  3. explicit per-file overrides (overrides.py) beat both
+# Assign every delta path to exactly one bucket.  In order of precedence:
+#  1. copyright residue: files whose diff is only copyright/comment noise
+#     (data/copyright_only.txt) go to copyright-residue
+#  2. hand overrides (overrides.py)
+#  3. path rules (RULES, first match wins)
+#  4. hub files (Makefiles, mapfiles, package manifests) that a path rule
+#     sent to integration but that live in one feature's directory follow
+#     that feature; GLOBAL_HUB files always stay in integration
+#  5. the rest: a vote of the tickets that wrote the file's lines, where
+#     each ticket's bucket is learned from the path-placed files it wrote
+#     in; files whose biggest share belongs to an unplaced ticket go to misc
 import os, re, sys, collections, json
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -38,7 +44,7 @@ RULES = [
     ('dboot', r'uts/i86pc/dboot/'),
     ('bhyve', r'cmd/bhyve/|cmd/zhyve/|libppt'),
     ('zone-brands', r'lib/brand/|lib/libbrand/'),
-    ('rcap', r'cmd/rcap/'),
+    ('zone-kernel', r'cmd/rcap/'),
     ('datalink', r'cmd/dladm/|cmd/dlmgmtd/|lib/libdladm/|cmd/dlstat/|cmd/flowadm|cmd/flowstat|uts/common/io/dl[sd]/|sys/dl[sd][_.]|sys/dls_|sys/dld_|lib/libipadm|cmd/cmd-inet/lib/ipmgmtd|/dladm\.8|/flowadm\.8'),
     ('zones-tools', r'cmd/zoneadm|cmd/zonecfg|cmd/zlogin|lib/libzonecfg|head/libzonecfg|cmd/zonename|cmd/zonestat|/zoneadm\.8|/zonecfg\.8|/zlogin\.1'),
     ('ptools', r'cmd/ptools/|cmd/pgrep/|cmd/ps/|fs/proc/prargv|/pgrep\.1|/ps\.1b?$|/process\.5$|/proc\.5$'),
@@ -51,7 +57,7 @@ RULES = [
     ('smartos-test', r'test/smartos-test|smartostest'),
     ('tcp-connstat', r'cmd/connstat|inet/tcp|tcp_impl\.h|inet/mib2\.h|/connstat\.8'),
     ('tmpfs', r'fs/tmpfs/|sys/fs/tmp\.h|tests/tmpfs/'),
-    ('cpucaps', r'cpucaps'),
+    ('zone-kernel', r'cpucaps'),
     ('sdev', r'uts/common/fs/dev/|sdev_impl'),
     ('mdb', r'cmd/mdb/|test/util-tests/tests/mdb/'),
     ('dtrace', r'cmd/dtrace/|lib/libdtrace/|uts/common/dtrace/|sys/systrace\.h|intel/dtrace/'),
@@ -123,9 +129,6 @@ def path_bucket(f, skip_integration=False):
             return b
     return None
 
-# Buckets folded into others after review.
-MERGE_BUCKETS = {'cpucaps': 'zone-kernel', 'rcap': 'zone-kernel'}
-
 def classify():
     commits, delta, blame = load()
     assign, how = {}, {}
@@ -185,8 +188,6 @@ def classify():
             assign[f], how[f] = top[0], 'vote'
         else:
             assign[f], how[f] = 'misc', 'none'
-    for f in assign:
-        assign[f] = MERGE_BUCKETS.get(assign[f], assign[f])
     return commits, delta, blame, assign, how, votes, ticket_bucket
 
 if __name__ == '__main__':

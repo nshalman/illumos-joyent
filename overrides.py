@@ -2,7 +2,7 @@
 # cover (mostly generic kernel and libc files touched by several features).
 # B is a list, not a dict, so a bucket may appear more than once.
 # Each file was placed by looking at which tickets wrote its '+' lines
-# (see report_tickets.py).  Paths are relative to usr/src/.
+# (`./report.py why <path>`).  Paths are relative to usr/src/.
 #
 #  brand-*       generic kernel/libc hooks whose changes are predominantly
 #                for lx, split by subsystem: brand ops, exec, process and
@@ -14,8 +14,8 @@
 #  inotify       file event monitoring: fem, vnode events, portfs, and the
 #                per-filesystem event emission inotify relies on
 B = [
-# brand-kernel split by subsystem (Nahum, 2026-10-14).  These are the
-# generic kernel/libc files whose changes are predominantly for lx.
+# Generic kernel/libc files whose changes are predominantly for lx, by
+# subsystem.
 ('brand-ops', '''
 uts/common/os/brand.c uts/common/sys/brand.h uts/intel/sys/machbrand.h
 uts/common/syscall/brandsys.c
@@ -159,7 +159,8 @@ test/util-tests/runfiles/default.run test/util-tests/tests/awk/tests/T.misc
 test/util-tests/tests/dis/distest.ksh
 '''),
 ('altexec', 'man/man1has/csh.1has'),
-# Split out of misc (Nahum, 2026-10-14).
+# Small themed groups, and single files that belong with a feature
+# commit but match no path rule.
 ('sed', 'cmd/sed/main.c man/man1/sed.1'),
 ('sysv-ipc', '''
 uts/common/os/ipc.c uts/common/os/shm.c uts/common/sys/ipc_impl.h
