@@ -150,10 +150,23 @@ BUCKETS = [
      'Files whose only differences from illumos-gate are copyright lines, '
      'blank comment lines or whitespace: leftovers of changes that were '
      'reverted or upstreamed.  Candidates for restoring to upstream.'),
-    ('integration', 'integration: build system, packaging and platform manifests',
-     'Files shared between the features above: top-level and kernel '
-     'Makefiles, Makefile.files, driver tables, package manifests, '
-     'exception lists, the platform `manifest`.'),
+    ('integration', 'integration: build system Makefiles and mapfiles',
+     'Makefile and mapfile changes shared between the features above: '
+     'top-level, cmd, lib, man, test and kernel Makefiles (Makefile.files, '
+     'Makefile.intel, Makefile.rules) and library mapfiles.'),
+    ('integration-pkg', 'integration: package manifests and man page links',
+     'Changes to upstream IPS package manifests, Manlink files and '
+     'Targetdirs needed by the features above.'),
+    ('integration-drivers', 'integration: driver tables',
+     'SmartOS keeps driver_aliases, driver_classes, minor_perm, '
+     'name_to_major, path_to_inst and device_policy in the source tree, '
+     'where upstream generates them from package manifests.'),
+    ('integration-checks', 'integration: checker and repository configuration',
+     'Exception lists for the build checks, mancheck.conf, .gitignore '
+     'files and the Jenkinsfile.'),
+    ('integration-manifest', 'integration: platform image manifests',
+     'The SmartOS platform image `manifest` and boot image `boot.manifest`: '
+     'every file, directory and link delivered into the ramdisk root.'),
 ]
 
 # Notes about individual files, printed in the message of whichever

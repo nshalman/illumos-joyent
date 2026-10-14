@@ -208,7 +208,7 @@ def messages():
             msg.append('')
         if other:
             msg += wrap('Plus %d commits without a ticket ID.' % other) + ['']
-        if b == 'integration':
+        if b.startswith('integration'):
             msg += by_feature(files, blame, home, titles, subj) + ['']
         notes = [FILE_NOTES[f] for f in files if f in FILE_NOTES]
         if notes:
@@ -231,8 +231,11 @@ def messages():
 
 
 # Buckets whose files are shared by many features.  They never count as
-# a ticket's home; integration's message gets a per-feature breakdown.
-SHARED = ('integration', 'copyright-residue', 'misc')
+# a ticket's home; the integration commits' messages get a per-feature
+# breakdown.
+SHARED = ('integration', 'integration-build', 'integration-pkg',
+          'integration-drivers', 'integration-checks', 'integration-manifest',
+          'copyright-residue', 'misc')
 
 
 def by_feature(files, blame, home, titles, subj, per=6, ntix=10):

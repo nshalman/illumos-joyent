@@ -7,7 +7,8 @@
 #  4. hub files (Makefiles, mapfiles, package manifests) that a path rule
 #     sent to integration but that live in one feature's directory follow
 #     that feature; GLOBAL_HUB files always stay in integration
-#  5. the rest: a vote of the tickets that wrote the file's lines, where
+#  5. integration files are divided by kind (INTEGRATION_SPLIT)
+#  6. the rest: a vote of the tickets that wrote the file's lines, where
 #     each ticket's bucket is learned from the path-placed files it wrote
 #     in; files whose biggest share belongs to an unplaced ticket go to misc
 import os, re, sys, collections, json
@@ -68,6 +69,18 @@ RULES = [
     ('onbld-tools', r'^usr/src/tools/'),
 ]
 RULES = [(b, re.compile(r)) for b, r in RULES]
+
+# Files that end up in integration are then divided by kind, so the
+# build changes are not buried among long lists.  First match wins;
+# anything else (Makefiles, mapfiles) stays in integration.
+INTEGRATION_SPLIT = [(b, re.compile(r)) for b, r in [
+    ('integration-manifest', r'^manifest$|^boot\.manifest$'),
+    ('integration-drivers', r'^usr/src/uts/intel/os/(driver_aliases|driver_classes|'
+        r'minor_perm|name_to_major|path_to_inst|device_policy)$'),
+    ('integration-pkg', r'^usr/src/pkg/manifests/|/Manlink$|^usr/src/Targetdirs$'),
+    ('integration-checks', r'^exception_lists/|^mancheck\.conf$|^Jenkinsfile$|'
+        r'(^|/)\.gitignore$'),
+]]
 
 # Hub files that always stay in integration, even if a feature rule or
 # their siblings would claim them.
@@ -188,6 +201,12 @@ def classify():
             assign[f], how[f] = top[0], 'vote'
         else:
             assign[f], how[f] = 'misc', 'none'
+    for f, b in assign.items():
+        if b == 'integration':
+            for nb, r in INTEGRATION_SPLIT:
+                if r.search(f):
+                    assign[f] = nb
+                    break
     return commits, delta, blame, assign, how, votes, ticket_bucket
 
 if __name__ == '__main__':
