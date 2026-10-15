@@ -24,7 +24,9 @@
 # The illumos.sh is smartos-live's, except that the workspace is $FB's
 # clone and ROOT/PARENT_ROOT are that clone's own proto area: smartos-live's
 # shared proto holds illumos-joyent headers and libraries that would hide
-# missing dependencies.  The toolchain (proto.strap) is shared.
+# missing dependencies.  The toolchain (proto.strap) is shared.  It also
+# drops nightly's -m: with postfix disabled, every mailed report leaves a
+# sendmail/postdrop pair hanging.
 #
 set -o pipefail
 
@@ -46,6 +48,7 @@ setup() {
 	    -e "s|^CODEMGR_WS=.*|CODEMGR_WS=\"$WS\";	export CODEMGR_WS|" \
 	    -e "s|^ROOT=.*|ROOT=\"$WS/proto/root_i386\";	export ROOT|" \
 	    -e "s|^PARENT_ROOT=.*|PARENT_ROOT=\"$WS/proto/root_i386\";	export PARENT_ROOT|" \
+	    -e '/^NIGHTLY_OPTIONS=/s/^\(NIGHTLY_OPTIONS="-[^"m]*\)m/\1/' \
 	    "$SRCWS"/illumos.sh > "$FB"/illumos.sh
 	grep -n "^CODEMGR_WS=\|^ROOT=\|^PARENT_ROOT=\|^GATE=" "$FB"/illumos.sh
 	mkdir -p "$RESULTS"
