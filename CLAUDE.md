@@ -35,6 +35,9 @@ tooling itself.
 - Python dict literals silently drop repeated keys; classification
   tables are lists of pairs for that reason.
 - macOS has no `timeout(1)`.
+- On the build host, never run collect.sh or other fork-heavy jobs while a
+  nightly is running: the zone (sdc:max_lwps=2000) runs out and dmake
+  fails with "Could not fork child process", invalidating the build.
 - Use the scratchpad, not `/tmp`, for temporary files.
 
 ## Files
