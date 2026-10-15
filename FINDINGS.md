@@ -36,7 +36,37 @@ just their share, plus copies of the file's copyright hunks), and
   come from foundational definitions sitting in whichever feature's
   ticket wrote them (e.g. `zone_did`, `zone_get_nroot`, the zone VFS
   kstats); re-homing those should break much of the cycle.
-- Nothing has been compiled yet.
+- Compile checks are under way; see the next section.
+
+## Compile checks
+
+Run on the build host by `buildcheck.sh` in a private ZFS dataset, with
+its own `ROOT`, so smartos-live's shared proto, which already holds
+illumos-joyent's headers, cannot hide a missing dependency.
+
+- **Plain illumos-gate needs 17 entries of build plumbing to build in a
+  smartos-live environment** (`baseline.txt`, each with its reason):
+  - OpenSSL linkage: the five `sunw_` renames (proto.strap has no
+    generic libcrypto.so).
+  - Native-tool include and library paths: smatch, ctf/dwarf, mandoc,
+    vtfontcvt.
+  - Other environment glue: `-lnetsnmphelpers`, PERL_VERSION 5.12,
+    mkdemo run via `$(PERL)`, and javac `-Xlint:-path`.
+  - Components SmartOS does not build: hal, latencytop, the python
+    modules, and IPS licensing (`stage-licenses` needs pkgfmt).
+  With those, a clean non-DEBUG nightly is clean (no errors, no
+  warnings) in about 10.8 minutes; a no-op incremental takes 3.3.
+- **A 34-job nightly needs more than 2,000 LWPs.**  The zone's
+  sdc:max_lwps=2000 made builds fail intermittently with
+  `fork failed: Resource temporarily unavailable` (peak measured: 1,938
+  LWPs and 1,649 processes).  Nahum raised it to 20000 on 2026-10-15;
+  a build then peaked at 1,831 LWPs and 1,718 processes.
+- Upstream inconsistency: `bldenv` does not accept `-L`, although its
+  comment says its getopts must match nightly's; smartos-live passes
+  `-L`, so every build prints `-L: unknown option` (harmless).
+- With postfix disabled, nightly's `-m` leaves a hung sendmail/postdrop
+  pair per build; the experiment builds drop `-m`.
+- Per-feature results: in progress (`buildcheck.sh summary` on the host).
 
 ## Bugs
 
