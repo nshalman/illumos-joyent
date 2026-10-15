@@ -6,7 +6,8 @@
 # path <TAB> fallback <TAB> reason [<TAB> filter].  Without a filter the
 # whole file is taken from JOYENT, so only list files whose joyent diff is
 # entirely such plumbing.  Filter `remove:REGEX` takes only joyent's
-# hunks that purely delete lines, all matching REGEX.  Only fix observed
+# hunks that purely delete lines, all matching REGEX; `hunks:REGEX` takes
+# only joyent's hunks whose every removed and added line matches REGEX.  Only fix observed
 # failures.
 usr/src/tools/smatch/Makefile	2	-I/usr/include and $(NATIVE_ADJUNCT)/lib/$(MACH64) paths: smartos-live's gcc (proto.strap) finds no system headers with -nostdinc otherwise
 usr/src/tools/ctf/dwarf/Makefile.com	2	-I/-L/-R $(ADJUNCT_PROTO): the native libdwarf build finds zlib.h and libz only in smartos-live's proto.strap
@@ -18,5 +19,8 @@ usr/src/lib/krb5/plugins/preauth/pkinit/Makefile.com	1	link the platform OpenSSL
 usr/src/lib/libkmf/plugins/kmf_openssl/Makefile.com	1	link the platform OpenSSL as -lsunw_crypto
 usr/src/cmd/bhyve/Makefile.com	1	link the platform OpenSSL as -lsunw_crypto
 usr/src/lib/fm/libfmd_snmp/Makefile.com	2	add -lnetsnmphelpers: proto.strap's net-snmp keeps the table helpers in a separate library
-usr/src/cmd/Makefile	3	SmartOS does not build hal; 32-bit hal fails with proto.strap's glib headers	remove:^\s*hal\s*\\$
+usr/src/cmd/Makefile	3	SmartOS does not build hal or latencytop; both fail with proto.strap's glib headers	remove:^\s*(hal|latencytop)\s*\\$
 usr/src/lib/Makefile	3	SmartOS does not build the python modules; proto.strap has no libpython3.12	remove:^\s*(pylibbe|pysolaris|pyzfs)\s*\\?$
+usr/src/Makefile.master	2	PERL_VERSION 5.12: proto.strap has perl5/5.12, not 5.10.0	hunks:PERL_(VERSION|PKGVERS)
+usr/src/cmd/dtrace/demo/Makefile	2	run mkdemo with $(PERL) (pkgsrc perl) rather than the host's /usr/bin/perl, which lacks Time::localtime
+usr/src/Makefile	3	SmartOS does not build IPS packages: install skips stage-licenses, which needs pkgfmt (not on SmartOS)	hunks:^install:

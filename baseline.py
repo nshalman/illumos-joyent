@@ -36,6 +36,10 @@ def main():
             rx = re.compile(flt[len('remove:'):].encode())
             data, n = remove_hunks(ws, base, joyent, path, rx)
             how = '%d removal hunk(s)' % n
+        elif flt.startswith('hunks:'):
+            rx = re.compile(flt[len('hunks:'):].encode())
+            data, n = matching_hunks(ws, base, joyent, path, rx)
+            how = '%d hunk(s)' % n
         else:
             sys.exit('unknown filter %r for %s' % (flt, path))
         with open(os.path.join(ws, path), 'wb') as f:
@@ -70,6 +74,36 @@ def remove_hunks(ws, base, joyent, path, rx):
     n = sum(1 for h in hunks if not h['adds'] and h['old'] and
             all(rx.search(l) for l in h['old']))
     return b'\n'.join(kept), n
+
+
+def matching_hunks(ws, base, joyent, path, rx):
+    """BASE's file with only the joyent hunks whose every removed and
+    added line matches rx."""
+    old = git(ws, 'show', '%s:%s' % (base, path)).split(b'\n')
+    new = git(ws, 'show', '%s:%s' % (joyent, path)).split(b'\n')
+    diff = git(ws, 'diff', '--no-ext-diff', '-U0', base, joyent, '--', path)
+    hunks = []
+    for l in diff.split(b'\n'):
+        m = re.match(rb'@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@', l)
+        if m:
+            # a missing count means 1 line
+            no = int(m.group(2)) if m.group(2) is not None else 1
+            nn = int(m.group(4)) if m.group(4) is not None else 1
+            hunks.append((int(m.group(1)), no, int(m.group(3)), nn))
+    take = []
+    for os_, no, ns, nn in hunks:
+        lines = old[os_ - 1:os_ - 1 + no] + new[ns - 1:ns - 1 + nn]
+        if lines and all(rx.search(l) for l in lines):
+            take.append((os_, no, ns, nn))
+    if not take:
+        sys.exit('no hunks of %s match %s' % (path, rx.pattern))
+    res, pos = [], 0
+    for os_, no, ns, nn in sorted(take):
+        start = os_ - 1 if no else os_
+        res += old[pos:start] + new[ns - 1:ns - 1 + nn]
+        pos = start + no
+    res += old[pos:]
+    return b'\n'.join(res), len(take)
 
 
 if __name__ == '__main__':
