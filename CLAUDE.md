@@ -53,7 +53,8 @@ tooling itself.
 | `report.py` | Reports over the classification (`./report.py help`) |
 | `merge_lines.py` | Shows a file's lines written during merge resolution, or by one commit |
 | `hunks.py` | Hunk-level feature split and merge-back simulation; writes `data/hunks.json` |
-| `features.py` | One branch per feature off BASE (`features/*`, each with only its hunks), plus `features-merged`, an octopus merge whose tree must equal JOYENT |
+| `features.py` | One branch per feature off BASE (`features/*`, each with only its hunks, plus copies of the file's copyright hunks), and `features-merged`, an octopus merge whose tree must equal JOYENT |
+| `deps.py` | Static estimate of which feature branches need which others (identifiers defined by one, used by another); writes `data/deps.json` |
 
 ## How files are placed
 

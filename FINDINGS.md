@@ -16,6 +16,28 @@ to `master` by design, so it carries every bug listed below.
   rename as a delete plus an add), from 4,041 non-merge joyent commits.
 - Line numbers below are as of da512a7e2e6.
 
+## Independent feature branches
+
+`features.py` builds 81 `features/*` branches, each based directly on
+illumos-gate and holding only that feature's hunks (shared files carry
+just their share, plus copies of the file's copyright hunks), and
+`features-merged`, an octopus merge of all 81.
+
+- About 0.95% of changed lines sit in a hunk dominated by another
+  feature; those hunks go to their dominant feature for now.
+- Merging the branches with git conflicts in 2 files (zoneadmd.c: zfd
+  vs zones-admin; timer.c: lx vs brand-events).  They are resolved to
+  the known combined content, and the merged tree equals `master`.
+- `deps.py` (static, identifiers only): 49 branches show no dependency
+  on another.  The rest form one 14-feature cycle (brand-* hooks, lx,
+  zone-kernel, zones-admin, zones-tools, inotify, ptools, zfd,
+  zfs-zvol), three cyclic pairs (datalink/vnd, boot/dboot,
+  zfs-zio/zfs-zone-io), and features that depend on those.  Many edges
+  come from foundational definitions sitting in whichever feature's
+  ticket wrote them (e.g. `zone_did`, `zone_get_nroot`, the zone VFS
+  kstats); re-homing those should break much of the cycle.
+- Nothing has been compiled yet.
+
 ## Bugs
 
 Every entry was confirmed by reading the code on `master`.  "Origin" is

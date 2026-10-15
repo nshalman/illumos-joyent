@@ -18,6 +18,7 @@ Prints per-feature sizes and any merge conflicts.
 """
 import collections
 import json
+import re
 import os
 import subprocess
 import sys
@@ -80,6 +81,21 @@ def apply_hunks(base, target, hs):
     return b'\n'.join(res)
 
 
+COPYRIGHT = re.compile(rb'copyright|all rights reserved', re.I)
+BLANK = re.compile(rb'^\s*(#|\*|//|/\*|\*/)?\s*$')
+
+
+def copyright_only(h, base, target):
+    """True if every line the hunk removes or adds is a copyright line or
+    a blank comment line."""
+    old = base.split(b'\n')[h[0] - 1:h[0] - 1 + h[1]] if h[1] else []
+    new = target.split(b'\n')[h[2] - 1:h[2] - 1 + h[3]] if h[3] else []
+    lines = old + new
+    return bool(lines) and all(COPYRIGHT.search(l) or BLANK.match(l)
+                               for l in lines) and \
+        any(COPYRIGHT.search(l) for l in lines)
+
+
 def plan():
     """{feature: {path: ('A'|'M', bytes) or ('D', None)}}, plus credit."""
     hunks = json.load(open(DATA + '/hunks.json'))
@@ -92,6 +108,7 @@ def plan():
     who = collections.defaultdict(collections.Counter)
     checked = 0
     split = {}      # multi-feature modified file -> {feature: hunks}
+    replicated = 0
     for f, hs in hunks.items():
         if not hs:
             # binary or empty: no text hunks, so the whole file goes to
@@ -119,11 +136,20 @@ def plan():
         if apply_hunks(base, target, allh) != target:
             sys.exit('hunk reconstruction does not reproduce %s' % f)
         checked += 1
+        # Every feature touching the file gets the copyright hunks too, so
+        # each branch carries the header change; identical hunks merge
+        # cleanly.
+        cr = [h for h in hs if copyright_only(h, base, target)]
+        for feat in by:
+            for h in cr:
+                if h not in by[feat]:
+                    by[feat].append(h)
+                    replicated += 1
         for feat, fh in by.items():
             feats[feat][f] = ('M', apply_hunks(base, target,
                                                [h[:4] for h in fh]))
         split[f] = by
-    return feats, who, checked, split
+    return feats, who, checked, split, replicated
 
 
 def commit_feature(name, files, msg, jmodes):
@@ -161,8 +187,8 @@ def resolve(tree, paths, split, merged):
     info = []
     for p in sorted(set(paths)):
         base, target = blob(BASE, p), blob(JOYENT, p)
-        hs = [h[:4] for feat, fh in split[p].items() if feat in merged
-              for h in fh]
+        hs = sorted(set(tuple(h[:4]) for feat, fh in split[p].items()
+                        if feat in merged for h in fh))
         sha = out('hash-object', '-w', '--stdin',
                   inp=apply_hunks(base, target, hs))
         info.append('%s %s\t%s' % (jmodes[p][0], sha, p))
@@ -185,7 +211,7 @@ def delete():
 def main():
     if '--delete' in sys.argv:
         return delete()
-    feats, who, checked, split = plan()
+    feats, who, checked, split, replicated = plan()
     titles = dict((n, (t, d)) for n, t, d in BUCKETS)
     order = [n for n, _, _ in BUCKETS if n in feats]
     assert set(order) == set(feats), set(feats) - set(order)
@@ -272,8 +298,8 @@ def main():
                GIT_AUTHOR_EMAIL=B.AUTHOR[1])
     octo = out('commit-tree', tree, *parents, inp=msg.encode(), env=env)
     out('update-ref', 'refs/heads/' + MERGED, octo)
-    print('%d feature branches; %d multi-feature files split by hunk' %
-          (len(heads), checked))
+    print('%d feature branches; %d multi-feature files split by hunk; '
+          '%d copyright hunks replicated' % (len(heads), checked, replicated))
     print('merge conflicts: %d' % len(conflicts))
     for name, paths in conflicts:
         print('  %s: %s' % (name, ', '.join(paths)))
