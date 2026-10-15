@@ -2265,7 +2265,7 @@ Features:
 Also includes the final state of fixes from 6 tickets: OS-6613, OS-6669,
 OS-6831, OS-6882, OS-7246, OS-8581.
 
-10 files (0 removed). This commit applies to illumos-gate on its own;
+9 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Dan McDonald <danmcd@edgecast.io>
@@ -2275,7 +2275,6 @@ Co-authored-by: John Levon <john.levon@joyent.com>
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
 
  usr/src/cmd/Makefile                    |   3 +
- usr/src/cmd/bhyve/Makefile.com          |   4 +-
  usr/src/cmd/bhyve/common/bhyverun.c     |  44 +++++++-
  usr/src/cmd/bhyve/common/rfb.c          |   1 +
  usr/src/cmd/bhyve/common/uart_backend.c |  54 +++++++++-
@@ -2284,7 +2283,7 @@ Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
  usr/src/cmd/zhyve/Makefile              |  38 +++++++
  usr/src/cmd/zhyve/zhyve.c               | 294 ++++++++++++++++++++++++++++++++++++++++++++++++++++
  usr/src/uts/intel/sys/vmm.h             |   2 +-
- 10 files changed, 446 insertions(+), 8 deletions(-)
+ 9 files changed, 444 insertions(+), 6 deletions(-)
 
 ========================================================================
 [47/81] features/dtrace
@@ -2943,24 +2942,26 @@ The platform OpenSSL is delivered with sunw_ prefixed names.
 Features:
   12217 add ld assert-deflib and guidance to gate build [fix duplicate makefile definitions from our local modif
 
-Also includes the final state of fixes from 2 tickets: OS-2257, OS-2285.
+Also includes the final state of fixes from 3 tickets: OS-2257, OS-2285,
+OS-8581.
 
 Plus 1 commits without a ticket ID.
 
-6 files (0 removed). This commit applies to illumos-gate on its own;
+7 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
 Co-authored-by: Keith M Wesolowski <wesolows@foobazco.org>
 Co-authored-by: Dan McDonald <danmcd@edgecast.io>
 
+ usr/src/cmd/bhyve/Makefile.com                       |  4 ++--
  usr/src/cmd/cmd-inet/usr.lib/wpad/Makefile           |  3 +--
  usr/src/cmd/sendmail/src/Makefile                    |  3 +--
  usr/src/lib/krb5/plugins/preauth/pkinit/Makefile.com |  3 +--
  usr/src/lib/libc/amd64/Makefile                      | 13 -------------
  usr/src/lib/libc/i386/Makefile.com                   | 14 --------------
  usr/src/lib/libkmf/plugins/kmf_openssl/Makefile.com  |  6 ++----
- 6 files changed, 5 insertions(+), 37 deletions(-)
+ 7 files changed, 7 insertions(+), 39 deletions(-)
 
 ========================================================================
 [58/81] features/smf

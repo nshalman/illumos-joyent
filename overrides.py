@@ -298,3 +298,12 @@ for _b, _s in B:
         _k = 'usr/src/' + _p
         assert _k not in OVERRIDES, 'duplicate override: ' + _k
         OVERRIDES[_k] = _b
+
+# Hunk-level placement for the feature branches (hunks.py): a hunk in
+# PATH whose removed or added lines match REGEX belongs to FEATURE,
+# whatever the blame says.  (path relative to the repo, regex, feature)
+HUNK_OVERRIDES = [
+    # bhyve's OpenSSL consumer, renamed to the platform's sunw_ libraries
+    # like the other four in openssl-sunw.
+    ('usr/src/cmd/bhyve/Makefile.com', r'sunw_crypto', 'openssl-sunw'),
+]

@@ -30,6 +30,7 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import classify as C  # noqa: E402
+from overrides import HUNK_OVERRIDES  # noqa: E402
 
 DATA = C.DATA
 ILLUMOS = os.environ.get('ILLUMOS', os.path.expanduser('~/Workspace/illumos'))
@@ -156,6 +157,9 @@ def main():
                 c[feature(shas[0] if shas else None, f)] += 1
                 if shas:
                     who[shas[0]] += 1
+            for p, rx, feat in HUNK_OVERRIDES:
+                if p == f and any(re.search(rx, l) for l in old + new):
+                    c = collections.Counter({feat: sum(c.values())})
             res.append((os_, len(old), ns, len(new), dict(c), dict(who)))
         return f, res
 
