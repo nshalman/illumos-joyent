@@ -306,4 +306,11 @@ HUNK_OVERRIDES = [
     # bhyve's OpenSSL consumer, renamed to the platform's sunw_ libraries
     # like the other four in openssl-sunw.
     ('usr/src/cmd/bhyve/Makefile.com', r'sunw_crypto', 'openssl-sunw'),
+    # libc's genassym rules moved from the per-arch Makefiles into
+    # lib/libc/Makefile.targ (a 12217 follow-up); the removals must travel
+    # with the addition, which is in integration.
+    ('usr/src/lib/libc/amd64/Makefile', r'genassym|assym\.h|OFFSETS|LDFLAGS\.native',
+     'integration'),
+    ('usr/src/lib/libc/i386/Makefile.com', r'genassym|assym\.h|OFFSETS|LDFLAGS\.native',
+     'integration'),
 ]

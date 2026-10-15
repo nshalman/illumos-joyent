@@ -2947,21 +2947,19 @@ OS-8581.
 
 Plus 1 commits without a ticket ID.
 
-7 files (0 removed). This commit applies to illumos-gate on its own;
+5 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
 Co-authored-by: Keith M Wesolowski <wesolows@foobazco.org>
 Co-authored-by: Dan McDonald <danmcd@edgecast.io>
 
- usr/src/cmd/bhyve/Makefile.com                       |  4 ++--
- usr/src/cmd/cmd-inet/usr.lib/wpad/Makefile           |  3 +--
- usr/src/cmd/sendmail/src/Makefile                    |  3 +--
- usr/src/lib/krb5/plugins/preauth/pkinit/Makefile.com |  3 +--
- usr/src/lib/libc/amd64/Makefile                      | 13 -------------
- usr/src/lib/libc/i386/Makefile.com                   | 14 --------------
- usr/src/lib/libkmf/plugins/kmf_openssl/Makefile.com  |  6 ++----
- 7 files changed, 7 insertions(+), 39 deletions(-)
+ usr/src/cmd/bhyve/Makefile.com                       | 4 ++--
+ usr/src/cmd/cmd-inet/usr.lib/wpad/Makefile           | 3 +--
+ usr/src/cmd/sendmail/src/Makefile                    | 3 +--
+ usr/src/lib/krb5/plugins/preauth/pkinit/Makefile.com | 3 +--
+ usr/src/lib/libkmf/plugins/kmf_openssl/Makefile.com  | 6 ++----
+ 5 files changed, 7 insertions(+), 12 deletions(-)
 
 ========================================================================
 [58/81] features/smf
@@ -4481,9 +4479,12 @@ Tickets that span many commits (sweeps) or have no other home:
   OS-7685 smartos-live overlay should be merged into illumos-joyent
   (+11)
     Makefile +11
-  OS-6795 illumos-joyent build tools depend on platform Perl (+10)
-    cmd/Makefile +6, cmd/auditrecord/Makefile +4
-  65 more tickets (+166): OS-3294, OS-978, OS-3110, OS-2834,
+  OS-3294 add support for inotify (+11)
+    lib/libc/port/mapfile-vers +4, uts/common/Makefile.files +2,
+    lib/libc/amd64/Makefile +1, lib/libc/i386/Makefile.com +1,
+    lib/libc/sparc/Makefile.com +1, uts/common/sys/Makefile +1, and 1
+    more files
+  65 more tickets (+166): OS-6795, OS-978, OS-3110, OS-2834,
   untagged:265c2123633, OS-7870, 13258, OS-1119, OS-5591, OS-7828,
   OS-147, OS-4206, OS-3524, OS-1799, OS-8433, OS-8459,
   untagged:5e100881386, 12217, OS-6187, OS-8324, OS-7014, OS-8709,
@@ -4500,7 +4501,7 @@ Tickets that span many commits (sweeps) or have no other home:
     cmd/Makefile +2, test/util-tests/tests/dladm/Makefile +2,
     cmd/cmd-inet/usr.sbin/snoop/Makefile +1, and 12 more files
 
-47 files (0 removed). This commit applies to illumos-gate on its own;
+48 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
@@ -4538,7 +4539,8 @@ Co-authored-by: Bryan Cantrill <bryan@joyent.com>
  usr/src/lib/Makefile                              | 21 ++++++++-----
  usr/src/lib/Makefile.lib                          |  4 +--
  usr/src/lib/libc/Makefile.targ                    | 21 +++++++++++++
- usr/src/lib/libc/i386/Makefile.com                |  2 --
+ usr/src/lib/libc/amd64/Makefile                   | 13 ---------
+ usr/src/lib/libc/i386/Makefile.com                | 16 ----------
  usr/src/lib/libc/port/mapfile-vers                |  2 ++
  usr/src/lib/libc/sparc/Makefile.com               |  2 +-
  usr/src/lib/libc/sparcv9/Makefile.com             |  3 +-
@@ -4569,7 +4571,7 @@ Co-authored-by: Bryan Cantrill <bryan@joyent.com>
  usr/src/uts/intel/core_pcbe/Makefile              |  4 +--
  usr/src/uts/intel/opteron_pcbe/Makefile           |  2 +-
  usr/src/uts/intel/p4_pcbe/Makefile                |  2 +-
- 47 files changed, 284 insertions(+), 82 deletions(-)
+ 48 files changed, 284 insertions(+), 109 deletions(-)
 
 ========================================================================
 [78/81] features/integration-pkg
