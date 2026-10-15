@@ -24,3 +24,5 @@ usr/src/lib/Makefile	3	SmartOS does not build the python modules; proto.strap ha
 usr/src/Makefile.master	2	PERL_VERSION 5.12: proto.strap has perl5/5.12, not 5.10.0	hunks:PERL_(VERSION|PKGVERS)
 usr/src/cmd/dtrace/demo/Makefile	2	run mkdemo with $(PERL) (pkgsrc perl) rather than the host's /usr/bin/perl, which lacks Time::localtime
 usr/src/Makefile	3	SmartOS does not build IPS packages: install skips stage-licenses, which needs pkgfmt (not on SmartOS)	hunks:^install:
+usr/src/cmd/dtrace/test/cmd/jdtrace/Makefile	2	-Xlint:-path: the build host has no /usr/share/lib/java/dtrace.jar, and nightly fails a build on any warning
+usr/src/cmd/dtrace/test/tst/common/java_api/Makefile	2	-Xlint:-path, as for jdtrace
