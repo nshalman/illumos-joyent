@@ -1,0 +1,237 @@
+#!/usr/bin/env python3
+"""Exploration: how separable is the delta at hunk level?
+
+For every changed file, split `git diff -U0 BASE JOYENT` into hunks and
+give each changed line a feature (a bucket): '+' lines by the home of the
+ticket that wrote them (per-line blame), '-' lines by the commit that
+removed them (text match, as deletions.py).  Lines with no attributable
+home fall back to the file's whole-file bucket.  Reports how many hunks
+and lines are single-feature, then, for files touched by several
+features, builds each feature's version of the file (BASE plus only its
+hunks; a mixed hunk goes to its dominant feature) and three-way merges
+them with `git merge-file` to see whether the result is JOYENT's file.
+
+  hunks.py            summary
+  hunks.py -v         also list files with mixed hunks or merge conflicts
+
+Writes data/hunks.json (per-file hunk features) for later steps.
+"""
+import collections
+import concurrent.futures
+import json
+import os
+import re
+import subprocess
+import sys
+import tempfile
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+import classify as C  # noqa: E402
+
+DATA = C.DATA
+ILLUMOS = os.environ.get('ILLUMOS', os.path.expanduser('~/Workspace/illumos'))
+refs = dict(l.strip().split('=') for l in open(DATA + '/refs'))
+BASE, JOYENT = refs['BASE'], refs['JOYENT']
+
+# Whole-file buckets that are not features; their lines are re-homed by
+# ticket, falling back to the file's bucket only when nothing else fits.
+NON_FEATURE = ('integration', 'integration-pkg', 'integration-drivers',
+               'integration-checks', 'integration-manifest',
+               'copyright-residue', 'misc')
+
+
+def git(*a, inp=None):
+    return subprocess.run(['git', '-C', ILLUMOS] + list(a), input=inp,
+                          capture_output=True, text=True,
+                          errors='replace').stdout
+
+
+def show(rev, path):
+    r = subprocess.run(['git', '-C', ILLUMOS, 'show', rev + ':' + path],
+                       capture_output=True)
+    return r.stdout if r.returncode == 0 else None
+
+
+def hunks_of(path):
+    """[(old_start, old_lines[], new_start, new_lines[])] for -U0 diff."""
+    out = []
+    cur = None
+    for l in git('diff', '--no-ext-diff', '--no-renames', '-U0', BASE, JOYENT,
+                 '--', path).splitlines():
+        m = re.match(r'@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@', l)
+        if m:
+            cur = [int(m.group(1)), [], int(m.group(3)), []]
+            out.append(cur)
+        elif cur and l.startswith('-') and not l.startswith('---'):
+            cur[1].append(l[1:])
+        elif cur and l.startswith('+') and not l.startswith('+++'):
+            cur[3].append(l[1:])
+    return out
+
+
+def line_blame(path):
+    """{new line number: sha} for JOYENT's version (BOUNDARY as 'B')."""
+    res = {}
+    sha = None
+    for l in git('blame', '--line-porcelain', BASE + '..' + JOYENT, '--',
+                 path).splitlines():
+        m = re.match(r'([0-9a-f]{40}) \d+ (\d+)', l)
+        if m:
+            sha, ln = m.group(1), int(m.group(2))
+        elif l.startswith('boundary'):
+            sha = 'B'
+        elif l.startswith('\t'):
+            res[ln] = sha
+    return res
+
+
+def removers(path, gone):
+    """{removed line text: [shas that removed it]} (non-merge commits)."""
+    res = collections.defaultdict(list)
+    sha = None
+    for l in git('log', '--no-merges', '--full-history', '--no-renames',
+                 '--format=@@%H', '-p', '-U0', '--no-ext-diff',
+                 BASE + '..' + JOYENT, '--', path).splitlines():
+        if l.startswith('@@') and not l.startswith('@@ '):
+            sha = l[2:]
+        elif l.startswith('-') and not l.startswith('---') and sha:
+            if l[1:] in gone:
+                res[l[1:]].append(sha)
+    return res
+
+
+def main():
+    verbose = '-v' in sys.argv
+    commits, delta, blame, assign, how, votes, tb = C.classify()
+    status = dict((f, st) for st, f in delta)
+
+    # Ticket homes, as build.py: the feature bucket holding >= 60% of the
+    # ticket's lines outside non-feature buckets, and at least as many as
+    # it has in non-feature buckets.
+    home = collections.defaultdict(collections.Counter)
+    nonfeat = collections.Counter()
+    for f, b in assign.items():
+        for t, n in blame[f].items():
+            if b in NON_FEATURE:
+                nonfeat[t] += n
+            else:
+                home[t][b] += n
+    home = dict((t, c.most_common(1)[0][0]) for t, c in home.items()
+                if t != 'MERGE' and
+                c.most_common(1)[0][1] >= 0.6 * sum(c.values()) and
+                c.most_common(1)[0][1] >= nonfeat[t])
+
+    def feature(sha, f):
+        if sha in commits:
+            t = commits[sha][0]
+            if t in home:
+                return home[t]
+        b = assign[f]
+        return b
+
+    def analyse(f):
+        hs = hunks_of(f)
+        lb = line_blame(f) if status[f] != 'D' else {}
+        gone = set(l for h in hs for l in h[1])
+        rm = removers(f, gone) if gone else {}
+        res = []
+        for os_, old, ns, new in hs:
+            c = collections.Counter()
+            for i in range(len(new)):
+                c[feature(lb.get(ns + i), f)] += 1
+            for l in old:
+                shas = rm.get(l)
+                c[feature(shas[0] if shas else None, f)] += 1
+            res.append((os_, len(old), ns, len(new), dict(c)))
+        return f, res
+
+    with concurrent.futures.ThreadPoolExecutor(10) as ex:
+        per_file = dict(ex.map(analyse, [f for st, f in delta]))
+    json.dump(per_file, open(DATA + '/hunks.json', 'w'))
+
+    # Separability
+    nh = mixed = 0
+    lines = mlines = 0
+    files_multi = []
+    for f, hs in per_file.items():
+        feats = set()
+        for h in hs:
+            n = sum(h[4].values())
+            nh += 1
+            lines += n
+            feats.update(h[4])
+            if len(h[4]) > 1:
+                mixed += 1
+                mlines += n
+        if len(feats) > 1:
+            files_multi.append(f)
+    print('%d files, %d hunks, %d changed lines' % (len(per_file), nh, lines))
+    print('mixed-feature hunks: %d (%.1f%%), %d lines (%.1f%%)'
+          % (mixed, 100.0 * mixed / nh, mlines, 100.0 * mlines / lines))
+    print('files touched by more than one feature: %d' % len(files_multi))
+
+    # Merge-back simulation for multi-feature files
+    conflicts = collections.Counter()
+    bad = []
+    for f in files_multi:
+        if status[f] in ('A', 'D'):
+            continue   # an added or deleted file cannot be split by hunk
+        base = (show(BASE, f) or b'').decode('utf-8', 'replace')
+        target = (show(JOYENT, f) or b'').decode('utf-8', 'replace')
+        bl = base.split('\n')
+        byfeat = collections.defaultdict(list)
+        for h in per_file[f]:
+            dom = max(h[4].items(), key=lambda kv: kv[1])[0]
+            byfeat[dom].append(h)
+        newlines_of = dict()
+        tl = target.split('\n')
+
+        def version(hs):
+            # BASE with only these hunks applied (old ranges are BASE
+            # line numbers; -U0 old_start for pure inserts is the line
+            # after which to insert).
+            out = []
+            pos = 0
+            for os_, no, ns, nn, _ in sorted(hs):
+                start = os_ - 1 if no else os_
+                out += bl[pos:start]
+                out += tl[ns - 1:ns - 1 + nn] if nn else []
+                pos = start + no
+            out += bl[pos:]
+            return '\n'.join(out)
+
+        with tempfile.TemporaryDirectory() as d:
+            cur, anc = os.path.join(d, 'cur'), os.path.join(d, 'base')
+            open(cur, 'w').write(base)
+            open(anc, 'w').write(base)
+            nconf = 0
+            for feat, hs in sorted(byfeat.items()):
+                other = os.path.join(d, 'f')
+                open(other, 'w').write(version(hs))
+                r = subprocess.run(['git', 'merge-file', '-q', cur, anc, other])
+                if r.returncode != 0:
+                    nconf += max(r.returncode, 1)
+                    # resolve to the target text for those regions:
+                    # restart from a clean union by taking target lines
+                    open(cur, 'w').write(version(
+                        [h for fe, hh in byfeat.items()
+                         if fe <= feat for h in hh]))
+            result = open(cur).read()
+        if nconf:
+            conflicts[f] = nconf
+        if result != target:
+            bad.append(f)
+    print('multi-feature modified files merged: %d; with conflicts: %d '
+          '(%d conflict regions); result != JOYENT: %d'
+          % (sum(1 for f in files_multi if status[f] == 'M'), len(conflicts),
+             sum(conflicts.values()), len(bad)))
+    if verbose:
+        for f in sorted(conflicts):
+            print('  conflict %3d %s' % (conflicts[f], f))
+        for f in bad:
+            print('  MISMATCH %s' % f)
+
+
+if __name__ == '__main__':
+    main()

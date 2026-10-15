@@ -52,6 +52,7 @@ tooling itself.
 | `build.py` | Writes commit messages and builds the branch |
 | `report.py` | Reports over the classification (`./report.py help`) |
 | `merge_lines.py` | Shows a file's lines written during merge resolution, or by one commit |
+| `hunks.py` | Exploration: hunk-level feature split and merge-back check; writes `data/hunks.json` |
 
 ## How files are placed
 
