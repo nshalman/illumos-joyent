@@ -6,9 +6,9 @@
 #   buildcheck.sh setup           create the $FB dataset and an illumos
 #                                 clone in it, with its own illumos.sh
 #   buildcheck.sh baseline BASE JOYENT
-#                                 check out BASE in the clone and commit
-#                                 JOYENT's version of each file listed in
-#                                 baseline.txt on top (branch "baseline")
+#                                 check out BASE in the clone and commit the
+#                                 baseline.txt files (baseline.py) on top
+#                                 (branch "baseline")
 #   buildcheck.sh build LABEL     build the clone's current checkout the
 #                                 way tools/build_illumos does; results go
 #                                 to $RESULTS/LABEL
@@ -49,11 +49,8 @@ baseline() {
 	here=$(cd "$(dirname "$0")" && pwd)
 	cd "$WS" || die "no $WS"
 	git checkout -q -f -B baseline "$base" || die "checkout failed"
-	grep -v '^#' "$here"/baseline.txt | while IFS='	' read -r path fb why; do
-		[[ -n $path ]] || continue
-		git checkout -q "$joyent" -- "$path" || die "cannot take $path"
-		echo "  $path (fallback $fb)"
-	done
+	"$here"/baseline.py "$WS" "$base" "$joyent" || die "baseline.py failed"
+	git add -A usr || die "git add failed"
 	git -c user.name=buildcheck -c user.email=buildcheck@localhost \
 	    commit -q --allow-empty -m "baseline: gate plus build plumbing from baseline.txt" \
 	    || die "commit failed"

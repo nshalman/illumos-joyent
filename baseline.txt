@@ -3,9 +3,20 @@
 # from gate plus these.  Only build plumbing belongs here (fallbacks 1-3
 # agreed with Nahum on 2026-10-15): OpenSSL linkage, build-environment
 # glue, and removal of components SmartOS does not build.  Each line:
-# path <TAB> fallback <TAB> reason.  The whole file is taken from JOYENT,
-# so only list files whose joyent diff is entirely such plumbing.
+# path <TAB> fallback <TAB> reason [<TAB> filter].  Without a filter the
+# whole file is taken from JOYENT, so only list files whose joyent diff is
+# entirely such plumbing.  Filter `remove:REGEX` takes only joyent's
+# hunks that purely delete lines, all matching REGEX.  Only fix observed
+# failures.
 usr/src/tools/smatch/Makefile	2	-I/usr/include and $(NATIVE_ADJUNCT)/lib/$(MACH64) paths: smartos-live's gcc (proto.strap) finds no system headers with -nostdinc otherwise
 usr/src/tools/ctf/dwarf/Makefile.com	2	-I/-L/-R $(ADJUNCT_PROTO): the native libdwarf build finds zlib.h and libz only in smartos-live's proto.strap
 usr/src/tools/mandoc/Makefile	2	-I/usr/include and $(ADJUNCT_PROTO) include/library paths (and _FILE_OFFSET_BITS=64) for the native mandoc build
 usr/src/tools/vtfontcvt/Makefile	2	-I$(SRC)/uts/common so the native build uses the source tree's queue.h on older build platforms
+usr/src/cmd/cmd-inet/usr.lib/wpad/Makefile	1	link the platform OpenSSL as -lsunw_crypto (proto.strap has no generic libcrypto.so)
+usr/src/cmd/sendmail/src/Makefile	1	link the platform OpenSSL as -lsunw_ssl -lsunw_crypto
+usr/src/lib/krb5/plugins/preauth/pkinit/Makefile.com	1	link the platform OpenSSL as -lsunw_crypto
+usr/src/lib/libkmf/plugins/kmf_openssl/Makefile.com	1	link the platform OpenSSL as -lsunw_crypto
+usr/src/cmd/bhyve/Makefile.com	1	link the platform OpenSSL as -lsunw_crypto
+usr/src/lib/fm/libfmd_snmp/Makefile.com	2	add -lnetsnmphelpers: proto.strap's net-snmp keeps the table helpers in a separate library
+usr/src/cmd/Makefile	3	SmartOS does not build hal; 32-bit hal fails with proto.strap's glib headers	remove:^\s*hal\s*\\$
+usr/src/lib/Makefile	3	SmartOS does not build the python modules; proto.strap has no libpython3.12	remove:^\s*(pylibbe|pysolaris|pyzfs)\s*\\?$
