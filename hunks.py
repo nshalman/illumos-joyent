@@ -104,6 +104,71 @@ def removers(path, gone):
     return res
 
 
+FUNC_START = re.compile(rb'^[A-Za-z_][^;{}]*\(')
+GAP = 3     # hunks this close outside functions belong together
+
+
+def function_spans(base):
+    """[(first, last)] 1-based BASE line ranges of C function bodies: a
+    column-0 line with '(' followed within 12 lines by a column-0 '{',
+    through the next column-0 '}'."""
+    lines = base.split(b'\n')
+    spans = []
+    i = 0
+    while i < len(lines):
+        if FUNC_START.match(lines[i]):
+            for j in range(i + 1, min(i + 13, len(lines))):
+                if lines[j].startswith(b'{'):
+                    for k in range(j + 1, len(lines)):
+                        if lines[k].startswith(b'}'):
+                            spans.append((i + 1, k + 1))
+                            i = k
+                            break
+                    break
+                if lines[j].startswith(b'}') or lines[j].rstrip().endswith(b';'):
+                    break
+        i += 1
+    return spans
+
+
+def cohere(res, base, is_c):
+    """Give hunks that belong together one feature: hunks inside the same
+    C function body, or hunks at most GAP lines apart outside functions.
+    A group goes to the feature owning most of its lines.  Splitting such
+    hunks between features leaves files that do not compile."""
+    spans = function_spans(base) if is_c else []
+
+    def span_of(h):
+        lo = h[0] if h[1] else h[0] + 1     # pure insert goes after line h[0]
+        hi = h[0] + h[1] - 1 if h[1] else lo
+        for a, b in spans:
+            if lo <= b and hi >= a:
+                return (a, b)
+        return None
+
+    groups, cur, key, end = [], None, None, None
+    for h in sorted(res, key=lambda h: h[0]):
+        k = span_of(h)
+        start = h[0]
+        if cur is not None and ((k is not None and k == key) or
+                                (k is None and key is None and
+                                 start - end <= GAP)):
+            cur.append(h)
+        else:
+            cur = [h]
+            groups.append(cur)
+        key, end = k, h[0] + h[1]
+    for g in groups:
+        if len(g) < 2:
+            continue
+        tot = collections.Counter()
+        for h in g:
+            tot.update(h[4])
+        feat = sorted(tot.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
+        for h in g:
+            h[4] = {feat: sum(h[4].values())}
+
+
 def dominant(h):
     """The feature owning most of a hunk's lines (ties: alphabetical)."""
     return sorted(h[4].items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
@@ -157,11 +222,15 @@ def main():
                 c[feature(shas[0] if shas else None, f)] += 1
                 if shas:
                     who[shas[0]] += 1
+            res.append([os_, len(old), ns, len(new), dict(c), dict(who),
+                        old + new])
+        if status[f] == 'M' and len(res) > 1:
+            cohere(res, show(BASE, f) or b'', f.endswith('.c'))
+        for h in res:
             for p, rx, feat in HUNK_OVERRIDES:
-                if p == f and any(re.search(rx, l) for l in old + new):
-                    c = collections.Counter({feat: sum(c.values())})
-            res.append((os_, len(old), ns, len(new), dict(c), dict(who)))
-        return f, res
+                if p == f and any(re.search(rx, l) for l in h[6]):
+                    h[4] = {feat: sum(h[4].values())}
+        return f, [tuple(h[:6]) for h in res]
 
     with concurrent.futures.ThreadPoolExecutor(10) as ex:
         per_file = dict(ex.map(analyse, [f for st, f in delta]))
