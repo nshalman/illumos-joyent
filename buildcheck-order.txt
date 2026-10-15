@@ -45,7 +45,6 @@ misc 0
 copyright-residue 0
 integration 0
 integration-pkg 0
-integration-drivers 0
 integration-checks 0
 integration-manifest 0
 brand-net 1
