@@ -6,3 +6,6 @@
 # path <TAB> fallback <TAB> reason.  The whole file is taken from JOYENT,
 # so only list files whose joyent diff is entirely such plumbing.
 usr/src/tools/smatch/Makefile	2	-I/usr/include and $(NATIVE_ADJUNCT)/lib/$(MACH64) paths: smartos-live's gcc (proto.strap) finds no system headers with -nostdinc otherwise
+usr/src/tools/ctf/dwarf/Makefile.com	2	-I/-L/-R $(ADJUNCT_PROTO): the native libdwarf build finds zlib.h and libz only in smartos-live's proto.strap
+usr/src/tools/mandoc/Makefile	2	-I/usr/include and $(ADJUNCT_PROTO) include/library paths (and _FILE_OFFSET_BITS=64) for the native mandoc build
+usr/src/tools/vtfontcvt/Makefile	2	-I$(SRC)/uts/common so the native build uses the source tree's queue.h on older build platforms
