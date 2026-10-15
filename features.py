@@ -257,6 +257,13 @@ def main():
         heads.append((name, commit_feature(name, feats[name], msg, jmodes)))
         print('%-22s %5d %8d' % (name, len(files), len(who[name])))
 
+    # drop branches of features that no longer exist (all their hunks moved)
+    for r in out('for-each-ref', '--format=%(refname)',
+                 'refs/heads/' + PREFIX).split('\n'):
+        if r and r[len('refs/heads/' + PREFIX):] not in feats:
+            out('update-ref', '-d', r)
+            print('deleted stale %s' % r)
+
     # merge them all, as git would, and check the result.  A conflict is
     # resolved to the known answer: BASE plus the hunks of every feature
     # merged so far.
