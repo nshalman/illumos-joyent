@@ -268,26 +268,67 @@ def messages():
     return out, status
 
 
+_TICKET_LINES = None
+
+
+def ticket_lines():
+    """{first ticket of a commit: [(ticket, line), ...]} for commits whose
+    message starts with several ticket lines.  git's %s joins those lines
+    into one subject; this keeps them apart.  The earliest such commit
+    wins, matching how subjects are chosen."""
+    global _TICKET_LINES
+    if _TICKET_LINES is None:
+        _TICKET_LINES = {}
+        fn = C.DATA + '/bodies.txt'
+        dates = {}
+        for l in open(C.DATA + '/commits.tsv'):
+            h, p, d = l.split('\t')[:3]
+            dates[h] = d
+        found = {}
+        if os.path.exists(fn):
+            for rec in open(fn, errors='replace').read().split('\x00')[1:]:
+                h, _, msg = rec.partition('\n')
+                lines = []
+                for l in msg.split('\n'):
+                    m = re.match(r'([A-Z]+-\d+|\d{4,5})\b', l)
+                    if not l.strip() or not m:
+                        break
+                    lines.append((m.group(1), l.strip()))
+                if len(lines) > 1:
+                    k = (dates.get(h, ''), h)
+                    if lines[0][0] not in found or k < found[lines[0][0]][0]:
+                        found[lines[0][0]] = (k, lines)
+        _TICKET_LINES = dict((t, v[1]) for t, v in found.items())
+    return _TICKET_LINES
+
+
 def write_message(b, title, body, files, tickets, authors, subj, status,
                   blame, home, titles, credit_note):
     tickets = collections.Counter(tickets)
     tickets.pop('MERGE', None)
+    tl = ticket_lines()
     feats, fixes, other = [], [], 0
+    seen = set()
     for t in sorted(tickets, key=lambda t: (-tickets[t], t)):
         if t.startswith('untagged:'):
             other += 1
-        elif FEATURE.search(subj.get(t, '')):
-            feats.append(t)
-        else:
-            fixes.append(t)
+            continue
+        for tid, line in tl.get(t, [(t, subj.get(t, ''))]):
+            if tid in seen:
+                continue
+            seen.add(tid)
+            if FEATURE.search(line):
+                feats.append((tid, line))
+            else:
+                fixes.append(tid)
 
     msg = ['SmartOS: ' + title, '']
     if body:
         msg += wrap(body) + ['']
     if feats:
         msg.append('Features:')
-        for t in sorted(feats, key=ticket_key):
-            msg.append('  ' + subj[t][:110])
+        for t, line in sorted(feats, key=lambda x: ticket_key(x[0])):
+            msg.append('  ' + line[:110])
         msg.append('')
     if fixes:
         msg += wrap('Also includes the final state of fixes from %d '

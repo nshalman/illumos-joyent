@@ -52,15 +52,17 @@ behavior, and core-file changes.
 
 Features:
   OS-2949 add support for AT_RANDOM aux vector entry
-  OS-3280 need a way to specify the root of a native system in the lx brand OS-3279 lx brand should allow delega
-  OS-3742 lxbrand add support for signalfd OS-4382 remove obsolete brand hooks added during lx development
+  OS-3279 lx brand should allow delegated datasets
+  OS-3280 need a way to specify the root of a native system in the lx brand
+  OS-3742 lxbrand add support for signalfd
+  OS-4382 remove obsolete brand hooks added during lx development
   OS-5202 Support AT_SECURE & AT_*ID in LX
 
-Also includes the final state of fixes from 28 tickets: OS-2877,
-OS-3382, OS-3438, OS-3517, OS-3615, OS-3696, OS-3733, OS-3735, OS-3871,
-OS-4119, OS-4129, OS-4151, OS-4188, OS-4364, OS-4460, OS-4824, OS-5015,
-OS-5192, OS-5293, OS-5354, OS-5761, OS-6158, OS-7931, OS-7960, OS-8258,
-OS-8748, 13925, 14823.
+Also includes the final state of fixes from 31 tickets: OS-2877,
+OS-3382, OS-3438, OS-3513, OS-3517, OS-3615, OS-3696, OS-3733, OS-3735,
+OS-3871, OS-4119, OS-4129, OS-4151, OS-4188, OS-4364, OS-4460, OS-4824,
+OS-5015, OS-5192, OS-5293, OS-5354, OS-5761, OS-6158, OS-7931, OS-7932,
+OS-7934, OS-7960, OS-8258, OS-8748, 13925, 14823.
 
 19 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -105,19 +107,21 @@ real-time signals; ptrace support (OS-3820); Linux accounting;
 per-process RLIMIT_MEMLOCK; MAP_32BIT; contract and init handling.
 
 Features:
-  OS-3280 need a way to specify the root of a native system in the lx brand OS-3279 lx brand should allow delega
-  OS-3561 lxbrand emulation library should execute on alternate stack OS-3558 lxbrand add support for full in-ke
+  OS-3279 lx brand should allow delegated datasets
+  OS-3280 need a way to specify the root of a native system in the lx brand
+  OS-3558 lxbrand add support for full in-kernel syscall handling
   OS-3594 lx brand: need support for MAP_32BIT
   OS-4470 lxbrand unblocking signals in new threads must be atomic
   OS-5701 lxbrand doesn't support per-process RLIMIT_MEMLOCK
-  OS-6612 reboot in bhyve guest should reboot, not poweroff OS-6626 bhyve hangs forever when requesting too much
+  OS-6627 bhyve needs to support 100+ GB RAM
   6342 want signalfd support [fix mapfile]
 
-Also includes the final state of fixes from 31 tickets: OS-3140,
-OS-3209, OS-3600, OS-3642, OS-4129, OS-4144, OS-4151, OS-4188, OS-4300,
-OS-4303, OS-4437, OS-4460, OS-4534, OS-4818, OS-4825, OS-5097, OS-5192,
-OS-5209, OS-5311, OS-5322, OS-5510, OS-5569, OS-5642, OS-5845, OS-5991,
-OS-6355, OS-7003, OS-7625, OS-7753, OS-8748, 11909.
+Also includes the final state of fixes from 40 tickets: OS-3140,
+OS-3209, OS-3545, OS-3561, OS-3600, OS-3642, OS-3868, OS-3901, OS-4129,
+OS-4144, OS-4151, OS-4188, OS-4300, OS-4303, OS-4437, OS-4460, OS-4534,
+OS-4818, OS-4825, OS-5097, OS-5192, OS-5209, OS-5311, OS-5322, OS-5510,
+OS-5569, OS-5642, OS-5845, OS-5991, OS-5992, OS-6355, OS-6612, OS-6626,
+OS-6917, OS-7003, OS-7625, OS-7644, OS-7753, OS-8748, 11909.
 
 38 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -181,10 +185,11 @@ overflow, SIGEV_THREAD_ID timers, larger pipe buffers and splice
 support, ppoll overflow fixes.
 
 Features:
-  OS-5261 lxbrand eventfd AIO overflow behavior is incorrect OS-6016 lxbrand poll(2) wants implicit events
+  OS-6016 lxbrand poll(2) wants implicit events
 
-Also includes the final state of fixes from 9 tickets: OS-3752, OS-4830,
-OS-5162, OS-5566, OS-5738, OS-5792, OS-5931, 12789, 14892.
+Also includes the final state of fixes from 10 tickets: OS-3752,
+OS-4830, OS-5162, OS-5261, OS-5566, OS-5738, OS-5792, OS-5931, 12789,
+14892.
 
 8 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -301,11 +306,12 @@ limits for glibc, and descriptor table entries.
 
 Features:
   OS-2834 ship lx brand
-  OS-3561 lxbrand emulation library should execute on alternate stack OS-3558 lxbrand add support for full in-ke
+  OS-3558 lxbrand add support for full in-kernel syscall handling
   OS-6547 Implement KPTI
 
-Also includes the final state of fixes from 6 tickets: OS-3215, OS-3735,
-OS-4368, OS-4930, OS-5322, 12349.
+Also includes the final state of fixes from 11 tickets: OS-3215,
+OS-3223, OS-3545, OS-3561, OS-3735, OS-3868, OS-3901, OS-4368, OS-4930,
+OS-5322, 12349.
 
 11 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -339,7 +345,8 @@ Native-root aware libc, libcurses and system(3C); truss decoding of
 lx-related calls; prstat changes.
 
 Features:
-  OS-3280 need a way to specify the root of a native system in the lx brand OS-3279 lx brand should allow delega
+  OS-3279 lx brand should allow delegated datasets
+  OS-3280 need a way to specify the root of a native system in the lx brand
 
 Also includes the final state of fixes from 9 tickets: OS-180, OS-399,
 OS-1044, OS-3709, OS-4647, OS-4716, OS-8278, OS-8361, OS-8373.
@@ -374,19 +381,21 @@ control documentation.
 
 Features:
   OS-77 Want IO kstats to capture ZFS latency in zones
-  OS-147 vfsstat command to show VFS activity by zone OS-148 Update ziostat to coexist peacefully with vfsstat O
+  OS-149 New kstats to support vfsstat
   OS-329 Want zone-based counters for I/O throttling events and total time throttled
   OS-446 want zonename field in zone_vfs/zone_zfs kstats
   OS-1234 add new rctls to resource_controls(5) man page
   OS-1704 add a time field with ISO time or unix timestamp to zoneevent output
-  OS-3280 need a way to specify the root of a native system in the lx brand OS-3279 lx brand should allow delega
+  OS-3279 lx brand should allow delegated datasets
+  OS-3280 need a way to specify the root of a native system in the lx brand
   OS-4781 would like to be able to add CT_PR_EV_EXIT to fatal event set of current contract
-  OS-4915 want FX high priority zone configuration option OS-4925 ps pri shows misleading value for zone in RT s
+  OS-4915 want FX high priority zone configuration option
 
-Also includes the final state of fixes from 31 tickets: OS-11, OS-19,
-OS-100, OS-163, OS-165, OS-172, OS-180, OS-192, OS-208, OS-338, OS-369,
-OS-399, OS-803, OS-1024, OS-1047, OS-4109, OS-5187, OS-5189, OS-5483,
-OS-5642, OS-5696, OS-6285, OS-6306, OS-6355, OS-6540, OS-7263, OS-7335,
+Also includes the final state of fixes from 39 tickets: OS-11, OS-19,
+OS-100, OS-147, OS-148, OS-163, OS-165, OS-172, OS-180, OS-192, OS-208,
+OS-338, OS-339, OS-355, OS-369, OS-399, OS-803, OS-1024, OS-1043,
+OS-1047, OS-4109, OS-4925, OS-5187, OS-5189, OS-5483, OS-5642, OS-5696,
+OS-5697, OS-6285, OS-6306, OS-6355, OS-6540, OS-7263, OS-7335, OS-7339,
 OS-7389, OS-7509, OS-8361, OS-8373.
 
 Plus 1 commits without a ticket ID.
@@ -497,10 +506,10 @@ high-priority zone configuration.
 Features:
   OS-800 need a metric (kstat) to track when we're bursting
   OS-4017 would like zfs-io-priority values > 1024
-  OS-4915 want FX high priority zone configuration option OS-4925 ps pri shows misleading value for zone in RT s
+  OS-4915 want FX high priority zone configuration option
 
-Also includes the final state of fixes from 6 tickets: OS-19, OS-100,
-OS-164, OS-1405, OS-2596, OS-6540.
+Also includes the final state of fixes from 7 tickets: OS-19, OS-100,
+OS-164, OS-1405, OS-2596, OS-4925, OS-6540.
 
 10 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -561,31 +570,33 @@ zlogin options for zfd-backed zones.
 Features:
   OS-200 need a better mechanism for storing persistent zone_did
   OS-224 add more zonecfg net properties
-  OS-1179 zoneadmd re-parses zone's xml config file many times during state transitions OS-1170 update zones to
-  OS-2013 psrset should support specifying a zone to bind OS-2018 zoneadmd should export all attributes to brand
+  OS-1170 update zones to support setting custom init
+  OS-2013 psrset should support specifying a zone to bind
   OS-3429 Expose zone's init exit status
   OS-3524 in order to support interaction with docker containers, need to be able to connect to stdio for init f
+  OS-3525 in order to support 'docker logs' need to be able to get stdio from zone to log file
   OS-3529 would like zlogin -i
   OS-3727 Would like to be able to selectively close descriptors when using zlogin -I
   OS-4136 would like SIGUSR to zlogin to switch in and out of '-N' modes
   OS-4166 zlogin to zfd needs TIOCSWINSZ support
   OS-4781 would like to be able to add CT_PR_EV_EXIT to fatal event set of current contract
-  OS-4915 want FX high priority zone configuration option OS-4925 ps pri shows misleading value for zone in RT s
+  OS-4915 want FX high priority zone configuration option
   OS-5215 zonecfg(1M) and dladm(1M) could support longer property values
   OS-6727 bhyve should provide zone UUID to guest via SMBIOS
   OS-6765 support PCI passthru in bhyve zones
   7029 want per-process exploit mitigation features (secflags) [missing manpage]
   14019 Allow more control over zone init exit actions (fix mismerge)
 
-Also includes the final state of fixes from 67 tickets: OS-11, OS-180,
+Also includes the final state of fixes from 73 tickets: OS-11, OS-180,
 OS-192, OS-223, OS-249, OS-259, OS-280, OS-287, OS-327, OS-399, OS-477,
-OS-478, OS-511, OS-592, OS-746, OS-809, OS-837, OS-1019, OS-1571,
-OS-1576, OS-1697, OS-1763, OS-1795, OS-1969, OS-2328, OS-2564, OS-3075,
-OS-3388, OS-3718, OS-3741, OS-3764, OS-3776, OS-3777, OS-3831, OS-3869,
-OS-4109, OS-4144, OS-4253, OS-4569, OS-4792, OS-4863, OS-4932, OS-5185,
-OS-5198, OS-5292, OS-5330, OS-5388, OS-6355, OS-6594, OS-6669, OS-6760,
-OS-6802, OS-6831, OS-6834, OS-6977, OS-7052, OS-7144, OS-7389, OS-7543,
-OS-7768, OS-7779, OS-8083, OS-8197, OS-8361, OS-8451, OS-8667, OS-8748.
+OS-478, OS-511, OS-592, OS-746, OS-809, OS-837, OS-1019, OS-1179,
+OS-1571, OS-1576, OS-1697, OS-1763, OS-1795, OS-1969, OS-2018, OS-2328,
+OS-2564, OS-3075, OS-3388, OS-3718, OS-3741, OS-3764, OS-3776, OS-3777,
+OS-3831, OS-3869, OS-4109, OS-4144, OS-4253, OS-4569, OS-4792, OS-4863,
+OS-4925, OS-4932, OS-5185, OS-5198, OS-5292, OS-5330, OS-5388, OS-6355,
+OS-6594, OS-6669, OS-6760, OS-6802, OS-6831, OS-6834, OS-6845, OS-6867,
+OS-6868, OS-6977, OS-7052, OS-7144, OS-7389, OS-7543, OS-7768, OS-7779,
+OS-8083, OS-8197, OS-8361, OS-8451, OS-8667, OS-8748.
 
 15 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -641,17 +652,17 @@ Features:
   OS-1947 add dependency for zones on metadata
   OS-2305 Would like a way to add-or-update an attr in zonecfg (remove -f?)
   OS-2597 Add support for remove -F for net/disk properties in zonecfg
-  OS-4915 want FX high priority zone configuration option OS-4925 ps pri shows misleading value for zone in RT s
+  OS-4915 want FX high priority zone configuration option
   OS-4942 would like sysevents when zones are created or destroyed
   OS-5215 zonecfg(1M) and dladm(1M) could support longer property values
   6143 Want zoneadm list option for non-global zones only [fix broken build due to earlier OS-4589 changes]
   7029 want per-process exploit mitigation features (secflags) [missing manpage]
 
-Also includes the final state of fixes from 27 tickets: HEAD-434,
+Also includes the final state of fixes from 28 tickets: HEAD-434,
 OS-100, OS-216, OS-326, OS-399, OS-511, OS-568, OS-609, OS-950, OS-1218,
 OS-2029, OS-2351, OS-2523, OS-2590, OS-3437, OS-4019, OS-4361, OS-4589,
-OS-5011, OS-5139, OS-5897, OS-7009, OS-7685, OS-7768, OS-7960, OS-8166,
-OS-8684.
+OS-4925, OS-5011, OS-5139, OS-5897, OS-7009, OS-7685, OS-7768, OS-7960,
+OS-8166, OS-8684.
 
 Plus 1 commits without a ticket ID.
 
@@ -713,7 +724,7 @@ Features:
   OS-6892: viona should allow promisc interfaces
   OS-6926 add support to bhyve zones for ahci disks
   OS-7119 adjust pci slots to support windows
-  OS-7200 would like thread name API OS-7205 bhyve makefile uses wrong linker flags
+  OS-7200 would like thread name API
   OS-7238 bhyve zones should add hostbridge device
   OS-7353 bhyve support for persistent pci slots for disks
   OS-8108 Support vnc password for BHYVE (#256)
@@ -723,11 +734,11 @@ Features:
   OS-8633: Want builder brand for RFD 184
   OS-8723 Expose virtio1 zone attribute via vmadm
 
-Also includes the final state of fixes from 27 tickets: OS-2301,
+Also includes the final state of fixes from 28 tickets: OS-2301,
 OS-3023, OS-3491, OS-6620, OS-6669, OS-6695, OS-6728, OS-6747, OS-6760,
 OS-6777, OS-6800, OS-6831, OS-6863, OS-6882, OS-6952, OS-6963, OS-7116,
-OS-7246, OS-7685, OS-7975, OS-8117, OS-8361, OS-8378, OS-8683, OS-8722,
-12775, 14578.
+OS-7205, OS-7246, OS-7685, OS-7975, OS-8117, OS-8361, OS-8378, OS-8683,
+OS-8722, 12775, 14578.
 
 24 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -781,8 +792,9 @@ Zone fd devices used to connect zone stdio (e.g. docker-style
 containers) to zoneadmd.
 
 Features:
-  OS-1179 zoneadmd re-parses zone's xml config file many times during state transitions OS-1170 update zones to
+  OS-1170 update zones to support setting custom init
   OS-3524 in order to support interaction with docker containers, need to be able to connect to stdio for init f
+  OS-3525 in order to support 'docker logs' need to be able to get stdio from zone to log file
   OS-3727 Would like to be able to selectively close descriptors when using zlogin -I
   OS-4136 would like SIGUSR to zlogin to switch in and out of '-N' modes
   OS-4166 zlogin to zfd needs TIOCSWINSZ support
@@ -790,11 +802,11 @@ Features:
   OS-4854 would like option to disable gz logging via zfd [fix mancheck issues]
   OS-5052 zoneadmd should be able to rotate files when they reach a specified size
 
-Also includes the final state of fixes from 27 tickets: OS-1795,
-OS-3718, OS-3723, OS-3728, OS-3831, OS-3869, OS-4099, OS-4108, OS-4109,
-OS-4164, OS-4655, OS-4798, OS-4799, OS-5198, OS-5330, OS-5375, OS-5388,
-OS-5424, OS-6175, OS-6521, OS-6594, OS-6831, OS-6834, OS-7543, OS-7906,
-OS-8322, OS-8361.
+Also includes the final state of fixes from 31 tickets: OS-1179,
+OS-1795, OS-3718, OS-3723, OS-3728, OS-3831, OS-3869, OS-4099, OS-4108,
+OS-4109, OS-4164, OS-4655, OS-4798, OS-4799, OS-5198, OS-5330, OS-5375,
+OS-5388, OS-5424, OS-6175, OS-6521, OS-6594, OS-6831, OS-6834, OS-6845,
+OS-6867, OS-6868, OS-7543, OS-7906, OS-8322, OS-8361.
 
 18 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -840,17 +852,26 @@ Features:
   OS-277 add ZONE column to dlstat output
   OS-428 add link zonename kstat (change ks_data_size before init)
   OS-722 add logging and lock breaking when dlmgmtd lock is held too long
-  OS-2340 vnics should support LSO OS-6778 MAC loopback traffic should avoid cksum work OS-6794 want LSO support
-  OS-3000 I for one, welcome my overlay network overlords OS-3080 Need direct callbacks from socket upcalls via
+  OS-2340 vnics should support LSO
   OS-3053 VNICs should support a variable MTU
-  OS-4840 Want system event for datalink state changes OS-4839 Want ability to toggle etherstub link state
+  OS-3943 want vxlan support
+  OS-3944 snoop should support vxlan
+  OS-3945 want varpd direct plugin
+  OS-3946 want varpd files plugin
+  OS-3947 want varpd svp plugin
+  OS-3949 want string property ranges for mac
+  OS-4839 Want ability to toggle etherstub link state
+  OS-4840 Want system event for datalink state changes
   OS-5195 DHCP spoofing protection should allow permitting all Client Identifiers
+  OS-6794 want LSO support in viona
 
-Also includes the final state of fixes from 33 tickets: HEAD-434,
-OS-249, OS-276, OS-280, OS-281, OS-383, OS-406, OS-423, OS-792, OS-1457,
-OS-1572, OS-1720, OS-1885, OS-3007, OS-3342, OS-3506, OS-3839, OS-4335,
-OS-4513, OS-4600, OS-5269, OS-5363, OS-6007, OS-6056, OS-6057, OS-6108,
-OS-6137, OS-6274, OS-6278, OS-7520, OS-7960, 8149, 14031.
+Also includes the final state of fixes from 46 tickets: HEAD-434,
+OS-249, OS-276, OS-280, OS-281, OS-282, OS-383, OS-406, OS-423, OS-792,
+OS-1457, OS-1572, OS-1720, OS-1885, OS-2608, OS-3000, OS-3007, OS-3080,
+OS-3342, OS-3492, OS-3494, OS-3506, OS-3839, OS-3948, OS-4335, OS-4336,
+OS-4513, OS-4600, OS-5269, OS-5363, OS-5919, OS-5989, OS-6007, OS-6056,
+OS-6057, OS-6108, OS-6137, OS-6274, OS-6278, OS-6778, OS-6878, OS-7520,
+OS-7806, OS-7960, 8149, 14031.
 
 40 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -916,11 +937,16 @@ Link protection properties allowed-ips (with dynamic methods) and
 allowed-dhcp-cids, enforced in mac_protect and ip, with tests.
 
 Features:
-  OS-3000 I for one, welcome my overlay network overlords OS-3080 Need direct callbacks from socket upcalls via
+  OS-3943 want vxlan support
+  OS-3944 snoop should support vxlan
+  OS-3945 want varpd direct plugin
+  OS-3946 want varpd files plugin
+  OS-3947 want varpd svp plugin
+  OS-3949 want string property ranges for mac
   OS-5195 DHCP spoofing protection should allow permitting all Client Identifiers
 
-Also includes the final state of fixes from 6 tickets: OS-4520, OS-4683,
-OS-7069, OS-7184, 12679, 15195.
+Also includes the final state of fixes from 9 tickets: OS-3000, OS-3080,
+OS-3948, OS-4520, OS-4683, OS-7069, OS-7184, 12679, 15195.
 
 17 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -959,19 +985,28 @@ The vnd(4D) virtual network device, libvnd, vndadm/vndstat, generalized
 squeues, and the libdlpi/snoop support for them.
 
 Features:
-  OS-2800 Project Bardiche OS-2784 want sdev plugin interface OS-2783 want generalized squeues OS-2785 ipf shoul
+  OS-610 snoop and libdlpi should be able to consume /dev/net/zone/%zonename
+  OS-2780 Want dlpi primitive DL_EXCLUSIVE_REQ
+  OS-2781 dlpi promisc modes should be able to be RX-only
+  OS-2782 want /dev/net/zone/%zonename/%datalink
+  OS-2783 want generalized squeues
+  OS-2784 want sdev plugin interface
+  OS-2785 ipf should be able to hook kvm nics
   OS-3203 want check target for verifying structures are the same in ILP32 and LP64
-  OS-4840 Want system event for datalink state changes OS-4839 Want ability to toggle etherstub link state
+  OS-4839 Want ability to toggle etherstub link state
+  OS-4840 Want system event for datalink state changes
   OS-6558 sdev_create_minor_node should allow non-666
-  OS-7014 Add libtopo support for Upgradable Firmware Modules OS-7026 Add DDI support for Upgradable Firmware Mo
+  OS-7014 Add libtopo support for Upgradable Firmware Modules
+  OS-7026 Add DDI support for Upgradable Firmware Modules
   OS-7662 need a way to disable SMT
   OS-7943 Want platform build test artifact
 
-Also includes the final state of fixes from 32 tickets: OS-830, OS-2841,
-OS-2920, OS-3094, OS-3119, OS-3142, OS-3302, OS-3768, OS-4120, OS-4600,
-OS-4683, OS-5279, OS-5662, OS-5882, OS-6097, OS-6150, OS-6344, OS-6349,
-OS-6357, OS-6545, OS-6899, OS-6908, OS-6964, OS-6967, OS-6970, OS-7125,
-OS-7768, OS-7960, OS-8254, OS-8359, OS-8361, OS-8544.
+Also includes the final state of fixes from 38 tickets: OS-830, OS-2778,
+OS-2779, OS-2786, OS-2800, OS-2841, OS-2920, OS-3094, OS-3119, OS-3142,
+OS-3302, OS-3768, OS-4120, OS-4600, OS-4683, OS-5279, OS-5662, OS-5882,
+OS-5884, OS-5894, OS-6097, OS-6150, OS-6344, OS-6349, OS-6357, OS-6545,
+OS-6899, OS-6908, OS-6964, OS-6967, OS-6970, OS-7125, OS-7768, OS-7960,
+OS-8254, OS-8359, OS-8361, OS-8544.
 
 149 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -1149,14 +1184,20 @@ Triton fabric networking: the SVP varpd plugin, refhash, snoop SVP
 decoding, and overlay changes not yet upstream.
 
 Features:
-  OS-3000 I for one, welcome my overlay network overlords OS-3080 Need direct callbacks from socket upcalls via
-  OS-4370 varpd should support getting an include path from SMF OS-4203 varpd stayed in carbonite after signal d
+  OS-3943 want vxlan support
+  OS-3944 snoop should support vxlan
+  OS-3945 want varpd direct plugin
+  OS-3946 want varpd files plugin
+  OS-3947 want varpd svp plugin
+  OS-3949 want string property ranges for mac
+  OS-4370 varpd should support getting an include path from SMF
   OS-7358 Would like a refhash walker
   OS-8113 enable ld guidance (#262)
 
-Also includes the final state of fixes from 15 tickets: OS-2616,
-OS-3961, OS-3974, OS-4035, OS-6890, OS-6970, OS-7088, OS-7468, OS-7503,
-OS-7870, OS-7960, OS-8275, OS-8323, OS-8383, OS-8407.
+Also includes the final state of fixes from 24 tickets: OS-2616,
+OS-3000, OS-3080, OS-3948, OS-3961, OS-3974, OS-4035, OS-4203, OS-4373,
+OS-4374, OS-4580, OS-6890, OS-6970, OS-7088, OS-7468, OS-7469, OS-7470,
+OS-7503, OS-7870, OS-7960, OS-8275, OS-8323, OS-8383, OS-8407.
 
 61 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -1239,14 +1280,21 @@ SmartOS: ipfilter: Cloud Firewall logging
 Hooks in ipfilter for Triton Cloud Firewall (cfw) logging.
 
 Features:
+  OS-610 snoop and libdlpi should be able to consume /dev/net/zone/%zonename
   OS-777 ipfilter should support loading / modifying per-zone rules from the GZ
   OS-2544 ipf rules from the GZ should be add to in-zone rules, not replace them (man page and style fixes)
-  OS-2800 Project Bardiche OS-2784 want sdev plugin interface OS-2783 want generalized squeues OS-2785 ipf shoul
-  OS-6761 hcksum routines are too verbose OS-6762 want mac_hcksum_clone function
+  OS-2780 Want dlpi primitive DL_EXCLUSIVE_REQ
+  OS-2781 dlpi promisc modes should be able to be RX-only
+  OS-2782 want /dev/net/zone/%zonename/%datalink
+  OS-2783 want generalized squeues
+  OS-2784 want sdev plugin interface
+  OS-2785 ipf should be able to hook kvm nics
+  OS-6762 want mac_hcksum_clone function
   OS-8064 test-fw "enable / disable - enable zone fw" has "ipf -E" failing with SIOCFRENB error (#242)
 
-Also includes the final state of fixes from 7 tickets: OS-2009, OS-2710,
-OS-3119, OS-5457, OS-7667, OS-8035, 12679.
+Also includes the final state of fixes from 12 tickets: OS-2009,
+OS-2710, OS-2778, OS-2779, OS-2786, OS-2800, OS-3119, OS-5457, OS-6761,
+OS-7667, OS-8035, 12679.
 
 27 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -1409,8 +1457,8 @@ ndp(8), route -z, arp/ndp native-root handling, DHCP fixes, ipd.
 Features:
   OS-6817 Would like route -z
 
-Also includes the final state of fixes from 4 tickets: OS-456, OS-1666,
-OS-1788, OS-4807.
+Also includes the final state of fixes from 5 tickets: OS-456, OS-1666,
+OS-1787, OS-1788, OS-4807.
 
 9 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -1441,15 +1489,16 @@ inotify, the fem changes it depends on, and vnode event emission across
 filesystems.
 
 Features:
-  OS-147 vfsstat command to show VFS activity by zone OS-148 Update ziostat to coexist peacefully with vfsstat O
+  OS-149 New kstats to support vfsstat
   OS-3294 add support for inotify
   OS-6547 Implement KPTI
 
-Also includes the final state of fixes from 32 tickets: OS-163, OS-338,
-OS-2557, OS-3356, OS-3368, OS-3425, OS-3462, OS-3629, OS-3678, OS-3751,
-OS-3900, OS-4183, OS-4293, OS-4388, OS-4687, OS-4702, OS-4896, OS-5148,
-OS-5291, OS-5483, OS-5539, OS-5605, OS-5882, OS-6076, OS-7598, OS-7960,
-OS-8054, OS-8187, OS-8278, OS-8361, OS-8741, 11679.
+Also includes the final state of fixes from 41 tickets: OS-147, OS-148,
+OS-163, OS-338, OS-2557, OS-3356, OS-3368, OS-3425, OS-3462, OS-3629,
+OS-3630, OS-3631, OS-3678, OS-3751, OS-3900, OS-4183, OS-4293, OS-4388,
+OS-4687, OS-4702, OS-4896, OS-5148, OS-5291, OS-5483, OS-5539, OS-5592,
+OS-5605, OS-5714, OS-5882, OS-5884, OS-5894, OS-6076, OS-7598, OS-7621,
+OS-7960, OS-8054, OS-8187, OS-8278, OS-8361, OS-8741, 11679.
 
 43 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -1524,13 +1573,14 @@ Fast namespace virtual file system.
 Features:
   OS-978 hyperlofs [fix multiple adds to same dir]
   OS-3755 want hyprlofs stat(2) to reflect underlying file's stat(2)
-  OS-4043 tmpfs should support gigabyte sizes OS-4044 tmpfs should support "mode" option
+  OS-4043 tmpfs should support gigabyte sizes
+  OS-4044 tmpfs should support "mode" option
   7753 tmpfs should support mode option [fix mismerge]
 
-Also includes the final state of fixes from 21 tickets: OS-1029,
+Also includes the final state of fixes from 23 tickets: OS-1029,
 OS-1030, OS-1034, OS-1037, OS-1189, OS-1391, OS-1571, OS-1576, OS-1882,
-OS-1966, OS-2342, OS-2777, OS-4170, OS-4317, OS-5539, OS-5577, OS-5830,
-OS-5847, OS-7768, OS-8359, OS-8361.
+OS-1966, OS-2342, OS-2777, OS-4170, OS-4317, OS-5539, OS-5577, OS-5578,
+OS-5581, OS-5830, OS-5847, OS-7768, OS-8359, OS-8361.
 
 27 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -1581,10 +1631,12 @@ tmpfs size and accounting improvements.
 
 Features:
   OS-1728 add force unmount support to tmpfs reviewed by Robert Mustacchi
-  OS-4043 tmpfs should support gigabyte sizes OS-4044 tmpfs should support "mode" option
+  OS-4043 tmpfs should support gigabyte sizes
+  OS-4044 tmpfs should support "mode" option
 
-Also includes the final state of fixes from 9 tickets: OS-1833, OS-1861,
-OS-1882, OS-1976, OS-1977, OS-1983, OS-5539, OS-5577, OS-8359.
+Also includes the final state of fixes from 11 tickets: OS-1833,
+OS-1861, OS-1882, OS-1976, OS-1977, OS-1983, OS-5539, OS-5577, OS-5578,
+OS-5581, OS-8359.
 
 10 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -1616,10 +1668,16 @@ SmartOS: sdev: zvol and network device handling
 /dev plugin fixes.
 
 Features:
-  OS-2800 Project Bardiche OS-2784 want sdev plugin interface OS-2783 want generalized squeues OS-2785 ipf shoul
+  OS-610 snoop and libdlpi should be able to consume /dev/net/zone/%zonename
+  OS-2780 Want dlpi primitive DL_EXCLUSIVE_REQ
+  OS-2781 dlpi promisc modes should be able to be RX-only
+  OS-2782 want /dev/net/zone/%zonename/%datalink
+  OS-2783 want generalized squeues
+  OS-2784 want sdev plugin interface
+  OS-2785 ipf should be able to hook kvm nics
 
-Also includes the final state of fixes from 4 tickets: OS-3877, OS-4191,
-OS-5343, OS-6552.
+Also includes the final state of fixes from 8 tickets: OS-2778, OS-2779,
+OS-2786, OS-2800, OS-3877, OS-4191, OS-5343, OS-6552.
 
 3 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -1660,8 +1718,8 @@ SmartOS: ZFS: cached-only property listing and pool history
 through libzfs and zfs_ioctl, plus logging zpool modify ioctls to the
 pool history (OS-7443).
 
-Also includes the final state of fixes from 7 tickets: OS-926, OS-1048,
-OS-1058, OS-1590, OS-2345, OS-7443, OS-7960.
+Also includes the final state of fixes from 8 tickets: OS-926, OS-1048,
+OS-1058, OS-1590, OS-2345, OS-2378, OS-7443, OS-7960.
 
 10 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -1780,8 +1838,8 @@ Better handling of a dying SLOG (OS-5872), zil_commit latency (OS-7917),
 the OS-2313 zil_close race fix (OS-6277), and vdev_disk changes for
 pulled disks and ziostat (OS-1987, OS-393).
 
-Also includes the final state of fixes from 7 tickets: OS-172, OS-393,
-OS-1987, OS-2437, OS-5872, OS-6277, OS-7917.
+Also includes the final state of fixes from 10 tickets: OS-172, OS-339,
+OS-355, OS-393, OS-1987, OS-2437, OS-5872, OS-6277, OS-6462, OS-7917.
 
 4 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -1864,19 +1922,20 @@ ziostat, arcstat and zfscache.
 Features:
   OS-67 Want kstats for per-zone logical and physical IO bytes and operations
   OS-77 Want IO kstats to capture ZFS latency in zones
-  OS-137 IO throttle uses inconsistent notions of time (ns, us, ms) OS-210 New tunable to keep I/O throttler ame
-  OS-147 vfsstat command to show VFS activity by zone OS-148 Update ziostat to coexist peacefully with vfsstat O
+  OS-149 New kstats to support vfsstat
+  OS-210 New tunable to keep I/O throttler amenable to sequential vs. random I/O
   OS-211 Want -r and -I options for new stat commands
   OS-228 Want -z option for vfsstat and ziostat
   OS-329 Want zone-based counters for I/O throttling events and total time throttled
   OS-2463 restore zone-based zfs scheduling, based on new behavior
   OS-8638 Want ability to specify zfs_arc_max
 
-Also includes the final state of fixes from 32 tickets: OS-19, OS-52,
-OS-66, OS-98, OS-100, OS-135, OS-163, OS-172, OS-176, OS-195, OS-221,
-OS-272, OS-285, OS-289, OS-338, OS-399, OS-478, OS-525, OS-611, OS-1244,
-OS-2377, OS-2531, OS-2576, OS-2659, OS-2943, OS-3043, OS-6433, OS-6540,
-OS-6588, OS-7250, OS-7798, OS-8361.
+Also includes the final state of fixes from 38 tickets: OS-19, OS-52,
+OS-66, OS-98, OS-100, OS-124, OS-135, OS-137, OS-147, OS-148, OS-163,
+OS-172, OS-176, OS-195, OS-221, OS-272, OS-285, OS-289, OS-338, OS-339,
+OS-355, OS-399, OS-478, OS-525, OS-611, OS-1244, OS-2377, OS-2531,
+OS-2576, OS-2659, OS-2943, OS-3043, OS-6433, OS-6540, OS-6588, OS-7250,
+OS-7798, OS-8361.
 
 Plus 3 commits without a ticket ID.
 
@@ -1976,13 +2035,13 @@ Hardware driver changes.
 
 Features:
   OS-1143 Update mr_sas for LSI 2208 support
-  OS-6528 Need support for mpt_sas tri-mode parts OS-6529 Clean up mpt_sas compiler warnings OS-6530 mptsas_hand
+  OS-6528 Need support for mpt_sas tri-mode parts
   OS-6893 Want basic AHCI enclosure services
   7926 enable gcc warnings for sd [fix build]
 
-Also includes the final state of fixes from 11 tickets: OS-130, OS-412,
-OS-2259, OS-5099, OS-5709, OS-5880, OS-7109, OS-7313, OS-8093, 3220,
-3320.
+Also includes the final state of fixes from 14 tickets: OS-130, OS-412,
+OS-2259, OS-5099, OS-5709, OS-5880, OS-6529, OS-6530, OS-6531, OS-7109,
+OS-7313, OS-8093, 3220, 3320.
 
 21 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -2111,10 +2170,10 @@ SmartOS: dboot memory mapping changes
 Early boot changes for difficult hardware and iPXE.
 
 Features:
-  OS-7260 SmartOS should support booting with loader OS-7271 proto.boot should include loader instead of grub OS
+  OS-7260 SmartOS should support booting with loader
 
-Also includes the final state of fixes from 3 tickets: OS-8138, 14407,
-14890.
+Also includes the final state of fixes from 8 tickets: OS-7271, OS-7332,
+OS-7584, OS-7585, OS-7595, OS-8138, 14407, 14890.
 
 3 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -2139,15 +2198,15 @@ SmartOS/Triton loader menus, branding, and boot fixes.
 Features:
   OS-558 need a way to install grub on a PCFS USB memory key
   OS-2054 want platform to deliver GRUB in a separate bundle
-  OS-7260 SmartOS should support booting with loader OS-7271 proto.boot should include loader instead of grub OS
+  OS-7260 SmartOS should support booting with loader
   OS-7594 Disable efinet support in Loader to workaround TRITON-1191
   OS-7697 Add Joyent/Triton branding to Loader
   OS-8511 curl progress bar is too wide on wscons (early port of illumos#14919)
   10063 basic support for smatch [fix another build error]
 
-Also includes the final state of fixes from 13 tickets: OS-374, OS-1693,
-OS-7776, OS-8063, OS-8138, OS-8161, OS-8231, OS-8370, OS-8466, OS-8617,
-OS-8671, RELENG-608, 14890.
+Also includes the final state of fixes from 18 tickets: OS-374, OS-1693,
+OS-7271, OS-7332, OS-7584, OS-7585, OS-7595, OS-7776, OS-8063, OS-8138,
+OS-8161, OS-8231, OS-8370, OS-8466, OS-8617, OS-8671, RELENG-608, 14890.
 
 28 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -2235,11 +2294,13 @@ SmartOS: DTrace enhancements
 DTrace changes not upstream.
 
 Features:
-  OS-2578 DTrace Userland CTF Support OS-2579 DTrace userland Keyword OS-2580 pid provider types OS-2581 dtest s
-  OS-3280 need a way to specify the root of a native system in the lx brand OS-3279 lx brand should allow delega
+  OS-2578 DTrace Userland CTF Support
+  OS-3279 lx brand should allow delegated datasets
+  OS-3280 need a way to specify the root of a native system in the lx brand
 
-Also includes the final state of fixes from 9 tickets: INTRO-118,
-OS-208, OS-279, OS-501, OS-506, OS-679, OS-3712, OS-5993, OS-6795.
+Also includes the final state of fixes from 16 tickets: INTRO-118,
+OS-208, OS-279, OS-501, OS-506, OS-679, OS-2579, OS-2580, OS-2581,
+OS-2582, OS-2583, OS-2584, OS-2585, OS-3712, OS-5993, OS-6795.
 
 21 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -2280,19 +2341,28 @@ SmartOS: mdb enhancements
 mdb changes not upstream.
 
 Features:
-  OS-577 race in netstack_unregister and zone creation OS-1690 want zid2zone and zdid2zone OS-1691 want a dcmd f
-  OS-1151 need support for USB v3.0 OS-5778 want usb_pipe_xopen(9F) OS-5776 usbai burst macros for endpoint desc
-  OS-1474 Want ::typedef OS-1598 Want mdb -e OS-1600 Want an mdb test suite driver OS-1632 mdb on x86 should be
+  OS-1151 need support for USB v3.0
+  OS-1474 Want ::typedef
+  OS-1598 Want mdb -e
+  OS-1600 Want an mdb test suite driver
+  OS-1632 mdb on x86 should be able to print alternate register names
+  OS-1690 want zid2zone and zdid2zone
+  OS-1691 want a dcmd for going from netstack id to nestack_t
+  OS-1699 libctf should support removing a dynamic type
   OS-1915 mdb_modapi should support creating v3 dmods
   OS-2844 lx brand should support 64-bit user-land
-  OS-3280 need a way to specify the root of a native system in the lx brand OS-3279 lx brand should allow delega
-  OS-7200 would like thread name API OS-7205 bhyve makefile uses wrong linker flags
+  OS-3279 lx brand should allow delegated datasets
+  OS-3280 need a way to specify the root of a native system in the lx brand
+  OS-5775 want ::hubd walker
+  OS-5778 want usb_pipe_xopen(9F)
+  OS-7200 would like thread name API
   OS-7345 Add support to mdb for anonymous/unnamed structs and unions.
   OS-7979 introduce /etc/versions/build (fix mismerge)
 
-Also includes the final state of fixes from 13 tickets: OS-1011,
-OS-1139, OS-1174, OS-1384, OS-1734, OS-1932, OS-3419, OS-5650, OS-7201,
-OS-7887, OS-7960, OS-7971, 4298.
+Also includes the final state of fixes from 23 tickets: OS-577, OS-1011,
+OS-1139, OS-1174, OS-1175, OS-1384, OS-1700, OS-1701, OS-1734, OS-1932,
+OS-3419, OS-5367, OS-5368, OS-5650, OS-5774, OS-5776, OS-5777, OS-7201,
+OS-7205, OS-7887, OS-7960, OS-7971, 4298.
 
 Plus 1 commits without a ticket ID.
 
@@ -2338,12 +2408,16 @@ SmartOS: rtld and sgs changes
 Toxic libraries, PAX headers, branded symbol lookup.
 
 Features:
-  OS-2094	ON tools should honor $MAKE OS-2095 cmd/refer Makefile is a bit bogus OS-2096 xref hardcodes its path
+  OS-2097 lex should check $origin for support files
+  OS-2098 yacc should check $origin for support files
+  OS-2101 Need a way to specify ast binary directory
   OS-2726 want to tell rtld certain libraries are toxic
-  OS-3280 need a way to specify the root of a native system in the lx brand OS-3279 lx brand should allow delega
+  OS-3279 lx brand should allow delegated datasets
+  OS-3280 need a way to specify the root of a native system in the lx brand
 
-Also includes the final state of fixes from 7 tickets: OS-2069, OS-3426,
-OS-3477, OS-4531, OS-5001, OS-6994, OS-8278.
+Also includes the final state of fixes from 15 tickets: OS-2069,
+OS-2094, OS-2095, OS-2096, OS-2099, OS-2100, OS-3426, OS-3477, OS-4531,
+OS-5001, OS-6993, OS-6994, OS-6995, OS-6996, OS-8278.
 
 21 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -2419,12 +2493,14 @@ Topology maps and modules for supported hardware.
 Features:
   OS-101 bmc driver is missing which makes ipmi not work locally; port freebsd openipmi driver
   OS-2444 richmond hardware maps need to support ivy bridge
-  OS-6527 Add plaform-specific topo map for Joyent-Storage-Platform-7001 OS-6511 extend ipmi enumerator module t
-  OS-7014 Add libtopo support for Upgradable Firmware Modules OS-7026 Add DDI support for Upgradable Firmware Mo
+  OS-6490 Implement topo module to enumerate dimms from smbios
+  OS-6527 Add plaform-specific topo map for Joyent-Storage-Platform-7001
+  OS-7014 Add libtopo support for Upgradable Firmware Modules
+  OS-7026 Add DDI support for Upgradable Firmware Modules
   OS-8113 enable ld guidance (#262)
 
-Also includes the final state of fixes from 8 tickets: OS-2756, OS-6557,
-OS-7485, OS-7608, OS-7768, OS-7960, OS-8251, 15736.
+Also includes the final state of fixes from 9 tickets: OS-2756, OS-6511,
+OS-6557, OS-7485, OS-7608, OS-7768, OS-7960, OS-8251, 15736.
 
 21 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -2469,13 +2545,15 @@ Service FMRIs, process arguments via procfs, ps/pgrep/ptools additions.
 Features:
   OS-15 add procfs equivalent to prctl(PR_SET_NAME)
   OS-3074 Want penv and pauxv
-  OS-3280 need a way to specify the root of a native system in the lx brand OS-3279 lx brand should allow delega
-  OS-3463 expose process argv through procfs OS-3207 in lx zone, 'ps auxww' does not show full cmdline for proce
+  OS-3279 lx brand should allow delegated datasets
+  OS-3280 need a way to specify the root of a native system in the lx brand
+  OS-3463 expose process argv through procfs
   10946 Want penv and pauxv [fix mismerge]
 
-Also includes the final state of fixes from 15 tickets: OS-1756,
-OS-3383, OS-3870, OS-3897, OS-4277, OS-4408, OS-4506, OS-6365, OS-7931,
-OS-7960, OS-8278, OS-8361, OS-8389, OS-8497, 13102.
+Also includes the final state of fixes from 19 tickets: OS-1756,
+OS-3207, OS-3383, OS-3513, OS-3870, OS-3897, OS-4277, OS-4408, OS-4506,
+OS-6365, OS-7931, OS-7932, OS-7934, OS-7960, OS-8278, OS-8361, OS-8389,
+OS-8497, 13102.
 
 32 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -2531,8 +2609,8 @@ SmartOS: libresolv2_joy and nsswitch dns
 
 See OS-2115.
 
-Also includes the final state of fixes from 5 tickets: OS-2115, OS-2178,
-OS-7125, OS-7297, OS-7768.
+Also includes the final state of fixes from 6 tickets: OS-2115, OS-2148,
+OS-2178, OS-7125, OS-7297, OS-7768.
 
 189 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -2865,7 +2943,7 @@ The platform OpenSSL is delivered with sunw_ prefixed names.
 Features:
   12217 add ld assert-deflib and guidance to gate build [fix duplicate makefile definitions from our local modif
 
-Also includes the final state of fixes from 1 tickets: OS-2257.
+Also includes the final state of fixes from 2 tickets: OS-2257, OS-2285.
 
 Plus 1 commits without a ticket ID.
 
@@ -2895,10 +2973,11 @@ Features:
   OS-167 would like the ability to list local-zone services from the global zone
   OS-1087 To better support split / and /usr, svcadm command should be in /sbin and not /usr/sbin
   OS-2405 want 'Alias:' column in 'svcs -Zx' output
-  OS-7200 would like thread name API OS-7205 bhyve makefile uses wrong linker flags
+  OS-7200 would like thread name API
 
-Also includes the final state of fixes from 10 tickets: OS-569, OS-601,
-OS-1491, OS-1497, OS-1634, OS-1705, OS-1794, OS-2825, OS-5898, 14923.
+Also includes the final state of fixes from 11 tickets: OS-569, OS-601,
+OS-1491, OS-1497, OS-1634, OS-1705, OS-1794, OS-2825, OS-5898, OS-7205,
+14923.
 
 12 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -2955,14 +3034,14 @@ Features:
   14672 Add cxgbe alias for T62100-KR (early merge)
   14727 Want AMD Unified Memory Controller Driver (fix manifest, name_to_major)
 
-Also includes the final state of fixes from 52 tickets: HEAD-434,
-HEAD-445, HEAD-1047, OS-87, OS-348, OS-349, OS-1159, OS-1209, OS-1220,
-OS-1321, OS-1441, OS-1473, OS-1484, OS-1794, OS-2312, OS-2318, OS-2512,
-OS-2609, OS-2828, OS-4237, OS-4244, OS-4922, OS-5054, OS-7196, OS-7685,
-OS-7907, OS-7911, OS-7921, OS-7961, OS-7972, OS-8003, OS-8077, OS-8086,
-OS-8142, OS-8162, OS-8190, OS-8231, OS-8253, OS-8257, OS-8324, OS-8341,
-OS-8346, OS-8370, OS-8418, OS-8425, OS-8458, OS-8644, OS-8683, OS-8684,
-OS-8703, 10703, 16492.
+Also includes the final state of fixes from 53 tickets: HEAD-434,
+HEAD-445, HEAD-1047, OS-87, OS-94, OS-348, OS-349, OS-1159, OS-1209,
+OS-1220, OS-1321, OS-1441, OS-1473, OS-1484, OS-1794, OS-2312, OS-2318,
+OS-2512, OS-2609, OS-2828, OS-4237, OS-4244, OS-4922, OS-5054, OS-7196,
+OS-7685, OS-7907, OS-7911, OS-7921, OS-7961, OS-7972, OS-8003, OS-8077,
+OS-8086, OS-8142, OS-8162, OS-8190, OS-8231, OS-8253, OS-8257, OS-8324,
+OS-8341, OS-8346, OS-8370, OS-8418, OS-8425, OS-8458, OS-8644, OS-8683,
+OS-8684, OS-8703, 10703, 16492.
 
 Plus 3 commits without a ticket ID.
 
@@ -3253,7 +3332,7 @@ SmartOS: remove SunSSH
 
 SSH is delivered from illumos-extra.
 
-Also includes the final state of fixes from 1 tickets: OS-4689.
+Also includes the final state of fixes from 2 tickets: OS-4688, OS-4689.
 
 8 files (8 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -3279,12 +3358,13 @@ onbld checks, webrev, build environment.
 
 Features:
   OS-4092 Want a man we can run during the build
-  OS-7498 __ctype_mask[EOF] has been working by accident OS-7511 undefined behavior in lx_cap_update_priv() turn
+  OS-7535 allow platform builds on base-64 image
   10063 basic support for smatch [fix another build error]
 
-Also includes the final state of fixes from 11 tickets: OS-1799,
-OS-2698, OS-7033, OS-7512, OS-7678, OS-7768, OS-7773, OS-7792, OS-7967,
-OS-8370, TOOLS-2586.
+Also includes the final state of fixes from 18 tickets: OS-1799,
+OS-1800, OS-1801, OS-2698, OS-7033, OS-7498, OS-7511, OS-7512, OS-7517,
+OS-7518, OS-7536, OS-7678, OS-7768, OS-7773, OS-7792, OS-7967, OS-8370,
+TOOLS-2586.
 
 Plus 1 commits without a ticket ID.
 
@@ -3396,7 +3476,9 @@ Features:
   OS-2870 lx brand add stubs for *xattr() (fix copyright)
   OS-2871 lx brand add debian support to lx_init_zone
   OS-2886 implement missing waitid flags
+  OS-2887 lxbrand add WALL, WCLONE, WNOTHREAD support to waitid
   OS-2894 lxbrand add PTRACE_O_TRACEFORK and PTRACE_O_TRACEEXEC support
+  OS-2916 lxbrand add ptrace PTRACE_GETEVENTMSG support
   OS-2923 lxbrand support SOCK_NONBLOCK and SOCK_CLOEXEC socket options
   OS-2948 add lx brand support for epoll
   OS-2952 lx brand needs to support or emulate rtnetlink(7)
@@ -3405,38 +3487,40 @@ Features:
   OS-2987 lx brand needs to support pselect6()
   OS-3035 lx brand should support prctl(PR_SET_NAME)
   OS-3052 lx brand better dtrace support for unsupported capabilities
-  OS-3149 lx brand always sends SIGCHLD to parent processes, regardless of how clone was invoked OS-2887 lxbrand
   OS-3162 lxbrand add utimensat
   OS-3171 lxbrand add /proc/XXX/limits
   OS-3220 lx brand: implement FUTEX_WAIT_BITSET/FUTEX_WAKE_BITSET
-  OS-3251 lxbrand should have ctfs and objfs OS-3252 lx brand should be able to see /dev/zfs OS-3253 lxbrand des
+  OS-3252 lx brand should be able to see /dev/zfs
+  OS-3254 lx brand should be able to see /dev/dtrace
   OS-3276 lx open O_CLOEXEC flag support is missing
-  OS-3280 need a way to specify the root of a native system in the lx brand OS-3279 lx brand should allow delega
+  OS-3279 lx brand should allow delegated datasets
+  OS-3280 need a way to specify the root of a native system in the lx brand
   OS-3314 want /proc/<pid>/task/<tid>/stat
   OS-3366 add lx brand support for inotify
   OS-3369 lxbrand need arch_prctl and threadp support
   OS-3422 lx brand: need to support tgkill() when tgid is not pid
   OS-3424 LX brand does not support MS_SILENT flag to mount(2)
   OS-3449 lxbrand provide /proc/modules
-  OS-3463 expose process argv through procfs OS-3207 in lx zone, 'ps auxww' does not show full cmdline for proce
+  OS-3463 expose process argv through procfs
   OS-3505 would like /var/ld lofs mounted into LX zones so crle is unnecessary
   OS-3524 in order to support interaction with docker containers, need to be able to connect to stdio for init f
+  OS-3525 in order to support 'docker logs' need to be able to get stdio from zone to log file
   OS-3530 lxbrand implement better capabilities(7) emulation
-  OS-3561 lxbrand emulation library should execute on alternate stack OS-3558 lxbrand add support for full in-ke
+  OS-3558 lxbrand add support for full in-kernel syscall handling
   OS-3569 lxbrand implement /proc/swaps
   OS-3591 lxbrand implement ppoll
   OS-3594 lx brand: need support for MAP_32BIT
   OS-3628 lx brand: add support for eventfd
-  OS-3643 lx brand: add USDT provider to lx_brand.so.1 OS-3644 lx brand: ptrace_init() never called
-  OS-3662 lxbrand emulate /proc/net/if_inet6 OS-3667 lxbrand support RO ifconfig
-  OS-3675 lxbrand ptrace setoptions handling is broken OS-3352 ptrace needs to work for linux, wait on non-child
-  OS-3742 lxbrand add support for signalfd OS-4382 remove obsolete brand hooks added during lx development
+  OS-3643 lx brand: add USDT provider to lx_brand.so.1
+  OS-3667 lxbrand support RO ifconfig
+  OS-3742 lxbrand add support for signalfd
+  OS-3762 lxbrand update vectored IO for new IOV_MAX value
   OS-3795 lxbrand initial centos 6.6 support
   OS-3815 lxbrand implement /proc/pid/auxv
   OS-3898 lx brand: add support for timerfd
   OS-3916 lxbrand support /proc/sys/kernel/core_pattern
   OS-4018 lxbrand support TCP SO_REUSEPORT
-  OS-4037 lxbrand tmpfs needs "size" and "mode" mount(2) options OS-4036 lxbrand mount(2) should be more accurat
+  OS-4042 lxbrand support "strictatime" mount(2) option
   OS-4115 lxbrand expose getrandom(2)
   OS-4122 lxbrand want dtrace ioctl support
   OS-4192 lx brand: add support for robust mutexes
@@ -3444,23 +3528,23 @@ Features:
   OS-4208 need cgroup support
   OS-4230 Add support for Alpine Linux lx-brand image
   OS-4251 lxbrand want lx_init for less boot-time overrides
-  OS-4337 lxbrand expose network interface info via sysfs OS-4329 lx sysfs unsuitable for use as mount point
-  OS-4338 lxbrand expose route info via netlink OS-3866 lxbrand ip route show fails OS-4275 lxbrand ansible unab
-  OS-4390 Want SMAP support OS-4927 ucopystr can't find its way home
+  OS-4337 lxbrand expose network interface info via sysfs
+  OS-4338 lxbrand expose route info via netlink
+  OS-4382 remove obsolete brand hooks added during lx development
+  OS-4390 Want SMAP support
   OS-4428 lxbrand lxinit should support static routes from NAPI
   OS-4431 allow cgroup file open with O_CREAT
   OS-4438 lxbrand ptrace should support PTRACE_GETSIGINFO
   OS-4453 missing support for LX_MSG_DONTWAIT socket flag
   OS-4470 lxbrand unblocking signals in new threads must be atomic
-  OS-4474 lxbrand missing prctl(PR_SET_PDEATHSIG) support OS-4476 lxbrand convert prctl to IKE
+  OS-4474 lxbrand missing prctl(PR_SET_PDEATHSIG) support
   OS-4486 lxbrand support MSG_CMSG_CLOEXEC flag
   OS-4495 support cgroups notify_on_release and release_agent
   OS-4525 lxbrand implement getsockopt(TCP_INFO)
   OS-4571 lxbrand allow manipulation of uname release and version (unused var)
   OS-4590 lxbrand wants /proc/sys/vm/swappiness
-  OS-4595 lxbrand needs /proc/sys/net/ipv4/tcp_retries2 OS-5337 Add support for sysctl net.ipv4.icmp_echo_ignore
   OS-4602 lxbrand support recvmsg(MSG_PEEK|MSG_TRUNC) behavior
-  OS-4603 lxbrand netlink should support SO_RECVUCRED OS-4538 lxbrand systemd Failed to configure loopback devic
+  OS-4603 lxbrand netlink should support SO_RECVUCRED
   OS-4612 Want zvol block devices in LX to handle some Linux disk ioctls
   OS-4614 lx want /sys/block emulation
   OS-4617 Support for NFS v4 on lx zones
@@ -3468,7 +3552,7 @@ Features:
   OS-4633 lxbrand: want tunables for tcp connection
   OS-4635 lxbrand O_PATH support needed for ltp open13
   OS-4652 lxbrand want /proc/pid/loginuid
-  OS-4660 lxproc new core_pattern support does not validate output length correctly OS-4662 lx_proc core_pattern
+  OS-4660 lxproc new core_pattern support does not validate output length correctly
   OS-4665 LX brand want devfs which allows symlinks to devices in root of /dev
   OS-4694 need support for in-zone docker logging
   OS-4741 Add support for multiple addresses & IPv6 to lx-branded zones
@@ -3477,22 +3561,24 @@ Features:
   OS-5072 lxbrand support PT_GNU_STACK
   OS-5079 lx_devfs should support VSOCK creation
   OS-5098 lxbrand want kernel.shmmni and kernel.sem tunables
-  OS-5117 lxbrand convert preadv/pwritev to IKE OS-3762 lxbrand update vectored IO for new IOV_MAX value OS-5133
   OS-5126 lxbrand provide /proc/sys/kernel/shmall
   OS-5166 Unable to mount NFS volume from lx instances when server only supports NFSv3
   OS-5202 Support AT_SECURE & AT_*ID in LX
   OS-5233 lxbrand mapr wants /proc/vmstat
-  OS-5240 mfs wants /sys/devices/system/node; causes core dump OS-5239 MapR mfs wants /sys/devices/system/cpu/ke
-  OS-5258 /proc/$pid/stat tty_nr is an untranslated illumos dev_t OS-5246 Add support for /proc/devices
-  OS-5261 lxbrand eventfd AIO overflow behavior is incorrect OS-6016 lxbrand poll(2) wants implicit events
+  OS-5239 MapR mfs wants /sys/devices/system/cpu/kernel_max
+  OS-5240 mfs wants /sys/devices/system/node; causes core dump
+  OS-5246 Add support for /proc/devices
   OS-5263 timerfd_create needs to support CLOCK_MONOTONIC
   OS-5277 enable monotonic clock for timers
-  OS-5331 Add support for sysctl net.ipv4.ip_local_port_range to LX proc OS-5342 writing to writable proc files
+  OS-5331 Add support for sysctl net.ipv4.ip_local_port_range to LX proc
+  OS-5337 Add support for sysctl net.ipv4.icmp_echo_ignore_broadcasts
+  OS-5338 Add support for sysctl net.ipv4.ip_forward
+  OS-5344 streamline proc write support
+  OS-5524 sched_setscheduler missing support for SCHED_BATCH and SCHED_IDLE
   OS-5574 new LTP test failures
   OS-5678 Want more tcp tunables to support the use of a large range of ports in the zone
   OS-5684 Want PTS ignore list
   OS-5701 lxbrand doesn't support per-process RLIMIT_MEMLOCK
-  OS-5717 lx sched* syscalls should work while running under FSS OS-5718 lx sched_setscheduler should not return
   OS-5725 allow swap to be "disabled" in LX
   OS-5773 lxbrand wants FUTEX_LOCK_PI
   OS-5815 lxbrand should support MCAST_JOIN_GROUP
@@ -3501,6 +3587,7 @@ Features:
   OS-5944 add support for aio IOCB_FLAG_RESFD eventfd polling
   OS-5977 lxbrand needs get/setfacl support for FreeIPA
   OS-6012 exclude new unsupported LTP tests
+  OS-6016 lxbrand poll(2) wants implicit events
   OS-6044 add support for cpumap in lx_sysfs
   OS-6211 support Linux accounting
   OS-6230 add unshare error handling to trigger systemd namespace workaround
@@ -3520,10 +3607,10 @@ Features:
   OS-6442 new LTP failures
   OS-6463 Don't allow clearing of thread name in LX on TID 1
   OS-7167 Need support for new EPYC ISA extensions
-  OS-7200 would like thread name API OS-7205 bhyve makefile uses wrong linker flags
+  OS-7200 would like thread name API
   OS-7328 lx recvmsg should allow cmsgs with no data
   OS-7427 Support Linux congestion control interfaces in LX zones
-  OS-7498 __ctype_mask[EOF] has been working by accident OS-7511 undefined behavior in lx_cap_update_priv() turn
+  OS-7535 allow platform builds on base-64 image
   OS-7755 add sendmmsg() and recvmmsg() to lx
   OS-8113 enable ld guidance (#262)
   OS-8145 Add MemAvailable to lx procfs (#267)
@@ -3540,81 +3627,92 @@ Features:
   OS-8682: Add net buffer size and panic-on-oops tunables to LX procfs.
   7029 want per-process exploit mitigation features (secflags) [missing manpage]
 
-Also includes the final state of fixes from 638 tickets: OS-1571,
+Also includes the final state of fixes from 726 tickets: OS-1571,
 OS-1682, OS-1694, OS-1966, OS-2810, OS-2837, OS-2840, OS-2863, OS-2873,
 OS-2877, OS-2879, OS-2885, OS-2897, OS-2982, OS-2983, OS-3006, OS-3024,
 OS-3026, OS-3038, OS-3073, OS-3087, OS-3099, OS-3101, OS-3103, OS-3107,
-OS-3116, OS-3117, OS-3129, OS-3134, OS-3137, OS-3152, OS-3157, OS-3174,
-OS-3181, OS-3182, OS-3195, OS-3206, OS-3216, OS-3219, OS-3226, OS-3236,
-OS-3258, OS-3259, OS-3261, OS-3262, OS-3271, OS-3278, OS-3285, OS-3286,
-OS-3287, OS-3295, OS-3298, OS-3304, OS-3307, OS-3309, OS-3310, OS-3316,
-OS-3317, OS-3323, OS-3327, OS-3329, OS-3335, OS-3370, OS-3382, OS-3384,
-OS-3385, OS-3396, OS-3400, OS-3402, OS-3408, OS-3411, OS-3418, OS-3427,
-OS-3430, OS-3433, OS-3436, OS-3440, OS-3444, OS-3445, OS-3447, OS-3448,
-OS-3450, OS-3453, OS-3466, OS-3467, OS-3475, OS-3484, OS-3485, OS-3488,
-OS-3490, OS-3491, OS-3496, OS-3499, OS-3501, OS-3503, OS-3517, OS-3522,
-OS-3528, OS-3534, OS-3547, OS-3550, OS-3551, OS-3552, OS-3560, OS-3572,
-OS-3577, OS-3582, OS-3595, OS-3596, OS-3600, OS-3605, OS-3607, OS-3608,
-OS-3611, OS-3612, OS-3613, OS-3624, OS-3626, OS-3636, OS-3657, OS-3658,
-OS-3663, OS-3666, OS-3672, OS-3681, OS-3683, OS-3703, OS-3708, OS-3712,
-OS-3718, OS-3740, OS-3744, OS-3763, OS-3773, OS-3778, OS-3782, OS-3791,
-OS-3793, OS-3797, OS-3798, OS-3799, OS-3802, OS-3806, OS-3812, OS-3820,
-OS-3826, OS-3827, OS-3831, OS-3841, OS-3882, OS-3892, OS-3911, OS-3917,
-OS-3923, OS-3924, OS-3925, OS-3926, OS-3927, OS-3932, OS-3934, OS-3937,
-OS-3939, OS-3952, OS-3955, OS-3990, OS-3997, OS-4002, OS-4004, OS-4007,
-OS-4011, OS-4022, OS-4039, OS-4040, OS-4047, OS-4049, OS-4051, OS-4052,
-OS-4064, OS-4065, OS-4071, OS-4074, OS-4082, OS-4084, OS-4098, OS-4099,
-OS-4104, OS-4114, OS-4119, OS-4123, OS-4125, OS-4127, OS-4129, OS-4131,
-OS-4133, OS-4138, OS-4151, OS-4152, OS-4178, OS-4188, OS-4199, OS-4214,
-OS-4225, OS-4239, OS-4244, OS-4252, OS-4256, OS-4259, OS-4269, OS-4277,
-OS-4285, OS-4286, OS-4287, OS-4288, OS-4292, OS-4299, OS-4300, OS-4303,
-OS-4309, OS-4320, OS-4323, OS-4331, OS-4342, OS-4347, OS-4349, OS-4353,
-OS-4360, OS-4363, OS-4376, OS-4385, OS-4389, OS-4398, OS-4407, OS-4414,
-OS-4421, OS-4430, OS-4434, OS-4437, OS-4441, OS-4443, OS-4444, OS-4445,
-OS-4446, OS-4450, OS-4451, OS-4454, OS-4458, OS-4459, OS-4460, OS-4461,
-OS-4463, OS-4467, OS-4469, OS-4471, OS-4475, OS-4485, OS-4498, OS-4500,
-OS-4504, OS-4506, OS-4511, OS-4517, OS-4521, OS-4532, OS-4533, OS-4536,
-OS-4544, OS-4562, OS-4572, OS-4588, OS-4592, OS-4594, OS-4596, OS-4597,
+OS-3116, OS-3117, OS-3129, OS-3134, OS-3137, OS-3149, OS-3152, OS-3157,
+OS-3174, OS-3181, OS-3182, OS-3195, OS-3206, OS-3207, OS-3216, OS-3219,
+OS-3226, OS-3236, OS-3250, OS-3251, OS-3253, OS-3258, OS-3259, OS-3261,
+OS-3262, OS-3271, OS-3278, OS-3285, OS-3286, OS-3287, OS-3295, OS-3298,
+OS-3304, OS-3306, OS-3307, OS-3309, OS-3310, OS-3316, OS-3317, OS-3323,
+OS-3327, OS-3329, OS-3335, OS-3352, OS-3370, OS-3382, OS-3384, OS-3385,
+OS-3396, OS-3400, OS-3402, OS-3408, OS-3411, OS-3418, OS-3427, OS-3430,
+OS-3433, OS-3436, OS-3440, OS-3444, OS-3445, OS-3447, OS-3448, OS-3450,
+OS-3453, OS-3466, OS-3467, OS-3475, OS-3484, OS-3485, OS-3488, OS-3490,
+OS-3491, OS-3496, OS-3499, OS-3501, OS-3503, OS-3513, OS-3517, OS-3522,
+OS-3528, OS-3532, OS-3534, OS-3545, OS-3547, OS-3550, OS-3551, OS-3552,
+OS-3560, OS-3561, OS-3572, OS-3576, OS-3577, OS-3582, OS-3595, OS-3596,
+OS-3600, OS-3601, OS-3605, OS-3607, OS-3608, OS-3611, OS-3612, OS-3613,
+OS-3624, OS-3626, OS-3636, OS-3644, OS-3657, OS-3658, OS-3662, OS-3663,
+OS-3666, OS-3672, OS-3675, OS-3681, OS-3683, OS-3685, OS-3703, OS-3708,
+OS-3712, OS-3718, OS-3740, OS-3744, OS-3763, OS-3773, OS-3778, OS-3779,
+OS-3782, OS-3791, OS-3793, OS-3794, OS-3797, OS-3798, OS-3799, OS-3802,
+OS-3803, OS-3804, OS-3805, OS-3806, OS-3812, OS-3820, OS-3826, OS-3827,
+OS-3831, OS-3834, OS-3841, OS-3866, OS-3868, OS-3882, OS-3892, OS-3901,
+OS-3911, OS-3917, OS-3920, OS-3923, OS-3924, OS-3925, OS-3926, OS-3927,
+OS-3928, OS-3932, OS-3934, OS-3937, OS-3939, OS-3952, OS-3955, OS-3988,
+OS-3990, OS-3992, OS-3997, OS-4002, OS-4004, OS-4007, OS-4011, OS-4022,
+OS-4036, OS-4037, OS-4038, OS-4039, OS-4040, OS-4047, OS-4049, OS-4051,
+OS-4052, OS-4064, OS-4065, OS-4071, OS-4074, OS-4082, OS-4084, OS-4098,
+OS-4099, OS-4104, OS-4114, OS-4119, OS-4123, OS-4125, OS-4127, OS-4129,
+OS-4131, OS-4133, OS-4138, OS-4151, OS-4152, OS-4178, OS-4188, OS-4199,
+OS-4214, OS-4215, OS-4225, OS-4239, OS-4240, OS-4244, OS-4252, OS-4256,
+OS-4257, OS-4259, OS-4269, OS-4275, OS-4277, OS-4282, OS-4285, OS-4286,
+OS-4287, OS-4288, OS-4292, OS-4296, OS-4299, OS-4300, OS-4303, OS-4309,
+OS-4320, OS-4323, OS-4329, OS-4331, OS-4342, OS-4347, OS-4349, OS-4353,
+OS-4360, OS-4363, OS-4376, OS-4385, OS-4387, OS-4389, OS-4398, OS-4407,
+OS-4414, OS-4421, OS-4430, OS-4434, OS-4437, OS-4441, OS-4443, OS-4444,
+OS-4445, OS-4446, OS-4450, OS-4451, OS-4454, OS-4458, OS-4459, OS-4460,
+OS-4461, OS-4463, OS-4464, OS-4467, OS-4469, OS-4471, OS-4473, OS-4475,
+OS-4476, OS-4485, OS-4498, OS-4500, OS-4504, OS-4505, OS-4506, OS-4511,
+OS-4517, OS-4521, OS-4532, OS-4533, OS-4536, OS-4538, OS-4544, OS-4562,
+OS-4572, OS-4587, OS-4588, OS-4592, OS-4594, OS-4595, OS-4596, OS-4597,
 OS-4598, OS-4601, OS-4607, OS-4611, OS-4619, OS-4621, OS-4637, OS-4638,
-OS-4647, OS-4648, OS-4656, OS-4657, OS-4658, OS-4675, OS-4680, OS-4681,
-OS-4695, OS-4725, OS-4732, OS-4736, OS-4749, OS-4758, OS-4759, OS-4762,
-OS-4784, OS-4790, OS-4797, OS-4805, OS-4812, OS-4815, OS-4818, OS-4824,
-OS-4825, OS-4828, OS-4830, OS-4833, OS-4844, OS-4849, OS-4855, OS-4865,
-OS-4899, OS-4900, OS-4910, OS-4924, OS-4930, OS-4932, OS-4937, OS-4969,
-OS-4980, OS-4983, OS-4992, OS-4993, OS-4995, OS-5002, OS-5012, OS-5013,
-OS-5028, OS-5029, OS-5035, OS-5036, OS-5042, OS-5045, OS-5064, OS-5065,
-OS-5066, OS-5067, OS-5068, OS-5069, OS-5070, OS-5073, OS-5075, OS-5077,
-OS-5078, OS-5080, OS-5081, OS-5083, OS-5085, OS-5086, OS-5092, OS-5096,
-OS-5097, OS-5103, OS-5104, OS-5106, OS-5119, OS-5122, OS-5124, OS-5138,
-OS-5142, OS-5149, OS-5155, OS-5157, OS-5162, OS-5170, OS-5179, OS-5184,
-OS-5187, OS-5189, OS-5191, OS-5196, OS-5200, OS-5201, OS-5203, OS-5204,
-OS-5206, OS-5221, OS-5223, OS-5241, OS-5243, OS-5247, OS-5248, OS-5249,
-OS-5250, OS-5254, OS-5259, OS-5260, OS-5262, OS-5266, OS-5273, OS-5274,
-OS-5297, OS-5300, OS-5303, OS-5305, OS-5313, OS-5322, OS-5323, OS-5350,
-OS-5354, OS-5356, OS-5357, OS-5358, OS-5360, OS-5364, OS-5365, OS-5373,
-OS-5380, OS-5382, OS-5392, OS-5405, OS-5410, OS-5412, OS-5427, OS-5428,
-OS-5429, OS-5431, OS-5432, OS-5453, OS-5458, OS-5462, OS-5472, OS-5477,
-OS-5480, OS-5481, OS-5482, OS-5487, OS-5491, OS-5495, OS-5496, OS-5497,
-OS-5498, OS-5505, OS-5521, OS-5537, OS-5545, OS-5546, OS-5547, OS-5566,
-OS-5570, OS-5571, OS-5583, OS-5588, OS-5593, OS-5607, OS-5612, OS-5620,
-OS-5630, OS-5636, OS-5637, OS-5644, OS-5667, OS-5673, OS-5685, OS-5696,
-OS-5699, OS-5702, OS-5706, OS-5712, OS-5719, OS-5721, OS-5722, OS-5728,
+OS-4640, OS-4647, OS-4648, OS-4656, OS-4657, OS-4658, OS-4662, OS-4675,
+OS-4680, OS-4681, OS-4695, OS-4725, OS-4732, OS-4736, OS-4749, OS-4758,
+OS-4759, OS-4762, OS-4784, OS-4790, OS-4797, OS-4805, OS-4812, OS-4815,
+OS-4818, OS-4824, OS-4825, OS-4828, OS-4829, OS-4830, OS-4833, OS-4844,
+OS-4849, OS-4855, OS-4865, OS-4899, OS-4900, OS-4910, OS-4924, OS-4927,
+OS-4930, OS-4932, OS-4937, OS-4941, OS-4969, OS-4980, OS-4983, OS-4992,
+OS-4993, OS-4995, OS-5002, OS-5012, OS-5013, OS-5028, OS-5029, OS-5035,
+OS-5036, OS-5042, OS-5045, OS-5064, OS-5065, OS-5066, OS-5067, OS-5068,
+OS-5069, OS-5070, OS-5073, OS-5075, OS-5076, OS-5077, OS-5078, OS-5080,
+OS-5081, OS-5083, OS-5085, OS-5086, OS-5089, OS-5092, OS-5094, OS-5096,
+OS-5097, OS-5103, OS-5104, OS-5106, OS-5117, OS-5119, OS-5122, OS-5124,
+OS-5133, OS-5138, OS-5142, OS-5149, OS-5153, OS-5154, OS-5155, OS-5157,
+OS-5162, OS-5170, OS-5171, OS-5179, OS-5184, OS-5187, OS-5189, OS-5191,
+OS-5196, OS-5200, OS-5201, OS-5203, OS-5204, OS-5206, OS-5221, OS-5223,
+OS-5241, OS-5243, OS-5244, OS-5247, OS-5248, OS-5249, OS-5250, OS-5254,
+OS-5258, OS-5259, OS-5260, OS-5261, OS-5262, OS-5266, OS-5273, OS-5274,
+OS-5297, OS-5300, OS-5303, OS-5305, OS-5313, OS-5322, OS-5323, OS-5342,
+OS-5350, OS-5354, OS-5356, OS-5357, OS-5358, OS-5360, OS-5364, OS-5365,
+OS-5373, OS-5380, OS-5382, OS-5392, OS-5405, OS-5410, OS-5412, OS-5427,
+OS-5428, OS-5429, OS-5431, OS-5432, OS-5453, OS-5458, OS-5462, OS-5472,
+OS-5477, OS-5480, OS-5481, OS-5482, OS-5487, OS-5491, OS-5495, OS-5496,
+OS-5497, OS-5498, OS-5505, OS-5521, OS-5537, OS-5545, OS-5546, OS-5547,
+OS-5566, OS-5570, OS-5571, OS-5573, OS-5583, OS-5588, OS-5593, OS-5607,
+OS-5612, OS-5620, OS-5630, OS-5636, OS-5637, OS-5644, OS-5646, OS-5667,
+OS-5673, OS-5685, OS-5696, OS-5697, OS-5699, OS-5702, OS-5706, OS-5712,
+OS-5717, OS-5718, OS-5719, OS-5720, OS-5721, OS-5722, OS-5728, OS-5733,
 OS-5748, OS-5751, OS-5752, OS-5756, OS-5760, OS-5761, OS-5762, OS-5763,
 OS-5764, OS-5768, OS-5771, OS-5772, OS-5783, OS-5792, OS-5802, OS-5803,
 OS-5805, OS-5808, OS-5813, OS-5814, OS-5817, OS-5820, OS-5825, OS-5838,
 OS-5841, OS-5844, OS-5845, OS-5853, OS-5866, OS-5902, OS-5906, OS-5907,
 OS-5909, OS-5925, OS-5926, OS-5936, OS-5938, OS-5965, OS-5966, OS-5967,
-OS-5972, OS-5973, OS-5981, OS-5984, OS-5987, OS-5991, OS-5994, OS-5997,
-OS-6008, OS-6010, OS-6017, OS-6018, OS-6019, OS-6025, OS-6034, OS-6046,
-OS-6052, OS-6069, OS-6074, OS-6081, OS-6088, OS-6096, OS-6155, OS-6158,
-OS-6170, OS-6175, OS-6183, OS-6202, OS-6212, OS-6213, OS-6222, OS-6223,
-OS-6238, OS-6258, OS-6262, OS-6266, OS-6275, OS-6276, OS-6290, OS-6304,
-OS-6306, OS-6320, OS-6330, OS-6338, OS-6364, OS-6382, OS-6388, OS-6428,
-OS-6436, OS-6456, OS-6467, OS-6475, OS-6487, OS-6501, OS-6514, OS-6538,
-OS-6562, OS-6574, OS-6575, OS-6580, OS-6584, OS-6625, OS-6898, OS-6906,
-OS-6920, OS-6935, OS-6970, OS-7000, OS-7029, OS-7030, OS-7076, OS-7121,
-OS-7145, OS-7157, OS-7288, OS-7336, OS-7433, OS-7598, OS-7636, OS-7685,
-OS-7753, OS-7754, OS-7768, OS-7861, OS-7899, OS-7931, OS-7947, OS-7960,
+OS-5972, OS-5973, OS-5981, OS-5984, OS-5987, OS-5991, OS-5992, OS-5994,
+OS-5997, OS-6008, OS-6010, OS-6017, OS-6018, OS-6019, OS-6025, OS-6034,
+OS-6046, OS-6052, OS-6069, OS-6074, OS-6081, OS-6088, OS-6096, OS-6155,
+OS-6158, OS-6170, OS-6175, OS-6183, OS-6202, OS-6212, OS-6213, OS-6222,
+OS-6223, OS-6238, OS-6258, OS-6262, OS-6266, OS-6275, OS-6276, OS-6290,
+OS-6304, OS-6306, OS-6320, OS-6330, OS-6338, OS-6364, OS-6382, OS-6388,
+OS-6428, OS-6436, OS-6456, OS-6467, OS-6475, OS-6486, OS-6487, OS-6488,
+OS-6501, OS-6505, OS-6514, OS-6538, OS-6562, OS-6574, OS-6575, OS-6580,
+OS-6584, OS-6625, OS-6898, OS-6906, OS-6920, OS-6935, OS-6970, OS-7000,
+OS-7029, OS-7030, OS-7076, OS-7121, OS-7145, OS-7157, OS-7205, OS-7288,
+OS-7336, OS-7433, OS-7498, OS-7511, OS-7517, OS-7518, OS-7536, OS-7598,
+OS-7621, OS-7636, OS-7639, OS-7663, OS-7685, OS-7688, OS-7753, OS-7754,
+OS-7768, OS-7861, OS-7899, OS-7931, OS-7932, OS-7934, OS-7947, OS-7960,
 OS-7976, OS-7978, OS-7980, OS-7999, OS-8056, OS-8089, OS-8141, OS-8150,
 OS-8152, OS-8167, OS-8181, OS-8182, OS-8193, OS-8194, OS-8195, OS-8200,
 OS-8233, OS-8268, OS-8277, OS-8278, OS-8289, OS-8315, OS-8319, OS-8338,
@@ -4132,8 +4230,8 @@ NFS mount transport selection (OS-2679), nfs-server service ordering
 (STOR-55), and NFS sharing from delegated datasets in non-global zones
 (STOR-54).
 
-Also includes the final state of fixes from 5 tickets: OS-1169, OS-2679,
-OS-3792, STOR-54, STOR-55.
+Also includes the final state of fixes from 6 tickets: OS-493, OS-1169,
+OS-2679, OS-3792, STOR-54, STOR-55.
 
 Plus 1 commits without a ticket ID.
 
@@ -4162,8 +4260,9 @@ SmartOS: manual page fixes and additions
 Manual page corrections and additions not tied to a larger feature,
 including swap(4).
 
-Also includes the final state of fixes from 7 tickets: OS-923, OS-2727,
-OS-5635, OS-6175, OS-6282, OS-7247, OS-8361.
+Also includes the final state of fixes from 14 tickets: OS-923, OS-2478,
+OS-2501, OS-2506, OS-2507, OS-2509, OS-2727, OS-2728, OS-5635, OS-6175,
+OS-6282, OS-7247, OS-7248, OS-8361.
 
 6 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -4193,10 +4292,12 @@ Features:
   OS-110 WARNING: No randomness provider enabled for /dev/random. Use cryptoadm(1M) to enable a provider.
   OS-2868 Need a proper flock() implementation
   OS-6233 want ddi_ffsll, ddi_flsll
-  OS-7127 Add support for SMBIOS 3.2 OS-7128 Want libjedec OS-7129 Check for SMBIOS table with higher version OS
+  OS-7127 Add support for SMBIOS 3.2
+  OS-7128 Want libjedec
 
-Also includes the final state of fixes from 7 tickets: OS-161, OS-696,
-OS-1783, OS-1832, OS-4089, OS-6362, OS-6402.
+Also includes the final state of fixes from 11 tickets: OS-161, OS-696,
+OS-1783, OS-1832, OS-4089, OS-6362, OS-6402, OS-7129, OS-7130, OS-7131,
+OS-7500.
 
 Plus 1 commits without a ticket ID.
 
@@ -4242,10 +4343,10 @@ Features:
   OS-7702 add zfs mmp and alloc_class tests to smartos run profile
   OS-8113 enable ld guidance (#262)
 
-Also includes the final state of fixes from 19 tickets: OS-201, OS-1367,
-OS-1928, OS-4539, OS-5536, OS-6086, OS-6239, OS-6363, OS-6402, OS-6602,
-OS-6795, OS-6814, OS-6878, OS-7109, OS-7177, OS-7835, OS-7838, OS-8322,
-OS-8323.
+Also includes the final state of fixes from 21 tickets: OS-201, OS-1367,
+OS-1928, OS-4539, OS-5536, OS-6086, OS-6239, OS-6363, OS-6402, OS-6404,
+OS-6602, OS-6795, OS-6814, OS-6878, OS-7109, OS-7177, OS-7499, OS-7835,
+OS-7838, OS-8322, OS-8323.
 
 Plus 2 commits without a ticket ID.
 
@@ -4318,25 +4419,34 @@ top-level, cmd, lib, man, test and kernel Makefiles (Makefile.files,
 Makefile.intel, Makefile.rules) and library mapfiles.
 
 Features:
-  OS-147 vfsstat command to show VFS activity by zone OS-148 Update ziostat to coexist peacefully with vfsstat O
-  OS-2800 Project Bardiche OS-2784 want sdev plugin interface OS-2783 want generalized squeues OS-2785 ipf shoul
+  OS-149 New kstats to support vfsstat
+  OS-610 snoop and libdlpi should be able to consume /dev/net/zone/%zonename
+  OS-2780 Want dlpi primitive DL_EXCLUSIVE_REQ
+  OS-2781 dlpi promisc modes should be able to be RX-only
+  OS-2782 want /dev/net/zone/%zonename/%datalink
+  OS-2783 want generalized squeues
+  OS-2784 want sdev plugin interface
+  OS-2785 ipf should be able to hook kvm nics
   OS-2893 add support for epoll
-  OS-3280 need a way to specify the root of a native system in the lx brand OS-3279 lx brand should allow delega
+  OS-3279 lx brand should allow delegated datasets
+  OS-3280 need a way to specify the root of a native system in the lx brand
   OS-3886 Implement id_space as a library
   OS-4470 lxbrand unblocking signals in new threads must be atomic
-  OS-7014 Add libtopo support for Upgradable Firmware Modules OS-7026 Add DDI support for Upgradable Firmware Mo
-  OS-7669 Want CPU Temperature Sensors OS-7677 i86pc chip module should be smatch clean
+  OS-7014 Add libtopo support for Upgradable Firmware Modules
+  OS-7026 Add DDI support for Upgradable Firmware Modules
+  OS-7669 Want CPU Temperature Sensors
   OS-7943 Want platform build test artifact
   OS-8113 enable ld guidance (#262)
   12217 add ld assert-deflib and guidance to gate build [fix duplicate makefile definitions from our local modif
   12665 want modern bhyve [fix broken build]
 
-Also includes the final state of fixes from 37 tickets: OS-98, OS-189,
-OS-201, OS-421, OS-507, OS-696, OS-1512, OS-1589, OS-1836, OS-2592,
-OS-2677, OS-3748, OS-4509, OS-4689, OS-4967, OS-5017, OS-5591, OS-6041,
-OS-6187, OS-6282, OS-6410, OS-6795, OS-6920, OS-7240, OS-7870, OS-8324,
-OS-8360, OS-8361, OS-8433, OS-8458, OS-8709, OS-8756, 5468, 6606, 9088,
-13258, 14666.
+Also includes the final state of fixes from 46 tickets: OS-98, OS-147,
+OS-148, OS-189, OS-201, OS-421, OS-507, OS-696, OS-1512, OS-1589,
+OS-1836, OS-2592, OS-2677, OS-2778, OS-2779, OS-2786, OS-2800, OS-3748,
+OS-4509, OS-4688, OS-4689, OS-4967, OS-5017, OS-5585, OS-5591, OS-6041,
+OS-6187, OS-6282, OS-6410, OS-6795, OS-6920, OS-7240, OS-7677, OS-7870,
+OS-8324, OS-8360, OS-8361, OS-8433, OS-8458, OS-8709, OS-8756, 5468,
+6606, 9088, 13258, 14666.
 
 Plus 5 commits without a ticket ID.
 
@@ -4592,13 +4702,14 @@ Exception lists for the build checks, mancheck.conf, .gitignore files
 and the Jenkinsfile.
 
 Features:
-  OS-6180 NIC Transceivers should show up in hc topo OS-6181 Want library to parse SFP i2c information
+  OS-6181 Want library to parse SFP i2c information
   OS-8046 add Jenkinsfiles to smartos repos (#260)
   OS-8274 smartos jenkins labels should select new build machines (#353)
   OS-8638 Want ability to specify zfs_arc_max
 
-Also includes the final state of fixes from 9 tickets: OS-4220, OS-5543,
-OS-7528, OS-8361, OS-8458, OS-8635, OS-8666, TOOLS-2542, TRITON-2254.
+Also includes the final state of fixes from 11 tickets: OS-4220,
+OS-5543, OS-6180, OS-7528, OS-7572, OS-8361, OS-8458, OS-8635, OS-8666,
+TOOLS-2542, TRITON-2254.
 
 Changes by feature: lines added here, grouped by the commit that holds
 the rest of the ticket that wrote them.
@@ -4666,100 +4777,130 @@ every file, directory and link delivered into the ramdisk root.
 Features:
   OS-37 add missing man pages
   OS-101 bmc driver is missing which makes ipmi not work locally; port freebsd openipmi driver
+  OS-610 snoop and libdlpi should be able to consume /dev/net/zone/%zonename
   OS-628 locale classes in new JPC datasets
   OS-699 Add telnet back into SmartOS
   OS-929 ship proper COMSTAR binaries in platform
   OS-932 want SMB binaries and services in platform
   OS-954 add vmxnet driver to illumos
-  OS-969 want to perturb vnics OS-997 net_* and hook_* man pages are wrong
+  OS-969 want to perturb vnics
   OS-978 hyperlofs [fix multiple adds to same dir]
   OS-1008 TERM support missing for xterm-color 256 color, screen and tmux
-  OS-1081 /usr/gnu contents are severely broken wrt ISA OS-1121 platform delivers unwanted compilation symlinks
   OS-1085 Add symlink for /usr/ccs/bin/ar
   OS-1087 To better support split / and /usr, svcadm command should be in /sbin and not /usr/sbin
   OS-1119 add lxproc, a coarsely Linux-compatible /proc
-  OS-1131 Want a library to allow programatic access to the pci database OS-919 prtconf should print out PCI dat
+  OS-1131 Want a library to allow programatic access to the pci database
   OS-1141 missing fma topo support
-  OS-1151 need support for USB v3.0 OS-5778 want usb_pipe_xopen(9F) OS-5776 usbai burst macros for endpoint desc
+  OS-1151 need support for USB v3.0
   OS-1238 ship mcs
   OS-1336 Ship dis
   OS-1355 ship man pages that are present but missing
   OS-1466 Ship ldap clients service for GZ and joyent brand
-  OS-1507 ipd can blow an assertion when status is requested on a disabled zone OS-1508 ipd needs a stable libra
+  OS-1508 ipd needs a stable library
   OS-1595 locale support missing reviewed by Robert Mustacchi
   OS-1683 ship elfedit
   OS-1725 add SNGL brand
   OS-1802 want column(1)
   OS-1997 mpt_sas: expose LED controls to libtopo
   OS-2149 want getifaddrs manual page
-  OS-2160 want FW config version number for igb and ixgbe OS-2186 ship pcitool
+  OS-2160 want FW config version number for igb and ixgbe
+  OS-2186 ship pcitool
   OS-2383 want support for HP/Compaq SmartArray controllers
   OS-2629 want ability to provide additional objects at boot
+  OS-2780 Want dlpi primitive DL_EXCLUSIVE_REQ
+  OS-2781 dlpi promisc modes should be able to be RX-only
+  OS-2782 want /dev/net/zone/%zonename/%datalink
+  OS-2783 want generalized squeues
+  OS-2784 want sdev plugin interface
+  OS-2785 ipf should be able to hook kvm nics
   OS-2799 ship vioblk
-  OS-2800 Project Bardiche OS-2784 want sdev plugin interface OS-2783 want generalized squeues OS-2785 ipf shoul
   OS-2809 add missing files for SMTP notify to function
   OS-2834 ship lx brand
   OS-2844 lx brand should support 64-bit user-land
   OS-2868 Need a proper flock() implementation
-  OS-2882 Ship vnd_errno.h OS-2883 sngl zones should see vnd
+  OS-2882 Ship vnd_errno.h
   OS-2893 add support for epoll
   OS-2952 lx brand needs to support or emulate rtnetlink(7)
-  OS-3000 I for one, welcome my overlay network overlords OS-3080 Need direct callbacks from socket upcalls via
   OS-3074 Want penv and pauxv
   OS-3110 Add support for nfp driver
   OS-3294 add support for inotify
   OS-3362 Ship paths.h
   OS-3505 would like /var/ld lofs mounted into LX zones so crle is unnecessary
   OS-3524 in order to support interaction with docker containers, need to be able to connect to stdio for init f
+  OS-3525 in order to support 'docker logs' need to be able to get stdio from zone to log file
   OS-3625 add support for eventfd
   OS-3795 lxbrand initial centos 6.6 support
   OS-3872 add support for timerfd
   OS-3884 Want libbunyan
   OS-3886 Implement id_space as a library
   OS-3894 want librename
+  OS-3943 want vxlan support
+  OS-3944 snoop should support vxlan
+  OS-3945 want varpd direct plugin
+  OS-3946 want varpd files plugin
+  OS-3947 want varpd svp plugin
+  OS-3949 want string property ranges for mac
+  OS-4048 new ctfmerge uses tmpfile after freeing it
   OS-4169 heighten mancheck scrutiny; ship the whole of section 3
   OS-4206 support deferred TCP accepts
   OS-4406 native signalfd support
   OS-4495 support cgroups notify_on_release and release_agent
-  OS-4548 CTF Everywhere: Phase 1 OS-4549 ctfconvert should be implemented in terms of libctf OS-4550 ctfconvert
+  OS-4551 Want general mergeq
+  OS-4552 Want general workq
+  OS-4553 want multi-threaded ctfmerge
+  OS-4566 Want libctf ctf_kind_name() function
+  OS-4567 Want libctf function to set struct/union size
+  OS-4568 Want ctfmerge altexec
   OS-4583 Add an `ndp' tool for manipulating the neighbors table
   OS-4665 LX brand want devfs which allows symlinks to devices in root of /dev
   OS-4744 ship NVMe
-  OS-4840 Want system event for datalink state changes OS-4839 Want ability to toggle etherstub link state
+  OS-4839 Want ability to toggle etherstub link state
+  OS-4840 Want system event for datalink state changes
   OS-5224 Want primordial i40e driver
   OS-5525 changes to allow the tests to work on SmartOS
   OS-5564 new driver for Smart Array storage controllers
   OS-5684 Want PTS ignore list
+  OS-5775 want ::hubd walker
+  OS-5778 want usb_pipe_xopen(9F)
   OS-5873 Need NFS client lockd support: fcntl F_SETLK returns ENOLCK in LX zone [fix debug build error]
-  OS-5910 want usba manual pages OS-5911 need xhci(7D) manual page
+  OS-5910 want usba manual pages
   OS-5969 Want support for QLogic QL41000/45000 series devices
-  OS-6022 want basic transceiver visibility OS-6023 ixgbe MAC_CAPAB_TRANSCEIVER support OS-6024 i40e MAC_CAPAB_T
+  OS-6022 want basic transceiver visibility
+  OS-6023 ixgbe MAC_CAPAB_TRANSCEIVER support
+  OS-6024 i40e MAC_CAPAB_TRANSCEIVER support
   OS-6079 Want docs for iports, tgtmaps, and friends
   OS-6089 want basic utility for Ethernet level 'pong'
-  OS-6092 Want means of toggling data link LEDs OS-6093 e1000g MAC_CAPAB_LED support OS-6094 i40e MAC_CAPAB_LED
-  OS-6180 NIC Transceivers should show up in hc topo OS-6181 Want library to parse SFP i2c information
+  OS-6092 Want means of toggling data link LEDs
+  OS-6093 e1000g MAC_CAPAB_LED support
+  OS-6094 i40e MAC_CAPAB_LED support
+  OS-6095 igb MAC_CAPAB_LED support
+  OS-6181 Want library to parse SFP i2c information
   OS-6233 want ddi_ffsll, ddi_flsll
   OS-6326 lx suse image support
   OS-6412 ship initial bhyve bits
   OS-6443 ship fibre channel (FC) kernel modules
+  OS-6490 Implement topo module to enumerate dimms from smbios
   OS-6496 Add platform-specific topo maps for the Joyent J310x platform
-  OS-6513 Add platform-specific topo maps for the Joyent J330x Compute Platform OS-6657 Add test mechanism to se
-  OS-6527 Add plaform-specific topo map for Joyent-Storage-Platform-7001 OS-6511 extend ipmi enumerator module t
+  OS-6513 Add platform-specific topo maps for the Joyent J330x Compute Platform
+  OS-6527 Add plaform-specific topo map for Joyent-Storage-Platform-7001
   OS-6553 CPU counter support doesn't work on many modern CPUs
+  OS-6657 Add test mechanism to sensor-transport module for spoofing sensor states
   OS-6675 need tool to detect bhyve support
-  OS-6870 need topo maps for the SMCI,SSG-2029P-ACR24L OS-6876 authority and system pgroups missing on some node
-  OS-7014 Add libtopo support for Upgradable Firmware Modules OS-7026 Add DDI support for Upgradable Firmware Mo
+  OS-6877 extend pcibus enumerator to expose driver instance as property on pcifn/pciexfn nodes
+  OS-7014 Add libtopo support for Upgradable Firmware Modules
+  OS-7026 Add DDI support for Upgradable Firmware Modules
   OS-7045 Add Jirisan topo aliases
   OS-7066 Want support ahci LED entries in topo
-  OS-7127 Add support for SMBIOS 3.2 OS-7128 Want libjedec OS-7129 Check for SMBIOS table with higher version OS
+  OS-7127 Add support for SMBIOS 3.2
+  OS-7128 Want libjedec
   OS-7165 Want support for AMD Zen CPC events
-  OS-7200 would like thread name API OS-7205 bhyve makefile uses wrong linker flags
-  OS-7260 SmartOS should support booting with loader OS-7271 proto.boot should include loader instead of grub OS
+  OS-7200 would like thread name API
+  OS-7260 SmartOS should support booting with loader
   OS-7329 Want pluggable TCP congestion control algorithms
   OS-7408 want native libvmm (fix deps)
-  OS-7669 Want CPU Temperature Sensors OS-7677 i86pc chip module should be smatch clean
+  OS-7669 Want CPU Temperature Sensors
   OS-7769 Want Intel PCH temperature sensor
-  OS-7771 Ship smp driver OS-7772 /usr/lib/scsi/smp should decode general and manufacturer info
+  OS-7771 Ship smp driver
   OS-7979 introduce /etc/versions/build (fix mismerge)
   OS-8066 Ship inet/cc.h (#241)
   OS-8113 enable ld guidance (#262)
@@ -4768,6 +4909,7 @@ Features:
   OS-8622 Add alias to iconv deliverables in manifest
   OS-8633: Want builder brand for RFD 184
   OS-8638 Want ability to specify zfs_arc_max
+  1168 want a libtermcap that does not force libcurses
   6559 port NetBSD firmload interface [additional manifest fixes]
   7029 want per-process exploit mitigation features (secflags) [missing manpage]
   7092 Want support for stdio memory streams (fix merge) (#277)
@@ -4775,25 +4917,34 @@ Features:
   12689 Want c11 uchar.h [another manifest merge error]
   12721 would like svcadm disable -c [fix manifest] (#308)
   13111 Want futimes(), lutimes() and timespec/timeval conversion macros [fix manifest] (#331)
-  13500 Want support for overlay networks (fix mismerge and manifest) 14249 pseudo-terminal nomenclature should
+  13500 Want support for overlay networks (fix mismerge and manifest)
   13864 want 64bit libipmp (fix manifest)
   14139 Want libproc convenience function for lwpsinfo (fix manifest)
   14727 Want AMD Unified Memory Controller Driver (fix manifest, name_to_major)
 
-Also includes the final state of fixes from 111 tickets: OS-636, OS-696,
-OS-905, OS-923, OS-1096, OS-1207, OS-1274, OS-1276, OS-1289, OS-1292,
-OS-1350, OS-1367, OS-1381, OS-1441, OS-1454, OS-1542, OS-1603, OS-1698,
-OS-1749, OS-1815, OS-1897, OS-1965, OS-2001, OS-2052, OS-2115, OS-2128,
-OS-2249, OS-2257, OS-2336, OS-2366, OS-2469, OS-2502, OS-2677, OS-2693,
-OS-2837, OS-3099, OS-3382, OS-3606, OS-3608, OS-3751, OS-3752, OS-3763,
-OS-3792, OS-3851, OS-3954, OS-4051, OS-4077, OS-4168, OS-4256, OS-4323,
-OS-4629, OS-4869, OS-5070, OS-5322, OS-5403, OS-5543, OS-5568, OS-5737,
-OS-5912, OS-6045, OS-6669, OS-6726, OS-6760, OS-6882, OS-6886, OS-6920,
-OS-6947, OS-7033, OS-7115, OS-7142, OS-7146, OS-7196, OS-7491, OS-7667,
-OS-7685, OS-7794, OS-7870, OS-7921, OS-8128, OS-8172, OS-8243, OS-8350,
-OS-8355, OS-8361, OS-8447, OS-8448, OS-8459, OS-8494, OS-8617, OS-8635,
-OS-8667, OS-8683, OS-8712, 3590, 3600, 5294, 6402, 7619, 7834, 8685,
-8924, 9701, 11843, 12258, 13305, 13728, 14058, 14124, 14186, 14741,
+Also includes the final state of fixes from 184 tickets: OS-636, OS-696,
+OS-905, OS-919, OS-923, OS-997, OS-1032, OS-1081, OS-1096, OS-1121,
+OS-1123, OS-1207, OS-1274, OS-1276, OS-1289, OS-1292, OS-1350, OS-1367,
+OS-1381, OS-1441, OS-1454, OS-1507, OS-1542, OS-1603, OS-1698, OS-1749,
+OS-1815, OS-1897, OS-1965, OS-2001, OS-2052, OS-2115, OS-2128, OS-2133,
+OS-2148, OS-2176, OS-2249, OS-2257, OS-2285, OS-2336, OS-2366, OS-2469,
+OS-2478, OS-2501, OS-2502, OS-2506, OS-2507, OS-2509, OS-2677, OS-2693,
+OS-2694, OS-2695, OS-2696, OS-2697, OS-2778, OS-2779, OS-2786, OS-2800,
+OS-2837, OS-2883, OS-3000, OS-3080, OS-3099, OS-3382, OS-3606, OS-3608,
+OS-3751, OS-3752, OS-3763, OS-3792, OS-3851, OS-3852, OS-3853, OS-3854,
+OS-3948, OS-3954, OS-4051, OS-4077, OS-4079, OS-4087, OS-4168, OS-4256,
+OS-4323, OS-4548, OS-4549, OS-4550, OS-4554, OS-4555, OS-4556, OS-4557,
+OS-4558, OS-4559, OS-4560, OS-4561, OS-4563, OS-4564, OS-4565, OS-4629,
+OS-4869, OS-5070, OS-5322, OS-5367, OS-5368, OS-5403, OS-5543, OS-5568,
+OS-5737, OS-5774, OS-5776, OS-5777, OS-5911, OS-5912, OS-6045, OS-6180,
+OS-6511, OS-6581, OS-6669, OS-6710, OS-6726, OS-6760, OS-6870, OS-6876,
+OS-6882, OS-6886, OS-6920, OS-6947, OS-7033, OS-7115, OS-7129, OS-7130,
+OS-7131, OS-7142, OS-7146, OS-7196, OS-7205, OS-7271, OS-7332, OS-7491,
+OS-7500, OS-7584, OS-7585, OS-7595, OS-7667, OS-7677, OS-7685, OS-7772,
+OS-7794, OS-7870, OS-7921, OS-8128, OS-8172, OS-8243, OS-8350, OS-8355,
+OS-8361, OS-8447, OS-8448, OS-8459, OS-8494, OS-8617, OS-8635, OS-8667,
+OS-8683, OS-8712, 2698, 3590, 3600, 5294, 6402, 7619, 7834, 8685, 8924,
+9701, 11843, 12258, 13305, 13728, 14058, 14124, 14186, 14249, 14741,
 17241.
 
 Plus 8 commits without a ticket ID.

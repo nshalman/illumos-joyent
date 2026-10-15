@@ -52,6 +52,10 @@ git log --format='%H%x09%P%x09%ad%x09%an <%ae>%x09%s' --date=short "$BASE..$JOYE
 awk -F'\t' '$1 != "D" { print $2 }' "$DATA/delta.txt" |
     xargs -P 10 -I{} "$HERE/blame-file.sh" {}
 
+# Full messages, for commits that list several tickets on separate
+# lines (git's %s joins them into one subject).
+git log --format='%x00%H%n%B' "$BASE..$JOYENT" > "$DATA/bodies.txt"
+
 # "Portions contributed by:" credits from commit messages (sometimes the
 # whole message is on the subject line, so match anywhere).
 git log --format='@@%H%n%B' "$BASE..$JOYENT" | python3 -c '
