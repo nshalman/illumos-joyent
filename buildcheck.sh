@@ -19,6 +19,8 @@
 #                                 merge features/NAME from $SRCWS onto the
 #                                 baseline, touch every file it changes, and
 #                                 build incrementally as feature-NAME
+#   buildcheck.sh run [SNAP]      build every feature in buildcheck-order.txt
+#                                 that has no result yet, one at a time
 #   buildcheck.sh summary         one line per result in $RESULTS
 #
 # The illumos.sh is smartos-live's, except that the workspace is $FB's
@@ -129,6 +131,19 @@ feature() {
 	build "feature-$name"
 }
 
+run() {
+	local here name rest
+	here=$(cd "$(dirname "$0")" && pwd)
+	grep -v '^#' "$here"/buildcheck-order.txt | while read -r name rest; do
+		[[ -n $name ]] || continue
+		[[ -f $RESULTS/feature-$name/result ]] && continue
+		echo "=== $name ($(date -u +%H:%M:%S))"
+		( feature "$name" "$@" )
+	done
+	zfs rollback -r "$DATASET@${1:-gate-built}"
+	echo "=== done ($(date -u +%H:%M:%S))"
+}
+
 summary() {
 	local d r
 	for d in "$RESULTS"/*/; do
@@ -148,7 +163,8 @@ baseline) shift; baseline "$@" ;;
 build) shift; build "$@" ;;
 snapshot) shift; snapshot "$@" ;;
 feature) shift; feature "$@" ;;
+run) shift; run "$@" ;;
 summary) summary ;;
 *) die "usage: buildcheck.sh setup | baseline BASE JOYENT | build LABEL |" \
-    "snapshot NAME | feature NAME [SNAP] | summary" ;;
+    "snapshot NAME | feature NAME [SNAP] | run [SNAP] | summary" ;;
 esac
