@@ -52,7 +52,8 @@ tooling itself.
 | `build.py` | Writes commit messages and builds the branch |
 | `report.py` | Reports over the classification (`./report.py help`) |
 | `merge_lines.py` | Shows a file's lines written during merge resolution, or by one commit |
-| `hunks.py` | Exploration: hunk-level feature split and merge-back check; writes `data/hunks.json` |
+| `hunks.py` | Hunk-level feature split and merge-back simulation; writes `data/hunks.json` |
+| `features.py` | One branch per feature off BASE (`features/*`, each with only its hunks), plus `features-merged`, an octopus merge whose tree must equal JOYENT |
 
 ## How files are placed
 

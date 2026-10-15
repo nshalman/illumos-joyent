@@ -14,7 +14,9 @@ them with `git merge-file` to see whether the result is JOYENT's file.
   hunks.py            summary
   hunks.py -v         also list files with mixed hunks or merge conflicts
 
-Writes data/hunks.json (per-file hunk features) for later steps.
+Writes data/hunks.json: per file, a list of hunks
+[old_start, old_len, new_start, new_len, {feature: lines}, {sha: lines}]
+for features.py.
 """
 import collections
 import concurrent.futures
@@ -101,6 +103,11 @@ def removers(path, gone):
     return res
 
 
+def dominant(h):
+    """The feature owning most of a hunk's lines (ties: alphabetical)."""
+    return sorted(h[4].items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
+
+
 def main():
     verbose = '-v' in sys.argv
     commits, delta, blame, assign, how, votes, tb = C.classify()
@@ -138,12 +145,18 @@ def main():
         res = []
         for os_, old, ns, new in hs:
             c = collections.Counter()
+            who = collections.Counter()     # sha -> lines, for credit
             for i in range(len(new)):
-                c[feature(lb.get(ns + i), f)] += 1
+                sha = lb.get(ns + i)
+                c[feature(sha, f)] += 1
+                if sha and sha != 'B':
+                    who[sha] += 1
             for l in old:
                 shas = rm.get(l)
                 c[feature(shas[0] if shas else None, f)] += 1
-            res.append((os_, len(old), ns, len(new), dict(c)))
+                if shas:
+                    who[shas[0]] += 1
+            res.append((os_, len(old), ns, len(new), dict(c), dict(who)))
         return f, res
 
     with concurrent.futures.ThreadPoolExecutor(10) as ex:
@@ -182,9 +195,8 @@ def main():
         bl = base.split('\n')
         byfeat = collections.defaultdict(list)
         for h in per_file[f]:
-            dom = max(h[4].items(), key=lambda kv: kv[1])[0]
+            dom = dominant(h)
             byfeat[dom].append(h)
-        newlines_of = dict()
         tl = target.split('\n')
 
         def version(hs):
@@ -193,7 +205,7 @@ def main():
             # after which to insert).
             out = []
             pos = 0
-            for os_, no, ns, nn, _ in sorted(hs):
+            for os_, no, ns, nn, _, _ in sorted(hs, key=lambda h: h[0]):
                 start = os_ - 1 if no else os_
                 out += bl[pos:start]
                 out += tl[ns - 1:ns - 1 + nn] if nn else []
