@@ -5,6 +5,10 @@
 #
 #   buildcheck.sh setup           create the $FB dataset and an illumos
 #                                 clone in it, with its own illumos.sh
+#   buildcheck.sh baseline BASE JOYENT
+#                                 check out BASE in the clone and commit
+#                                 JOYENT's version of each file listed in
+#                                 baseline.txt on top (branch "baseline")
 #   buildcheck.sh build LABEL     build the clone's current checkout the
 #                                 way tools/build_illumos does; results go
 #                                 to $RESULTS/LABEL
@@ -37,6 +41,23 @@ setup() {
 	    "$SRCWS"/illumos.sh > "$FB"/illumos.sh
 	grep -n "^CODEMGR_WS=\|^ROOT=\|^PARENT_ROOT=\|^GATE=" "$FB"/illumos.sh
 	mkdir -p "$RESULTS"
+}
+
+baseline() {
+	local base=$1 joyent=$2 here
+	[[ -n $base && -n $joyent ]] || die "baseline needs BASE and JOYENT"
+	here=$(cd "$(dirname "$0")" && pwd)
+	cd "$WS" || die "no $WS"
+	git checkout -q -f -B baseline "$base" || die "checkout failed"
+	grep -v '^#' "$here"/baseline.txt | while IFS='	' read -r path fb why; do
+		[[ -n $path ]] || continue
+		git checkout -q "$joyent" -- "$path" || die "cannot take $path"
+		echo "  $path (fallback $fb)"
+	done
+	git -c user.name=buildcheck -c user.email=buildcheck@localhost \
+	    commit -q --allow-empty -m "baseline: gate plus build plumbing from baseline.txt" \
+	    || die "commit failed"
+	git log -1 --format='%h %s'
 }
 
 build() {
@@ -73,6 +94,7 @@ build() {
 
 case $1 in
 setup) setup ;;
+baseline) shift; baseline "$@" ;;
 build) shift; build "$@" ;;
-*) die "usage: buildcheck.sh setup | build LABEL" ;;
+*) die "usage: buildcheck.sh setup | baseline BASE JOYENT | build LABEL" ;;
 esac

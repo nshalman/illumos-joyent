@@ -1,0 +1,8 @@
+# Joyent files applied on top of plain illumos-gate so that it builds in a
+# smartos-live environment at all.  Every feature compile-check starts
+# from gate plus these.  Only build plumbing belongs here (fallbacks 1-3
+# agreed with Nahum on 2026-10-15): OpenSSL linkage, build-environment
+# glue, and removal of components SmartOS does not build.  Each line:
+# path <TAB> fallback <TAB> reason.  The whole file is taken from JOYENT,
+# so only list files whose joyent diff is entirely such plumbing.
+usr/src/tools/smatch/Makefile	2	-I/usr/include and $(NATIVE_ADJUNCT)/lib/$(MACH64) paths: smartos-live's gcc (proto.strap) finds no system headers with -nostdinc otherwise
