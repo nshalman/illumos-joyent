@@ -151,15 +151,29 @@ run() {
 }
 
 summary() {
-	local d r
+	# errors/warnings: nightly's build sections; checks: lines in its
+	# cstyle/hdrchk section (e.g. runfiles naming tests that are absent);
+	# stage: where a failure happened (setup = dmake setup/tools)
+	local d r m stage
 	for d in "$RESULTS"/*/; do
 		[[ -f $d/result ]] || continue
 		r=$(cat "$d"/result)
-		printf '%-32s %s  errors=%s warnings=%s\n' "$(basename "$d")" "$r" \
+		m=$d/mail_msg
+		if [[ ! -f $d/nightly.out ]]; then
+			stage=setup
+		elif [[ $r == status=0* ]]; then
+			stage=-
+		else
+			stage=nightly
+		fi
+		printf '%-30s %-32s errors=%-3s warnings=%-3s checks=%-3s stage=%s\n' \
+		    "$(basename "$d")" "$r" \
 		    "$(sed -n '/Build errors (non-DEBUG)/,/Build warnings (non-DEBUG)/p' \
-		    "$d"/mail_msg 2>/dev/null | grep -cv '^====\|^$')" \
+		    "$m" 2>/dev/null | grep -cv '^====\|^$')" \
 		    "$(sed -n '/Build warnings (non-DEBUG)/,/Elapsed build time/p' \
-		    "$d"/mail_msg 2>/dev/null | grep -cv '^====\|^$')"
+		    "$m" 2>/dev/null | grep -cv '^====\|^$')" \
+		    "$(sed -n '/cstyle\/hdrchk errors/,/Find core files/p' \
+		    "$m" 2>/dev/null | grep -cv '^====\|^$')" "$stage"
 	done
 }
 
