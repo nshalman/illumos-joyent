@@ -12,6 +12,14 @@
 #   buildcheck.sh build LABEL     build the clone's current checkout the
 #                                 way tools/build_illumos does; results go
 #                                 to $RESULTS/LABEL
+#   buildcheck.sh snapshot NAME   snapshot the dataset (e.g. after building
+#                                 the baseline)
+#   buildcheck.sh feature NAME [SNAP]
+#                                 roll back to SNAP (default gate-built),
+#                                 merge features/NAME from $SRCWS onto the
+#                                 baseline, touch every file it changes, and
+#                                 build incrementally as feature-NAME
+#   buildcheck.sh summary         one line per result in $RESULTS
 #
 # The illumos.sh is smartos-live's, except that the workspace is $FB's
 # clone and ROOT/PARENT_ROOT are that clone's own proto area: smartos-live's
@@ -89,9 +97,55 @@ build() {
 	cat "$out"/result
 }
 
+snapshot() {
+	[[ -n $1 ]] || die "snapshot needs a name"
+	zfs snapshot "$DATASET@$1" || die "zfs snapshot failed"
+	echo "$DATASET@$1"
+}
+
+feature() {
+	local name=$1 snap=${2:-gate-built} out
+	[[ -n $name ]] || die "feature needs a name"
+	out=$RESULTS/feature-$name
+	zfs rollback -r "$DATASET@$snap" || die "rollback to $snap failed"
+	cd "$WS" || die "no $WS"
+	git fetch -q "$SRCWS" "refs/heads/features/$name:refs/heads/features/$name" \
+	    || die "no features/$name in $SRCWS"
+	if ! git -c user.name=buildcheck -c user.email=buildcheck@localhost \
+	    merge -q --no-edit "features/$name" > "$RESULTS/merge-$name.log" 2>&1; then
+		rm -rf "$out"; mkdir -p "$out"
+		mv "$RESULTS/merge-$name.log" "$out"/merge.log
+		git merge --abort
+		echo "status=merge-conflict seconds=0" > "$out"/result
+		cat "$out"/result
+		return
+	fi
+	rm -f "$RESULTS/merge-$name.log"
+	# make sure dmake sees every changed file as new
+	git diff --name-only -z baseline HEAD | xargs -0 touch
+	build "feature-$name"
+}
+
+summary() {
+	local d r
+	for d in "$RESULTS"/*/; do
+		[[ -f $d/result ]] || continue
+		r=$(cat "$d"/result)
+		printf '%-32s %s  errors=%s warnings=%s\n' "$(basename "$d")" "$r" \
+		    "$(sed -n '/Build errors (non-DEBUG)/,/Build warnings (non-DEBUG)/p' \
+		    "$d"/mail_msg 2>/dev/null | grep -cv '^====\|^$')" \
+		    "$(sed -n '/Build warnings (non-DEBUG)/,/Elapsed build time/p' \
+		    "$d"/mail_msg 2>/dev/null | grep -cv '^====\|^$')"
+	done
+}
+
 case $1 in
 setup) setup ;;
 baseline) shift; baseline "$@" ;;
 build) shift; build "$@" ;;
-*) die "usage: buildcheck.sh setup | baseline BASE JOYENT | build LABEL" ;;
+snapshot) shift; snapshot "$@" ;;
+feature) shift; feature "$@" ;;
+summary) summary ;;
+*) die "usage: buildcheck.sh setup | baseline BASE JOYENT | build LABEL |" \
+    "snapshot NAME | feature NAME [SNAP] | summary" ;;
 esac
