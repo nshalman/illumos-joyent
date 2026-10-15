@@ -20,7 +20,8 @@ tooling itself.
   leak" in B2).
 - Rebuild the branch after changing classification, messages or
   `mailmap`, so `branch-log.txt` stays current, and commit it with the
-  change.
+  change.  Likewise rerun `features.py` (after `hunks.py` if the data
+  changed) so `features-log.txt` stays current.
 
 ## Traps
 

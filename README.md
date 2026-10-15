@@ -7,6 +7,11 @@ branch's final tree is byte-identical to `master`.
 To see what the commits look like without running anything, read
 `branch-log.txt`: each commit's message and `--stat`, oldest first.
 
+The same delta is also built as independent branches, one per feature,
+each applying to illumos-gate on its own (`./hunks.py && ./features.py`);
+`features-log.txt` shows those, and an octopus merge of all of them
+reproduces `master`'s tree.
+
 Suspected bugs, deliberate divergences from upstream and cleanup
 candidates found along the way are in `FINDINGS.md`.
 
