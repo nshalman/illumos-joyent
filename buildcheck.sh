@@ -114,6 +114,7 @@ feature() {
 	out=$RESULTS/feature-$name
 	zfs rollback -r "$DATASET@$snap" || die "rollback to $snap failed"
 	cd "$WS" || die "no $WS"
+	local pre=$(git rev-parse HEAD)
 	git fetch -q "$SRCWS" "refs/heads/features/$name:refs/heads/features/$name" \
 	    || die "no features/$name in $SRCWS"
 	if ! git -c user.name=buildcheck -c user.email=buildcheck@localhost \
@@ -126,9 +127,14 @@ feature() {
 		return
 	fi
 	rm -f "$RESULTS/merge-$name.log"
-	# make sure dmake sees every changed file as new
-	git diff --name-only -z baseline HEAD | xargs -0 touch
+	# make sure dmake sees every changed file as new (the merge moved the
+	# checked-out branch, so compare with the commit from before it)
+	git diff --name-only -z --diff-filter=d "$pre" HEAD > "$RESULTS/touch-$name"
+	[[ -s $RESULTS/touch-$name ]] && xargs -0 touch < "$RESULTS/touch-$name"
+	tr '\0' '\n' < "$RESULTS/touch-$name" > "$RESULTS/touched-$name.txt"
+	rm -f "$RESULTS/touch-$name"
 	build "feature-$name"
+	mv "$RESULTS/touched-$name.txt" "$RESULTS/feature-$name/touched.txt"
 }
 
 run() {
