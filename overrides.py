@@ -326,8 +326,10 @@ HUNK_OVERRIDES = [
     ('usr/src/uts/common/fs/tmpfs/tmp_vnops.c', r'.', 'tmpfs'),
     ('usr/src/uts/common/fs/tmpfs/tmp_tnode.c', r'.', 'tmpfs'),
     ('usr/src/uts/common/sys/fs/tmp.h', r'.', 'tmpfs'),
-    # tools/Makefile (integration) builds tools/man
-    ('usr/src/tools/man/Makefile', r'.', 'integration'),
+    # OS-4092's build-time man: tools/Makefile's new subdirectory goes
+    # with tools/man and cmd/man/Makefile.com (the hunk also realigns
+    # mandoc's line)
+    ('usr/src/tools/Makefile', r'^\s*man \\$', 'onbld-tools'),
     # OS-2800 moved the sdev headers within FSHDRS; keep both halves of
     # the move together
     ('usr/src/uts/common/sys/Makefile', r'sdev_(impl|plugin)\.h', 'vnd'),

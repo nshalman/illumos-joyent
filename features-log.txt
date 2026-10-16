@@ -3363,14 +3363,14 @@ Features:
   OS-7535 allow platform builds on base-64 image
   10063 basic support for smatch [fix another build error]
 
-Also includes the final state of fixes from 18 tickets: OS-1799,
-OS-1800, OS-1801, OS-2698, OS-7033, OS-7498, OS-7511, OS-7512, OS-7517,
-OS-7518, OS-7536, OS-7678, OS-7768, OS-7773, OS-7792, OS-7967, OS-8370,
-TOOLS-2586.
+Also includes the final state of fixes from 19 tickets: OS-1799,
+OS-1800, OS-1801, OS-2698, OS-6041, OS-7033, OS-7498, OS-7511, OS-7512,
+OS-7517, OS-7518, OS-7536, OS-7678, OS-7768, OS-7773, OS-7792, OS-7967,
+OS-8370, TOOLS-2586.
 
 Plus 1 commits without a ticket ID.
 
-23 files (0 removed). This commit applies to illumos-gate on its own;
+25 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
@@ -3387,11 +3387,13 @@ Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
  usr/src/Makefile.master                        |  5 ++++-
  usr/src/cmd/Makefile                           |  4 ++--
  usr/src/cmd/man/Makefile.com                   | 23 +++++++++++++++++++++++
+ usr/src/tools/Makefile                         | 27 ++++++++++++++-------------
  usr/src/tools/README.tools                     |  3 +++
  usr/src/tools/cpcgen/cpcgen.c                  |  4 ++--
  usr/src/tools/ctf/Makefile.ctf                 |  2 +-
  usr/src/tools/findunref/exception_list.git     | 39 +++++++++++++++++++++++++++++++++++++++
  usr/src/tools/findunref/exception_list.unknown |  0
+ usr/src/tools/man/Makefile                     | 37 +++++++++++++++++++++++++++++++++++++
  usr/src/tools/mandoc/Makefile                  |  8 ++++----
  usr/src/tools/onbld/Checks/Cddl.py             |  2 +-
  usr/src/tools/onbld/Checks/CmtBlk.py           |  2 +-
@@ -3406,7 +3408,7 @@ Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
  usr/src/tools/scripts/webrev.sh                |  7 ++++++-
  usr/src/tools/smatch/Makefile                  |  9 +++++++++
  usr/src/tools/vtfontcvt/Makefile               |  9 ++++++++-
- 23 files changed, 149 insertions(+), 34 deletions(-)
+ 25 files changed, 200 insertions(+), 47 deletions(-)
 
 ========================================================================
 [66/80] features/smartos-test
@@ -4429,7 +4431,6 @@ Features:
   OS-3280 need a way to specify the root of a native system in the lx brand
   OS-3558 lxbrand add support for full in-kernel syscall handling
   OS-3886 Implement id_space as a library
-  OS-4092 Want a man we can run during the build
   OS-4470 lxbrand unblocking signals in new threads must be atomic
   OS-7014 Add libtopo support for Upgradable Firmware Modules
   OS-7026 Add DDI support for Upgradable Firmware Modules
@@ -4439,13 +4440,13 @@ Features:
   12217 add ld assert-deflib and guidance to gate build [fix duplicate makefile definitions from our local modif
   12665 want modern bhyve [fix broken build]
 
-Also includes the final state of fixes from 48 tickets: OS-98, OS-147,
+Also includes the final state of fixes from 47 tickets: OS-98, OS-147,
 OS-148, OS-189, OS-201, OS-421, OS-507, OS-696, OS-1512, OS-1589,
 OS-1836, OS-2592, OS-2677, OS-2778, OS-2779, OS-2786, OS-2800, OS-3545,
 OS-3561, OS-3748, OS-3868, OS-3901, OS-4509, OS-4688, OS-4689, OS-4967,
-OS-5017, OS-5585, OS-5591, OS-6041, OS-6282, OS-6410, OS-6795, OS-6920,
-OS-7240, OS-7677, OS-7870, OS-8324, OS-8360, OS-8361, OS-8433, OS-8458,
-OS-8709, OS-8756, 5468, 6606, 13258, 14666.
+OS-5017, OS-5585, OS-5591, OS-6282, OS-6410, OS-6795, OS-6920, OS-7240,
+OS-7677, OS-7870, OS-8324, OS-8360, OS-8361, OS-8433, OS-8458, OS-8709,
+OS-8756, 5468, 6606, 13258, 14666.
 
 Plus 5 commits without a ticket ID.
 
@@ -4455,8 +4456,6 @@ the rest of the ticket that wrote them.
 Tickets that span many commits (sweeps) or have no other home:
   OS-696 flock() is missing (+75)
     ucbhead/Makefile +68, Makefile +7
-  OS-4092 Want a man we can run during the build (+37)
-    tools/man/Makefile +37
   OS-2800 Project Bardiche OS-2784 want sdev plugin interface OS-2783
   want general (+19)
     uts/common/Makefile.rules +8, uts/common/Makefile.files +4,
@@ -4482,7 +4481,9 @@ Tickets that span many commits (sweeps) or have no other home:
     lib/libc/port/mapfile-vers +4, uts/common/Makefile.files +2,
     lib/libc/amd64/Makefile +1, lib/libc/i386/Makefile.com +1,
     lib/libc/sparc/Makefile.com +1, uts/intel/Makefile.intel +1
-  64 more tickets (+161): OS-6795, OS-3110, OS-2834, OS-8361, OS-978,
+  OS-6795 illumos-joyent build tools depend on platform Perl (+10)
+    cmd/Makefile +6, cmd/auditrecord/Makefile +4
+  62 more tickets (+150): OS-3110, OS-2834, OS-8361, OS-978,
   untagged:265c2123633, 13258, OS-1119, OS-7870, OS-5591, OS-7828,
   OS-147, 12217, OS-1799, OS-3524, OS-4206, OS-7014, OS-8324, OS-8433,
   untagged:5e100881386, OS-201, OS-2952, OS-3463, OS-5549, OS-6410,
@@ -4490,21 +4491,21 @@ Tickets that span many commits (sweeps) or have no other home:
   untagged:160e9fdbf38, 12665, 14666, 5468, OS-1512, OS-1802, OS-1836,
   OS-19, OS-2115, OS-2336, OS-2592, OS-2677, OS-2893, OS-3280, OS-3561,
   OS-3748, OS-3884, OS-3954, OS-421, OS-4256, OS-4360, OS-4470, OS-4509,
-  OS-4665, OS-4967, OS-507, OS-6041, OS-6282, OS-7669, OS-8113, OS-8459,
+  OS-4665, OS-4967, OS-507, OS-6282, OS-7669, OS-8113, OS-8459,
   untagged:cafbe6d2d97
 
-  Written during merge conflict resolution (+33):
+  Written during merge conflict resolution (+32):
     lib/Makefile +8, Makefile.testarchive +7, Makefile.master +2,
     cmd/Makefile +2, test/util-tests/tests/dladm/Makefile +2,
-    cmd/cmd-inet/usr.sbin/snoop/Makefile +1, and 11 more files
+    cmd/cmd-inet/usr.sbin/snoop/Makefile +1, and 10 more files
 
-42 files (0 removed). This commit applies to illumos-gate on its own;
+40 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
-Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
 Co-authored-by: Dan McDonald <danmcd@edgecast.io>
 Co-authored-by: John Levon <john.levon@joyent.com>
+Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
 Co-authored-by: Tim Foster <tim.foster@joyent.com>
 Co-authored-by: Jason King <jasonbking@users.noreply.github.com>
 Co-authored-by: Bill Pijewski <wdp@joyent.com>
@@ -4551,8 +4552,6 @@ Co-authored-by: Lexi Wilson <lexi@cooperi.net>
  usr/src/test/libc-tests/tests/Makefile            |  1 +
  usr/src/test/os-tests/tests/file-locking/Makefile |  7 ++++-
  usr/src/test/util-tests/tests/dladm/Makefile      |  3 +-
- usr/src/tools/Makefile                            | 27 ++++++++---------
- usr/src/tools/man/Makefile                        | 37 +++++++++++++++++++++++
  usr/src/ucbhead/Makefile                          | 68 +++++++++++++++++++++++++++++++++++++++++++
  usr/src/uts/common/Makefile.files                 |  2 +-
  usr/src/uts/common/Makefile.rules                 |  6 +++-
@@ -4562,7 +4561,7 @@ Co-authored-by: Lexi Wilson <lexi@cooperi.net>
  usr/src/uts/intel/core_pcbe/Makefile              |  4 +--
  usr/src/uts/intel/opteron_pcbe/Makefile           |  2 +-
  usr/src/uts/intel/p4_pcbe/Makefile                |  2 +-
- 42 files changed, 300 insertions(+), 106 deletions(-)
+ 40 files changed, 249 insertions(+), 93 deletions(-)
 
 ========================================================================
 [78/80] features/integration-pkg
