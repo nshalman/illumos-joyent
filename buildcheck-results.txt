@@ -1,0 +1,157 @@
+# Compile check of each features/* branch merged onto the gate baseline
+# (baseline.txt), incremental non-DEBUG nightly on the build host.
+# Base 479a4a914dc, JOYENT da512a7e2e6.  Regenerate with buildcheck.sh summary
+# and buildfail.py.  checks = nightly's runfile/cstyle check lines.
+
+feature-lx                     status=1 seconds=269             errors=64  warnings=35  checks=0   stage=nightly
+feature-nfp                    status=0 seconds=208             errors=0   warnings=0   checks=0   stage=-
+feature-nfs                    status=0 seconds=210             errors=0   warnings=0   checks=0   stage=-
+feature-sed                    status=0 seconds=209             errors=0   warnings=0   checks=0   stage=-
+feature-smf                    status=0 seconds=213             errors=0   warnings=0   checks=0   stage=-
+feature-zfs                    status=0 seconds=208             errors=0   warnings=0   checks=0   stage=-
+feature-ctf                    status=1 seconds=213             errors=8   warnings=9   checks=0   stage=nightly
+feature-mdb                    status=1 seconds=221             errors=12  warnings=17  checks=0   stage=nightly
+feature-vnd                    status=1 seconds=8               errors=0   warnings=0   checks=0   stage=setup
+feature-zfd                    status=1 seconds=210             errors=10  warnings=7   checks=0   stage=nightly
+feature-misc                   status=0 seconds=372             errors=0   warnings=0   checks=0   stage=-
+feature-sdev                   status=0 seconds=211             errors=0   warnings=0   checks=0   stage=-
+feature-boot                   status=1 seconds=214             errors=6   warnings=10  checks=0   stage=nightly
+feature-sched                  status=0 seconds=210             errors=0   warnings=0   checks=0   stage=-
+feature-bhyve                  status=1 seconds=210             errors=1   warnings=6   checks=0   stage=nightly
+feature-dboot                  status=1 seconds=210             errors=3   warnings=7   checks=0   stage=nightly
+feature-tmpfs                  status=1 seconds=209             errors=8   warnings=12  checks=0   stage=nightly
+feature-column                 status=0 seconds=208             errors=0   warnings=0   checks=0   stage=-
+feature-machid                 status=0 seconds=208             errors=0   warnings=0   checks=0   stage=-
+feature-vmxnet                 status=0 seconds=209             errors=0   warnings=0   checks=0   stage=-
+feature-bunyan                 status=1 seconds=8               errors=0   warnings=0   checks=0   stage=setup
+feature-dtrace                 status=1 seconds=212             errors=14  warnings=19  checks=0   stage=nightly
+feature-ptools                 status=1 seconds=238             errors=47  warnings=41  checks=0   stage=nightly
+feature-altexec                status=0 seconds=210             errors=0   warnings=0   checks=0   stage=-
+feature-fm-topo                status=0 seconds=215             errors=0   warnings=0   checks=0   stage=-
+feature-nicstat                status=0 seconds=211             errors=0   warnings=0   checks=0   stage=-
+feature-inotify                status=1 seconds=256             errors=4   warnings=7   checks=0   stage=nightly
+feature-ipf-cfw                status=1 seconds=210             errors=4   warnings=11  checks=0   stage=nightly
+feature-zfs-arc                status=1 seconds=213             errors=10  warnings=19  checks=0   stage=nightly
+feature-zfs-cli                status=1 seconds=204             errors=28  warnings=11  checks=0   stage=nightly
+feature-zfs-zio                status=1 seconds=230             errors=11  warnings=20  checks=0   stage=nightly
+feature-datafilt               status=0 seconds=222             errors=0   warnings=0   checks=0   stage=-
+feature-icmp-bpf               status=0 seconds=232             errors=0   warnings=0   checks=0   stage=-
+feature-sysv-ipc               status=0 seconds=225             errors=0   warnings=0   checks=0   stage=-
+feature-brand-fs               status=1 seconds=237             errors=6   warnings=8   checks=0   stage=nightly
+feature-datalink               status=1 seconds=243             errors=19  warnings=27  checks=0   stage=nightly
+feature-hyprlofs               status=1 seconds=367             errors=36  warnings=11  checks=0   stage=nightly
+feature-net-misc               status=1 seconds=209             errors=5   warnings=10  checks=0   stage=nightly
+feature-resolver               status=1 seconds=211             errors=7   warnings=8   checks=0   stage=nightly
+feature-rtld-sgs               status=1 seconds=286             errors=23  warnings=20  checks=0   stage=nightly
+feature-zfs-zvol               status=1 seconds=210             errors=41  warnings=11  checks=0   stage=nightly
+feature-zone-cpu               status=1 seconds=202             errors=15  warnings=8   checks=0   stage=nightly
+feature-man-fixes              status=0 seconds=208             errors=0   warnings=0   checks=0   stage=-
+feature-brand-net              status=1 seconds=231             errors=4   warnings=7   checks=0   stage=nightly
+feature-brand-nfs              status=1 seconds=206             errors=16  warnings=18  checks=0   stage=nightly
+feature-brand-ops              status=1 seconds=206             errors=6   warnings=9   checks=0   stage=nightly
+feature-brand-x86              status=1 seconds=387             errors=9   warnings=16  checks=0   stage=nightly
+feature-zfs-props              status=1 seconds=217             errors=3   warnings=9   checks=0   stage=nightly
+feature-zfs-tests              status=1 seconds=207             errors=0   warnings=0   checks=7   stage=nightly
+feature-smartlogin             status=0 seconds=211             errors=0   warnings=0   checks=0   stage=-
+feature-brand-exec             status=1 seconds=7               errors=0   warnings=0   checks=0   stage=setup
+feature-nvpair-json            status=0 seconds=208             errors=0   warnings=0   checks=0   stage=-
+feature-onbld-tools            status=0 seconds=211             errors=0   warnings=0   checks=0   stage=-
+feature-zone-brands            status=0 seconds=211             errors=0   warnings=0   checks=0   stage=-
+feature-integration            status=1 seconds=21              errors=0   warnings=0   checks=0   stage=setup
+feature-overlay-svp            status=1 seconds=243             errors=72  warnings=33  checks=0   stage=nightly
+feature-ssh-removal            status=1 seconds=210             errors=1   warnings=5   checks=3   stage=nightly
+feature-zfs-zone-io            status=1 seconds=244             errors=7   warnings=7   checks=0   stage=nightly
+feature-zone-kernel            status=1 seconds=229             errors=66  warnings=56  checks=9   stage=nightly
+feature-zone-memory            status=1 seconds=308             errors=26  warnings=13  checks=0   stage=nightly
+feature-zones-admin            status=1 seconds=239             errors=95  warnings=17  checks=1   stage=nightly
+feature-zones-tools            status=1 seconds=214             errors=63  warnings=21  checks=0   stage=nightly
+feature-openssl-sunw           status=0 seconds=208             errors=0   warnings=0   checks=0   stage=-
+feature-tcp-connstat           status=0 seconds=298             errors=0   warnings=0   checks=0   stage=-
+feature-zfs-metaslab           status=0 seconds=213             errors=0   warnings=0   checks=0   stage=-
+feature-brand-events           status=1 seconds=516             errors=15  warnings=9   checks=0   stage=nightly
+feature-brand-native           status=1 seconds=167             errors=99  warnings=55  checks=19  stage=nightly
+feature-smartos-test           status=1 seconds=209             errors=0   warnings=0   checks=11  stage=nightly
+feature-zone-security          status=0 seconds=362             errors=0   warnings=0   checks=0   stage=-
+feature-brand-process          status=1 seconds=256             errors=72  warnings=72  checks=13  stage=nightly
+feature-compiler-fixes         status=0 seconds=219             errors=0   warnings=0   checks=0   stage=-
+feature-dump-encryption        status=0 seconds=229             errors=0   warnings=0   checks=0   stage=-
+feature-integration-pkg        status=0 seconds=212             errors=0   warnings=0   checks=0   stage=-
+feature-kernel-platform        status=0 seconds=426             errors=0   warnings=0   checks=0   stage=-
+feature-link-protection        status=0 seconds=257             errors=0   warnings=0   checks=0   stage=-
+feature-storage-drivers        status=0 seconds=234             errors=0   warnings=0   checks=0   stage=-
+feature-platform-config        status=1 seconds=229             errors=3   warnings=34  checks=0   stage=nightly
+feature-copyright-residue      status=0 seconds=382             errors=0   warnings=0   checks=0   stage=-
+feature-integration-checks     status=0 seconds=209             errors=0   warnings=0   checks=0   stage=-
+feature-integration-manifest   status=0 seconds=209             errors=0   warnings=0   checks=0   stage=-
+
+# Failures by provider (buildfail.py): identifiers and headers the
+# compiler or linker complained about, and the features defining them.
+
+bhyve            needs -
+boot             needs dboot(1)
+                 unexplained: message_enabled
+brand-events     needs -
+                 unexplained: BROP PROC_IS_BRANDED
+brand-exec       needs -
+                 unexplained: MSG_AUXV_AT_SUN_BRAND_AUX4 MSG_AUXV_AT_SUN_BRAND_NROOT
+brand-fs         needs lx(1), ptools(1), zone-kernel(1)
+brand-native     needs zone-kernel(4), lx(2), net-misc(1), zone-brands(1), brand-process(1), brand-net(1), ptools(1)
+                 unexplained: zone_create zone_get_nroot
+brand-net        needs brand-native(1)
+brand-nfs        needs brand-native(1)
+brand-ops        needs lx(1)
+                 unexplained: brand_setbrand
+brand-process    needs brand-exec(2), zone-kernel(1), zones-admin(1), lx(1), brand-native(1)
+                 unexplained: b_exit_with_sig b_map32limit b_sig_ignorable lwp_ctmpl_clear
+brand-x86        needs brand-process(1)
+                 unexplained: brand_sys_int80 sys_int80
+bunyan           needs -
+ctf              needs brand-native(1)
+datalink         needs brand-native(1), vnd(1)
+                 unexplained: getpid
+dboot            needs boot(1)
+dtrace           needs zone-kernel(1), zones-tools(1), brand-native(1)
+                 unexplained: b_fsbase
+hyprlofs         needs tmpfs(1)
+                 unexplained: tdirinit tmp_memalloc tmp_memfree tmpfs_mountcount
+inotify          needs lx(1), ptools(1)
+integration      needs -
+ipf-cfw          needs zones-admin(1), zones-tools(1)
+lx               needs brand-events(2), brand-process(2), brand-x86(1), ptools(1), brand-native(1)
+                 unexplained: BROP PROC_IS_BRANDED zone_get_state
+mdb              needs brand-native(1), zones-admin(1), zones-tools(1)
+net-misc         needs -
+                 other: arp.c:124:23: error: initialization of 'const char *' from 'int' makes pointer from integer without a cast [-W
+overlay-svp      needs bunyan(1)
+                 unexplained: uuid_parse
+platform-config  needs -
+ptools           needs brand-exec(3), brand-native(1), lx(1)
+                 unexplained: arglen
+resolver         needs -
+                 other: collect2: error: ld returned 1 exit status
+rtld-sgs         needs brand-native(1)
+smartos-test     needs -
+ssh-removal      needs -
+tmpfs            needs -
+                 unexplained: TMPMAXFRACKMEM tdirinit tmp_kmemspace tmpfs_maxkmem
+vnd              needs -
+zfd              needs -
+                 unexplained: get_console_master
+zfs-arc          needs zfs-zone-io(1)
+zfs-cli          needs zfs-props(2)
+zfs-props        needs zfs-zone-io(2)
+zfs-tests        needs -
+zfs-zio          needs zfs-zone-io(2)
+zfs-zone-io      needs -
+                 unexplained: zone_kstat_create_common
+zfs-zvol         needs zone-kernel(4)
+zone-cpu         needs zone-kernel(1)
+                 unexplained: zone_pdata
+zone-kernel      needs zone-cpu(4), zones-admin(3), zones-tools(1), brand-process(1), zfs-zone-io(1)
+                 unexplained: ZONE_ATTR_PHYS_MCAP killall rc_zone_cpu_baseline rc_zone_cpu_burst_time rc_zone_zfs_io_pri zone_cpu_base_ops zone_cpu_burst_time_ops zone_create zone_zfs_io_pri_ops
+zone-memory      needs zone-kernel(4), zones-admin(1)
+                 unexplained: ZPO_ANON ZPO_ANONDIRTY ZPO_DIRTY ZPO_FS zone_num_over_cap zone_pdata
+zones-admin      needs zones-tools(8), zfd(4), zone-kernel(4)
+                 unexplained: ctlfd disconnect ppt_devpath_to_dev snap_hndl uuid_unparse zone_create zone_phys_mcap zonepath
+zones-tools      needs brand-native(1), zone-memory(1)
+                 unexplained: zonecfg_add_res_attr zonecfg_fix_obsolete zonecfg_free_res_attr_list zonecfg_get_did zonecfg_getmcapent zonecfg_notify_create zonecfg_remove_res_attr zonecfg_set_did zonecfg_set_uuid
