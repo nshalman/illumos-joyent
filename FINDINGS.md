@@ -83,18 +83,25 @@ illumos-joyent's headers, cannot hide a missing dependency.
   `-L`, so every build prints `-L: unknown option` (harmless).
 - With postfix disabled, nightly's `-m` leaves a hung sendmail/postdrop
   pair per build; the experiment builds drop `-m`.
-- **First sweep, each feature alone on the gate baseline:** 35 of 80
-  branches build cleanly (`buildcheck-results.txt`; `buildfail.py`
-  names the feature defining what each failure was missing).
-  - The failures are mostly the dependency cycle above.  Other causes
-    were misplaced hunks: include lines, Makefile list entries,
-    corenote.msg's brand names, tmpfs's own changes sitting in
-    hyprlofs, and tools/man.  The placement passes above now fix
-    those.
-  - 31 branches changed with those fixes and are being rebuilt.
-  - Known remaining cross-feature references: bunyan and vnd use
-    `lib/Makefile.usdt` (integration), and the smartos-test and
-    zfs-tests runfiles list other features' tests.
+- **Each feature alone on the gate baseline:** 37 of 80 branches build
+  cleanly (`buildcheck-results.txt`).  `buildfail.py` names the feature
+  defining what each failure was missing.
+  - The first sweep passed 35.  Fixing misplaced hunks (include lines,
+    Makefile list entries, corenote.msg's brand names, tmpfs's own
+    changes sitting in hyprlofs, tools/man) changed 31 branches.
+    hyprlofs and resolver now pass.  Several others now get further
+    and reach real dependencies (brand-exec, vnd, zfs-arc, tmpfs), so
+    their error counts rose.
+  - Most remaining failures are the dependency cycle above.
+  - Known cross-feature references:
+    - bunyan and vnd include `lib/Makefile.usdt`, which sits in
+      integration.
+    - vnd's ipf hooks use `hook4_vnd_*` declarations that were grouped
+      into ipf-cfw's hunk of ip_fil_solaris.c.
+    - overlay-svp's mdb `refhash.c` is not in the genunix module's
+      file list on that branch.
+    - The smartos-test and zfs-tests runfiles list other features'
+      tests.
 
 ## Bugs
 

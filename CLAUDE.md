@@ -36,9 +36,15 @@ tooling itself.
   tables are lists of pairs for that reason.
 - macOS has no `timeout(1)`.
 - On the build host, never run collect.sh or other fork-heavy jobs while a
-  nightly is running: the zone (sdc:max_lwps=2000) runs out and dmake
-  fails with "Could not fork child process", invalidating the build.
+  nightly is running.  A 34-job nightly peaks near 1,900 LWPs; at the
+  zone's old sdc:max_lwps=2000, extra jobs made dmake fail with "Could
+  not fork child process", invalidating the build.  The limit is now
+  20000, but keep builds' timings comparable.
 - Use the scratchpad, not `/tmp`, for temporary files.
+- In build-host logs, smatch's "using '/workspace/smartos-live/...'"
+  after "unable to open" is its include-guessing fallback wandering
+  into the sibling tree; gcc has already failed on the missing header,
+  so it does not mask a dependency.
 
 ## Files
 
