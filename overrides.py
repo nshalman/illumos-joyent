@@ -313,4 +313,19 @@ HUNK_OVERRIDES = [
      'integration'),
     ('usr/src/lib/libc/i386/Makefile.com', r'genassym|assym\.h|OFFSETS|LDFLAGS\.native',
      'integration'),
+    # corenote.c's new brand auxv names are defined in corenote.msg
+    ('usr/src/cmd/sgs/libconv/common/corenote.msg', r'BRAND', 'brand-exec'),
+    # tmpfs's own sources: the accounting rework and tdirinit's new
+    # prototype were grouped with hyprlofs, which builds on tmpfs
+    ('usr/src/uts/common/fs/tmpfs/tmp_subr.c', r'.', 'tmpfs'),
+    ('usr/src/uts/common/fs/tmpfs/tmp_dir.c', r'.', 'tmpfs'),
+    ('usr/src/uts/common/fs/tmpfs/tmp_vfsops.c', r'.', 'tmpfs'),
+    ('usr/src/uts/common/fs/tmpfs/tmp_vnops.c', r'.', 'tmpfs'),
+    ('usr/src/uts/common/fs/tmpfs/tmp_tnode.c', r'.', 'tmpfs'),
+    ('usr/src/uts/common/sys/fs/tmp.h', r'.', 'tmpfs'),
+    # tools/Makefile (integration) builds tools/man
+    ('usr/src/tools/man/Makefile', r'.', 'integration'),
+    # OS-2800 moved the sdev headers within FSHDRS; keep both halves of
+    # the move together
+    ('usr/src/uts/common/sys/Makefile', r'sdev_(impl|plugin)\.h', 'vnd'),
 ]

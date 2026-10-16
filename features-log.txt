@@ -81,7 +81,7 @@ Co-authored-by: Joshua M. Clulow <jmc@joyent.com>
 
  usr/src/cmd/ptools/pargs/pargs.c               |   1 +
  usr/src/cmd/sgs/libconv/common/corenote.c      |  14 +-
- usr/src/cmd/sgs/libconv/common/corenote.msg    |   4 +
+ usr/src/cmd/sgs/libconv/common/corenote.msg    |   6 +
  usr/src/lib/libc/port/gen/getauxv.c            |  13 +-
  usr/src/uts/common/brand/solaris10/s10_brand.c |   2 +-
  usr/src/uts/common/exec/elf/elf.c              | 468 ++++++++++++++++++++++++++++++++++-----------
@@ -95,7 +95,7 @@ Co-authored-by: Joshua M. Clulow <jmc@joyent.com>
  usr/src/uts/common/os/mmapobj.c                |  13 +-
  usr/src/uts/common/sys/auxv.h                  |  30 ++-
  usr/src/uts/common/sys/exec.h                  |  15 +-
- 16 files changed, 555 insertions(+), 176 deletions(-)
+ 16 files changed, 557 insertions(+), 176 deletions(-)
 
 ========================================================================
 [3/80] features/brand-process
@@ -118,7 +118,6 @@ Features:
   OS-5701 lxbrand doesn't support per-process RLIMIT_MEMLOCK
   OS-6211 support Linux accounting
   OS-6627 bhyve needs to support 100+ GB RAM
-  6342 want signalfd support [fix mapfile]
   14019 Allow more control over zone init exit actions (fix mismerge)
 
 Also includes the final state of fixes from 40 tickets: OS-3140,
@@ -164,7 +163,7 @@ Co-authored-by: John Levon <john.levon@joyent.com>
  usr/src/uts/common/os/pid.c               |  13 +++++
  usr/src/uts/common/os/rctl.c              |  32 +++++++++---
  usr/src/uts/common/os/rctl_proc.c         |  28 ++++++++++
- usr/src/uts/common/os/sig.c               |  29 +++++++++--
+ usr/src/uts/common/os/sig.c               |  28 ++++++++--
  usr/src/uts/common/os/sysent.c            |  30 +++++++----
  usr/src/uts/common/sys/contract/process.h |   4 +-
  usr/src/uts/common/sys/cpuvar.h           |   2 +
@@ -180,7 +179,7 @@ Co-authored-by: John Levon <john.levon@joyent.com>
  usr/src/uts/common/sys/vmsystm.h          |   5 ++
  usr/src/uts/i86pc/sys/comm_page.h         |   2 +
  usr/src/uts/i86pc/vm/vm_machdep.c         |   6 +--
- 37 files changed, 419 insertions(+), 120 deletions(-)
+ 37 files changed, 418 insertions(+), 120 deletions(-)
 
 ========================================================================
 [4/80] features/brand-events
@@ -192,12 +191,14 @@ overflow, SIGEV_THREAD_ID timers, larger pipe buffers and splice
 support, ppoll overflow fixes.
 
 Features:
+  OS-3742 lxbrand add support for signalfd
+  OS-4382 remove obsolete brand hooks added during lx development
   OS-6016 lxbrand poll(2) wants implicit events
 
-Also includes the final state of fixes from 8 tickets: OS-3752, OS-5162,
-OS-5261, OS-5566, OS-5738, OS-5931, 12789, 14892.
+Also includes the final state of fixes from 7 tickets: OS-5162, OS-5261,
+OS-5566, OS-5738, OS-5931, 12789, 14892.
 
-8 files (0 removed). This commit applies to illumos-gate on its own;
+7 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
@@ -205,14 +206,13 @@ Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
 Co-authored-by: Dan McDonald <danmcd@edgecast.io>
 
  usr/src/uts/common/io/eventfd.c    | 91 +++++++++++++++++++++++++++++++++++++++++++---------------
- usr/src/uts/common/io/signalfd.c   |  6 ++++
- usr/src/uts/common/os/streamio.c   |  1 +
+ usr/src/uts/common/io/signalfd.c   |  7 +++++
  usr/src/uts/common/os/timer.c      | 26 ++++++++++-------
  usr/src/uts/common/sys/eventfd.h   | 10 ++++++-
  usr/src/uts/common/sys/poll_impl.h |  1 +
  usr/src/uts/common/sys/time.h      |  9 ++++++
  usr/src/uts/common/syscall/poll.c  | 12 ++++----
- 8 files changed, 117 insertions(+), 39 deletions(-)
+ 7 files changed, 117 insertions(+), 39 deletions(-)
 
 ========================================================================
 [5/80] features/brand-net
@@ -251,22 +251,20 @@ SmartOS: file and terminal syscalls for lx
 open/close/fcntl moved into the kernel for lx, O_PATH emulation, chdir
 with CLONE_FS, umount and uadmin locking fixes, pty changes.
 
-Also includes the final state of fixes from 4 tickets: OS-369, OS-3969,
-OS-5761, OS-8278.
+Also includes the final state of fixes from 3 tickets: OS-369, OS-5761,
+OS-8278.
 
-5 files (0 removed). This commit applies to illumos-gate on its own;
+4 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Michael Zeller <mike@mikezeller.net>
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
-Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 
- usr/src/uts/common/fs/lookup.c      |  1 +
  usr/src/uts/common/os/fio.c         | 22 +++++++++++++++++++---
  usr/src/uts/common/sys/file.h       |  1 +
  usr/src/uts/common/syscall/uadmin.c |  6 ++++--
  usr/src/uts/common/syscall/umount.c | 11 ++++++++---
- 5 files changed, 33 insertions(+), 8 deletions(-)
+ 4 files changed, 32 insertions(+), 8 deletions(-)
 
 ========================================================================
 [7/80] features/brand-nfs
@@ -276,30 +274,28 @@ SmartOS: NFS locking and mounting for lx zones
 lockd/statd interaction with Linux clients, NFS mount without a native
 nfssec.conf, netconfig lookup in the native root.
 
-Also includes the final state of fixes from 4 tickets: OS-4348, OS-5221,
-OS-5509, OS-6155.
+Also includes the final state of fixes from 3 tickets: OS-5221, OS-5509,
+OS-6155.
 
 Plus 1 commits without a ticket ID.
 
-9 files (0 removed). This commit applies to illumos-gate on its own;
+8 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
 Co-authored-by: Josh Wilsdon <jwilsdon@joyent.com>
 Co-authored-by: Dan McDonald <danmcd@edgecast.io>
 Co-authored-by: Michael Zeller <mike@mikezeller.net>
-Co-authored-by: Joshua M. Clulow <jmc@joyent.com>
 
- usr/src/cmd/fs.d/mount.c                 | 11 ++++++++++-
- usr/src/cmd/fs.d/nfs/lib/nfs_sec.c       |  8 +++++++-
- usr/src/cmd/fs.d/nfs/lockd/lockd.c       | 15 +++++++++------
- usr/src/lib/libnsl/netselect/netselect.c |  2 ++
- usr/src/uts/common/fs/nfs/nfs_sys.c      |  3 ++-
- usr/src/uts/common/klm/klmmod.c          |  5 +++++
- usr/src/uts/common/klm/nlm_impl.c        | 13 ++++++++++++-
- usr/src/uts/common/klm/nlm_impl.h        |  2 ++
- usr/src/uts/common/nfs/nfssys.h          | 12 ++++++++++--
- 9 files changed, 59 insertions(+), 12 deletions(-)
+ usr/src/cmd/fs.d/mount.c            | 11 ++++++++++-
+ usr/src/cmd/fs.d/nfs/lib/nfs_sec.c  |  8 +++++++-
+ usr/src/cmd/fs.d/nfs/lockd/lockd.c  | 15 +++++++++------
+ usr/src/uts/common/fs/nfs/nfs_sys.c |  3 ++-
+ usr/src/uts/common/klm/klmmod.c     |  5 +++++
+ usr/src/uts/common/klm/nlm_impl.c   | 13 ++++++++++++-
+ usr/src/uts/common/klm/nlm_impl.h   |  2 ++
+ usr/src/uts/common/nfs/nfssys.h     | 12 ++++++++++--
+ 8 files changed, 57 insertions(+), 12 deletions(-)
 
 ========================================================================
 [8/80] features/brand-x86
@@ -409,7 +405,7 @@ OS-7263, OS-7335, OS-7339, OS-7389, OS-7509, OS-8361, OS-8373.
 
 Plus 1 commits without a ticket ID.
 
-20 files (0 removed). This commit applies to illumos-gate on its own;
+19 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
@@ -439,11 +435,10 @@ Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
  usr/src/uts/common/syscall/sysconfig.c        |  49 +--
  usr/src/uts/common/syscall/uadmin.c           |   6 +-
  usr/src/uts/common/vm/page.h                  |   7 +-
- usr/src/uts/common/vm/vm_as.c                 |   1 +
  usr/src/uts/i86pc/os/startup.c                |   1 +
  usr/src/uts/i86pc/vm/hment.c                  |   7 +
  usr/src/uts/sfmmu/vm/hat_sfmmu.c              |   5 +
- 20 files changed, 1384 insertions(+), 124 deletions(-)
+ 19 files changed, 1383 insertions(+), 124 deletions(-)
 
 ========================================================================
 [11/80] features/zone-memory
@@ -460,9 +455,9 @@ Features:
   OS-8113 enable ld guidance (#262)
   16165 Want kstats for low memory page scans and page creation throttles (CR feedback)
 
-Also includes the final state of fixes from 15 tickets: OS-11, OS-399,
-OS-750, OS-987, OS-1064, OS-2969, OS-3709, OS-5682, OS-6355, OS-6484,
-OS-6540, OS-6546, OS-7389, 13097, 14407.
+Also includes the final state of fixes from 17 tickets: OS-11, OS-399,
+OS-750, OS-803, OS-987, OS-1043, OS-1064, OS-2969, OS-3709, OS-5682,
+OS-6355, OS-6484, OS-6540, OS-6546, OS-7389, 13097, 14407.
 
 30 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -497,13 +492,13 @@ Co-authored-by: Mike Gerdts <mike.gerdts@joyent.com>
  usr/src/uts/common/syscall/rusagesys.c         |   1 +
  usr/src/uts/common/vm/hat.h                    |  10 +-
  usr/src/uts/common/vm/seg_vn.c                 |  11 +-
- usr/src/uts/common/vm/vm_as.c                  |  18 +++-
+ usr/src/uts/common/vm/vm_as.c                  |  19 +++-
  usr/src/uts/common/vm/vm_page.c                |   2 +-
  usr/src/uts/common/vm/vm_pvn.c                 |  28 +++--
  usr/src/uts/common/vm/vm_usage.c               | 252 +++++++++++++++++++++++++++++++++++----------
  usr/src/uts/i86pc/sys/vm_machparam.h           |   4 +-
  usr/src/uts/i86pc/vm/hat_i86.c                 |  78 ++++++++++----
- 30 files changed, 570 insertions(+), 228 deletions(-)
+ 30 files changed, 571 insertions(+), 228 deletions(-)
 
 ========================================================================
 [12/80] features/zone-cpu
@@ -632,7 +627,7 @@ Co-authored-by: Hans Rosenfeld <hans.rosenfeld@joyent.com>
  usr/src/cmd/zoneadmd/log.c                 | 1027 ++++++++++++++++++++++++++++++++++++++++++++++++
  usr/src/cmd/zoneadmd/vplat.c               |  534 ++++++++++++-------------
  usr/src/cmd/zoneadmd/zcons.c               |  175 ++++++---
- usr/src/cmd/zoneadmd/zoneadmd.c            |  928 +++++++++++++++++++++++++++++++++++--------
+ usr/src/cmd/zoneadmd/zoneadmd.c            |  930 +++++++++++++++++++++++++++++++++++--------
  usr/src/cmd/zoneadmd/zoneadmd.h            |   42 +-
  usr/src/lib/libbrand/common/libbrand.c     |    8 +
  usr/src/lib/libppt/common/llib-lppt        |   19 +
@@ -640,7 +635,7 @@ Co-authored-by: Hans Rosenfeld <hans.rosenfeld@joyent.com>
  usr/src/man/man1/zlogin.1                  |   68 ++--
  usr/src/uts/common/os/zone.c               |    8 +-
  usr/src/uts/common/sys/zone.h              |   11 +-
- 14 files changed, 2734 insertions(+), 639 deletions(-)
+ 14 files changed, 2736 insertions(+), 639 deletions(-)
 
 ========================================================================
 [15/80] features/zones-tools
@@ -744,13 +739,13 @@ Features:
   OS-8633: Want builder brand for RFD 184
   OS-8723 Expose virtio1 zone attribute via vmadm
 
-Also includes the final state of fixes from 28 tickets: OS-2301,
-OS-3023, OS-3491, OS-6620, OS-6669, OS-6695, OS-6728, OS-6747, OS-6760,
-OS-6777, OS-6800, OS-6831, OS-6863, OS-6882, OS-6952, OS-6963, OS-7116,
-OS-7205, OS-7246, OS-7685, OS-7975, OS-8117, OS-8361, OS-8378, OS-8683,
-OS-8722, 12775, 14578.
+Also includes the final state of fixes from 27 tickets: OS-2301,
+OS-3023, OS-3491, OS-6620, OS-6669, OS-6695, OS-6728, OS-6747, OS-6777,
+OS-6800, OS-6831, OS-6863, OS-6882, OS-6952, OS-6963, OS-7116, OS-7205,
+OS-7246, OS-7685, OS-7975, OS-8117, OS-8361, OS-8378, OS-8683, OS-8722,
+12775, 14578.
 
-24 files (0 removed). This commit applies to illumos-gate on its own;
+23 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Mike Gerdts <mike.gerdts@joyent.com>
@@ -769,7 +764,6 @@ Co-authored-by: Michael Zeller <mike@mikezeller.net>
 
  usr/src/Targetdirs                            |  24 +-
  usr/src/cmd/smbios/Makefile                   |   4 +
- usr/src/cmd/zoneadmd/zoneadmd.c               |   3 +
  usr/src/lib/brand/bhyve/Makefile              |  32 ++
  usr/src/lib/brand/bhyve/Makefile.bhyve        |  17 +
  usr/src/lib/brand/bhyve/zone/Makefile         |  45 +++
@@ -791,7 +785,7 @@ Co-authored-by: Michael Zeller <mike@mikezeller.net>
  usr/src/lib/brand/joyent/zone/SUNWdefault.xml |  32 ++
  usr/src/lib/brand/shared/zone/common.ksh      |  98 +++--
  usr/src/lib/brand/shared/zone/uninstall.ksh   |  50 +--
- 24 files changed, 1967 insertions(+), 76 deletions(-)
+ 23 files changed, 1964 insertions(+), 76 deletions(-)
 
 ========================================================================
 [17/80] features/zfd
@@ -876,13 +870,13 @@ Features:
   OS-5195 DHCP spoofing protection should allow permitting all Client Identifiers
   OS-6794 want LSO support in viona
 
-Also includes the final state of fixes from 45 tickets: HEAD-434,
-OS-249, OS-276, OS-281, OS-282, OS-383, OS-406, OS-423, OS-792, OS-1457,
-OS-1572, OS-1720, OS-1885, OS-2608, OS-3000, OS-3007, OS-3080, OS-3342,
-OS-3492, OS-3494, OS-3506, OS-3839, OS-3948, OS-4335, OS-4336, OS-4513,
-OS-4600, OS-5269, OS-5363, OS-5919, OS-5989, OS-6007, OS-6056, OS-6057,
-OS-6108, OS-6137, OS-6274, OS-6278, OS-6778, OS-6878, OS-7520, OS-7806,
-OS-7960, 8149, 14031.
+Also includes the final state of fixes from 46 tickets: HEAD-434,
+OS-249, OS-276, OS-281, OS-282, OS-383, OS-406, OS-423, OS-478, OS-792,
+OS-1457, OS-1572, OS-1720, OS-1885, OS-2608, OS-3000, OS-3007, OS-3080,
+OS-3342, OS-3492, OS-3494, OS-3506, OS-3839, OS-3948, OS-4335, OS-4336,
+OS-4513, OS-4600, OS-5269, OS-5363, OS-5919, OS-5989, OS-6007, OS-6056,
+OS-6057, OS-6108, OS-6137, OS-6274, OS-6278, OS-6778, OS-6878, OS-7520,
+OS-7806, OS-7960, 8149, 14031.
 
 38 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -904,7 +898,7 @@ Co-authored-by: Dan McDonald <danmcd@edgecast.io>
  usr/src/cmd/cmd-inet/lib/ipmgmtd/ipmgmt_persist.c |  38 ++++++----
  usr/src/cmd/dladm/dladm.c                         | 132 ++++++++++++++++++++++++--------
  usr/src/cmd/dlmgmtd/dlmgmt_db.c                   |  16 +++-
- usr/src/cmd/dlmgmtd/dlmgmt_door.c                 |  26 ++++---
+ usr/src/cmd/dlmgmtd/dlmgmt_door.c                 |  27 ++++---
  usr/src/cmd/dlmgmtd/dlmgmt_impl.h                 |   3 +-
  usr/src/cmd/dlmgmtd/dlmgmt_main.c                 |  27 +++++--
  usr/src/cmd/dlmgmtd/dlmgmt_util.c                 |  29 +++----
@@ -935,7 +929,7 @@ Co-authored-by: Dan McDonald <danmcd@edgecast.io>
  usr/src/uts/common/sys/dls_impl.h                 |   4 +-
  usr/src/uts/common/sys/dls_mgmt.h                 |   1 +
  usr/src/uts/common/sys/mac_client.h               |   1 +
- 38 files changed, 1037 insertions(+), 304 deletions(-)
+ 38 files changed, 1038 insertions(+), 304 deletions(-)
 
 ========================================================================
 [19/80] features/link-protection
@@ -1013,8 +1007,6 @@ Features:
   OS-4839 Want ability to toggle etherstub link state
   OS-4840 Want system event for datalink state changes
   OS-6558 sdev_create_minor_node should allow non-666
-  OS-7014 Add libtopo support for Upgradable Firmware Modules
-  OS-7026 Add DDI support for Upgradable Firmware Modules
   OS-7662 need a way to disable SMT
   OS-7943 Want platform build test artifact
 
@@ -1025,7 +1017,7 @@ OS-5882, OS-5884, OS-5894, OS-6097, OS-6150, OS-6344, OS-6349, OS-6357,
 OS-6545, OS-6552, OS-6899, OS-6908, OS-6964, OS-6967, OS-6970, OS-7125,
 OS-7768, OS-7960, OS-8254, OS-8359, OS-8361, OS-8544.
 
-149 files (0 removed). This commit applies to illumos-gate on its own;
+151 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
@@ -1038,7 +1030,6 @@ Co-authored-by: Jason King <jasonbking@users.noreply.github.com>
 Co-authored-by: Rob Gulewich <robert.gulewich@joyent.com>
 Co-authored-by: Dave Pacheco <dap@joyent.com>
 Co-authored-by: Tim Foster <tim.foster@joyent.com>
-Co-authored-by: Rob Johnston <rob.johnston@joyent.com>
 Co-authored-by: Ulyssa Mello <cody.mello@joyent.com>
 
  exception_lists/cstyle                                    |    1 +
@@ -1115,7 +1106,7 @@ Co-authored-by: Ulyssa Mello <cody.mello@joyent.com>
  usr/src/cmd/vndadm/vndadm.c                               |  872 +++++
  usr/src/cmd/vndstat/Makefile                              |   33 +
  usr/src/cmd/vndstat/vndstat.c                             |  542 +++
- usr/src/lib/Makefile                                      |    1 +
+ usr/src/lib/Makefile                                      |    2 +
  usr/src/lib/libdlpi/common/libdlpi.c                      |   71 +-
  usr/src/lib/libdlpi/common/libdlpi.h                      |    2 +
  usr/src/lib/libdlpi/common/libdlpi_impl.h                 |    3 +
@@ -1145,12 +1136,14 @@ Co-authored-by: Ulyssa Mello <cody.mello@joyent.com>
  usr/src/man/man3vnd/vnd_prop_iter.3vnd                    |  148 +
  usr/src/man/man3vnd/vnd_prop_writeable.3vnd               |  101 +
  usr/src/man/man3vnd/vnd_walk.3vnd                         |  155 +
+ usr/src/man/man4d/Makefile                                |    1 +
  usr/src/man/man4d/vnd.4d                                  |  118 +
+ usr/src/man/man8/Makefile                                 |    3 +
  usr/src/man/man8/snoop.8                                  |   18 +-
  usr/src/man/man8/vndadm.8                                 |  650 ++++
  usr/src/man/man8/vndstat.8                                |  163 +
  usr/src/test/os-tests/runfiles/default.run                |    3 +
- usr/src/test/os-tests/tests/Makefile                      |    5 +
+ usr/src/test/os-tests/tests/Makefile                      |    4 +
  usr/src/test/os-tests/tests/OS-6097.c                     |   74 +
  usr/src/uts/common/Makefile.files                         |    6 +-
  usr/src/uts/common/Makefile.rules                         |   10 +-
@@ -1171,7 +1164,7 @@ Co-authored-by: Ulyssa Mello <cody.mello@joyent.com>
  usr/src/uts/common/io/vnd/frameio.c                       |  465 +++
  usr/src/uts/common/io/vnd/vnd.c                           | 5862 +++++++++++++++++++++++++++++++++
  usr/src/uts/common/io/vnd/vnd.conf                        |   16 +
- usr/src/uts/common/sys/Makefile                           |    5 +
+ usr/src/uts/common/sys/Makefile                           |    7 +-
  usr/src/uts/common/sys/dld.h                              |    1 +
  usr/src/uts/common/sys/dld_impl.h                         |    5 +-
  usr/src/uts/common/sys/dlpi.h                             |   11 +
@@ -1190,7 +1183,7 @@ Co-authored-by: Ulyssa Mello <cody.mello@joyent.com>
  usr/src/uts/intel/Makefile.intel                          |    3 +-
  usr/src/uts/intel/gsqueue/Makefile                        |   41 +
  usr/src/uts/intel/vnd/Makefile                            |   52 +
- 149 files changed, 18180 insertions(+), 124 deletions(-)
+ 151 files changed, 18184 insertions(+), 126 deletions(-)
 
 ========================================================================
 [21/80] features/overlay-svp
@@ -1231,7 +1224,7 @@ Co-authored-by: Brianna Bennett <bahamat@digitalelf.net>
  usr/src/cmd/cmd-inet/usr.sbin/snoop/snoop_rport.c     |    9 +-
  usr/src/cmd/cmd-inet/usr.sbin/snoop/snoop_svp.c       |  557 ++++++++++++++++++
  usr/src/cmd/mdb/common/modules/genunix/Makefile.files |    1 +
- usr/src/cmd/mdb/common/modules/genunix/genunix.c      |    5 +
+ usr/src/cmd/mdb/common/modules/genunix/genunix.c      |    4 +
  usr/src/cmd/mdb/common/modules/genunix/refhash.c      |   61 ++
  usr/src/cmd/mdb/common/modules/genunix/refhash.h      |   35 ++
  usr/src/cmd/varpd/Makefile                            |    3 +
@@ -1286,7 +1279,7 @@ Co-authored-by: Brianna Bennett <bahamat@digitalelf.net>
  usr/src/uts/common/io/overlay/overlay_mux.c           |   10 +-
  usr/src/uts/common/sys/Makefile                       |    1 +
  usr/src/uts/common/sys/refhash.h                      |    8 +
- 60 files changed, 6236 insertions(+), 49 deletions(-)
+ 60 files changed, 6235 insertions(+), 49 deletions(-)
 
 ========================================================================
 [22/80] features/ipf-cfw
@@ -1409,7 +1402,7 @@ Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
 Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
 Co-authored-by: Dan McDonald <danmcd@edgecast.io>
 
- usr/src/man/man4m/Makefile                     |   1 +
+ usr/src/man/man4m/Makefile                     |   2 +
  usr/src/man/man4m/datafilt.4m                  |  48 +++++++++++++++++++
  usr/src/uts/common/Makefile.files              |   4 +-
  usr/src/uts/common/fs/sockfs/sockcommon_sops.c |   8 ++--
@@ -1421,7 +1414,7 @@ Co-authored-by: Dan McDonald <danmcd@edgecast.io>
  usr/src/uts/intel/Makefile.intel               |   3 +-
  usr/src/uts/intel/datafilt/Makefile            |  63 ++++++++++++++++++++++++
  usr/src/uts/sparc/datafilt/Makefile            |  62 ++++++++++++++++++++++++
- 12 files changed, 355 insertions(+), 12 deletions(-)
+ 12 files changed, 356 insertions(+), 12 deletions(-)
 
 ========================================================================
 [25/80] features/tcp-connstat
@@ -1511,11 +1504,11 @@ Features:
 Also includes the final state of fixes from 36 tickets: OS-2557,
 OS-3356, OS-3368, OS-3425, OS-3462, OS-3629, OS-3630, OS-3631, OS-3678,
 OS-3751, OS-3900, OS-4183, OS-4293, OS-4388, OS-4687, OS-4702, OS-4896,
-OS-5148, OS-5291, OS-5539, OS-5592, OS-5605, OS-5714, OS-5882, OS-5884,
-OS-5894, OS-6076, OS-7598, OS-7621, OS-7960, OS-8054, OS-8187, OS-8278,
+OS-5148, OS-5291, OS-5592, OS-5605, OS-5714, OS-5882, OS-5884, OS-5894,
+OS-6076, OS-6187, OS-7598, OS-7621, OS-7960, OS-8054, OS-8187, OS-8278,
 OS-8361, OS-8741, 11679.
 
-43 files (0 removed). This commit applies to illumos-gate on its own;
+44 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Bryan Cantrill <bryan@joyent.com>
@@ -1528,9 +1521,9 @@ Co-authored-by: Michael Zeller <mike@mikezeller.net>
 Co-authored-by: Youzhong Yang <Youzhong.Yang@mathworks.com>
 Co-authored-by: Lexi Wilson <lexi@cooperi.net>
 Co-authored-by: Dan McDonald <danmcd@edgecast.io>
-Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
 Co-authored-by: John Levon <john.levon@joyent.com>
 Co-authored-by: Spencer Evans-Cole <spencer.ec09@gmail.com>
+Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
 
  usr/src/cmd/devfsadm/misc_link.c                                |    5 +-
  usr/src/lib/libc/amd64/Makefile                                 |    1 +
@@ -1538,9 +1531,11 @@ Co-authored-by: Spencer Evans-Cole <spencer.ec09@gmail.com>
  usr/src/lib/libc/port/mapfile-vers                              |    4 +
  usr/src/lib/libc/port/sys/inotify.c                             |  142 +++
  usr/src/lib/libc/sparc/Makefile.com                             |    3 +-
+ usr/src/man/man3c/Makefile                                      |    3 +
  usr/src/man/man3c/inotify_add_watch.3c                          |  120 ++
  usr/src/man/man3c/inotify_init.3c                               |  107 ++
  usr/src/man/man3c/inotify_rm_watch.3c                           |   81 ++
+ usr/src/man/man7/Makefile                                       |    3 +-
  usr/src/man/man7/inotify.7                                      |  305 +++++
  usr/src/test/zfs-tests/cmd/watch_dir/Makefile                   |   19 +
  usr/src/test/zfs-tests/cmd/watch_dir/watch_dir.c                |  151 +++
@@ -1556,7 +1551,6 @@ Co-authored-by: Spencer Evans-Cole <spencer.ec09@gmail.com>
  usr/src/uts/common/fs/pcfs/pc_dir.c                             |    5 +-
  usr/src/uts/common/fs/pcfs/pc_vnops.c                           |    5 +-
  usr/src/uts/common/fs/portfs/port_fop.c                         |   83 +-
- usr/src/uts/common/fs/tmpfs/tmp_vnops.c                         |   24 +-
  usr/src/uts/common/fs/udfs/udf_dir.c                            |    6 +-
  usr/src/uts/common/fs/udfs/udf_vnops.c                          |   14 +-
  usr/src/uts/common/fs/ufs/ufs_vnops.c                           |   25 +-
@@ -1575,7 +1569,7 @@ Co-authored-by: Spencer Evans-Cole <spencer.ec09@gmail.com>
  usr/src/uts/intel/inotify/Makefile                              |   60 +
  usr/src/uts/intel/ml/swtch.S                                    |   38 +
  usr/src/uts/sparc/inotify/Makefile                              |   61 +
- 43 files changed, 4238 insertions(+), 186 deletions(-)
+ 44 files changed, 4227 insertions(+), 179 deletions(-)
 
 ========================================================================
 [28/80] features/hyprlofs
@@ -1587,25 +1581,20 @@ Fast namespace virtual file system.
 Features:
   OS-978 hyperlofs [fix multiple adds to same dir]
   OS-1119 add lxproc, a coarsely Linux-compatible /proc
-  OS-1728 add force unmount support to tmpfs reviewed by Robert Mustacchi
   OS-3755 want hyprlofs stat(2) to reflect underlying file's stat(2)
-  OS-4043 tmpfs should support gigabyte sizes
-  OS-4044 tmpfs should support "mode" option
-  7753 tmpfs should support mode option [fix mismerge]
 
-Also includes the final state of fixes from 20 tickets: OS-1029,
+Also includes the final state of fixes from 19 tickets: OS-1029,
 OS-1030, OS-1034, OS-1037, OS-1189, OS-1391, OS-1571, OS-1576, OS-1882,
-OS-1966, OS-2342, OS-2777, OS-4170, OS-4317, OS-5539, OS-5830, OS-5847,
-OS-7768, OS-8359, OS-8361.
+OS-1966, OS-2342, OS-2777, OS-4170, OS-4317, OS-5830, OS-5847, OS-7768,
+OS-8359, OS-8361.
 
-25 files (0 removed). This commit applies to illumos-gate on its own;
+23 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
 Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 Co-authored-by: Joshua M. Clulow <jmc@joyent.com>
 Co-authored-by: Dan McDonald <danmcd@edgecast.io>
-Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
 Co-authored-by: John Levon <john.levon@joyent.com>
 Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
 
@@ -1615,6 +1604,7 @@ Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
  usr/src/cmd/fs.d/hyprlofs/mount/Makefile         |   31 +
  usr/src/cmd/fs.d/hyprlofs/mount/mount.c          |  148 +++++
  usr/src/cmd/zoneadm/zoneadm.c                    |    5 +
+ usr/src/man/man4fs/Makefile                      |    1 +
  usr/src/man/man4fs/hyprlofs.4fs                  |   62 ++
  usr/src/man/man7/privileges.7                    |   10 +
  usr/src/uts/common/Makefile.files                |    7 +-
@@ -1623,18 +1613,15 @@ Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
  usr/src/uts/common/fs/hyprlofs/hyprlofs_subr.c   |  127 ++++
  usr/src/uts/common/fs/hyprlofs/hyprlofs_vfsops.c |  613 ++++++++++++++++++
  usr/src/uts/common/fs/hyprlofs/hyprlofs_vnops.c  | 1450 ++++++++++++++++++++++++++++++++++++++++++
- usr/src/uts/common/fs/tmpfs/tmp_subr.c           |   40 +-
- usr/src/uts/common/fs/tmpfs/tmp_vfsops.c         |   21 +-
  usr/src/uts/common/os/policy.c                   |    8 +
  usr/src/uts/common/os/priv_defs                  |    4 +
  usr/src/uts/common/sys/Makefile                  |    2 +
  usr/src/uts/common/sys/fs/hyprlofs.h             |   91 +++
  usr/src/uts/common/sys/fs/hyprlofs_info.h        |  174 +++++
- usr/src/uts/common/sys/fs/tmp.h                  |    6 +-
  usr/src/uts/common/sys/mntent.h                  |    2 +
  usr/src/uts/common/sys/policy.h                  |    1 +
  usr/src/uts/intel/hyprlofs/Makefile              |   74 +++
- 25 files changed, 3777 insertions(+), 61 deletions(-)
+ 23 files changed, 3770 insertions(+), 2 deletions(-)
 
 ========================================================================
 [29/80] features/tmpfs
@@ -1645,14 +1632,18 @@ tmpfs size and accounting improvements.
 
 Features:
   OS-1728 add force unmount support to tmpfs reviewed by Robert Mustacchi
+  OS-3294 add support for inotify
   OS-4043 tmpfs should support gigabyte sizes
   OS-4044 tmpfs should support "mode" option
+  OS-7014 Add libtopo support for Upgradable Firmware Modules
+  OS-7026 Add DDI support for Upgradable Firmware Modules
+  7753 tmpfs should support mode option [fix mismerge]
 
-Also includes the final state of fixes from 11 tickets: OS-1833,
-OS-1861, OS-1882, OS-1976, OS-1977, OS-1983, OS-5539, OS-5577, OS-5578,
-OS-5581, OS-8359.
+Also includes the final state of fixes from 13 tickets: OS-1833,
+OS-1861, OS-1882, OS-1976, OS-1977, OS-1983, OS-5148, OS-5291, OS-5539,
+OS-5577, OS-5578, OS-5581, OS-8359.
 
-10 files (0 removed). This commit applies to illumos-gate on its own;
+11 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
@@ -1661,18 +1652,20 @@ Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
 Co-authored-by: Joshua M. Clulow <jmc@joyent.com>
 Co-authored-by: Dan McDonald <danmcd@edgecast.io>
+Co-authored-by: Rob Johnston <rob.johnston@joyent.com>
 
+ usr/src/test/os-tests/tests/Makefile                 |   1 +
  usr/src/test/os-tests/tests/tmpfs/Makefile           |  52 ++++++++
- usr/src/test/os-tests/tests/tmpfs/tmpfs_badmount.ksh | 114 +++++++++++++++++
+ usr/src/test/os-tests/tests/tmpfs/tmpfs_badmount.ksh | 114 ++++++++++++++++
  usr/src/test/os-tests/tests/tmpfs/tmpfs_enospc.ksh   |  74 +++++++++++
- usr/src/test/os-tests/tests/tmpfs/tmpfs_full.c       |  94 ++++++++++++++
+ usr/src/test/os-tests/tests/tmpfs/tmpfs_full.c       |  94 +++++++++++++
  usr/src/uts/common/fs/tmpfs/tmp_dir.c                |  59 +++++----
- usr/src/uts/common/fs/tmpfs/tmp_subr.c               |  98 +++++++++++++--
- usr/src/uts/common/fs/tmpfs/tmp_tnode.c              |  70 +++++++++--
- usr/src/uts/common/fs/tmpfs/tmp_vfsops.c             | 259 +++++++++++++++++++++++++++++++++------
- usr/src/uts/common/fs/tmpfs/tmp_vnops.c              |  77 ++++++++++--
- usr/src/uts/common/sys/fs/tmp.h                      |  50 ++++----
- 10 files changed, 838 insertions(+), 109 deletions(-)
+ usr/src/uts/common/fs/tmpfs/tmp_subr.c               | 136 +++++++++++++------
+ usr/src/uts/common/fs/tmpfs/tmp_tnode.c              |  70 ++++++++--
+ usr/src/uts/common/fs/tmpfs/tmp_vfsops.c             | 278 +++++++++++++++++++++++++++++++--------
+ usr/src/uts/common/fs/tmpfs/tmp_vnops.c              |  99 +++++++++++---
+ usr/src/uts/common/sys/fs/tmp.h                      |  54 ++++----
+ 11 files changed, 859 insertions(+), 172 deletions(-)
 
 ========================================================================
 [30/80] features/sdev
@@ -1710,8 +1703,8 @@ files shared with other features carry only this feature's hunks.
 Co-authored-by: Bill Pijewski <wdp@joyent.com>
 Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 
- usr/src/uts/common/fs/zfs/arc.c | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ usr/src/uts/common/fs/zfs/arc.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
 
 ========================================================================
 [32/80] features/zfs-props
@@ -1861,8 +1854,8 @@ Co-authored-by: Bryan Cantrill <bryan@joyent.com>
  usr/src/uts/common/fs/zfs/sys/zio.h   | 11 +++++++++--
  usr/src/uts/common/fs/zfs/vdev_disk.c |  8 ++++++++
  usr/src/uts/common/fs/zfs/zil.c       | 37 ++++++++++++++++++++++++++++++-------
- usr/src/uts/common/fs/zfs/zio.c       | 28 +++++++++++++++++++++++++---
- 4 files changed, 72 insertions(+), 12 deletions(-)
+ usr/src/uts/common/fs/zfs/zio.c       | 29 ++++++++++++++++++++++++++---
+ 4 files changed, 73 insertions(+), 12 deletions(-)
 
 ========================================================================
 [37/80] features/zfs
@@ -1939,12 +1932,12 @@ Features:
   OS-2463 restore zone-based zfs scheduling, based on new behavior
   OS-8638 Want ability to specify zfs_arc_max
 
-Also includes the final state of fixes from 37 tickets: OS-19, OS-52,
+Also includes the final state of fixes from 38 tickets: OS-19, OS-52,
 OS-66, OS-98, OS-100, OS-124, OS-135, OS-137, OS-147, OS-148, OS-163,
-OS-172, OS-176, OS-195, OS-221, OS-272, OS-285, OS-289, OS-338, OS-339,
-OS-355, OS-478, OS-525, OS-611, OS-1244, OS-2377, OS-2531, OS-2576,
-OS-2659, OS-2943, OS-3043, OS-6433, OS-6540, OS-6588, OS-7250, OS-7798,
-OS-8361.
+OS-172, OS-176, OS-195, OS-221, OS-272, OS-285, OS-289, OS-306, OS-338,
+OS-339, OS-355, OS-478, OS-525, OS-611, OS-1244, OS-2377, OS-2531,
+OS-2576, OS-2659, OS-2943, OS-3043, OS-6433, OS-6540, OS-6588, OS-7250,
+OS-7798, OS-8361.
 
 Plus 3 commits without a ticket ID.
 
@@ -1957,7 +1950,7 @@ Co-authored-by: Dan McDonald <danmcd@edgecast.io>
 Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 Co-authored-by: Keith M Wesolowski <wesolows@foobazco.org>
 
- usr/src/cmd/dlmgmtd/dlmgmt_door.c                |    3 +-
+ usr/src/cmd/Makefile                             |    3 +
  usr/src/cmd/stat/arcstat/arcstat.pl              |    0
  usr/src/cmd/stat/vfsstat/Makefile                |   41 ++
  usr/src/cmd/stat/vfsstat/vfsstat.pl              |  227 +++++++
@@ -1965,10 +1958,11 @@ Co-authored-by: Keith M Wesolowski <wesolows@foobazco.org>
  usr/src/cmd/stat/ziostat/ziostat.pl              |  204 ++++++
  usr/src/cmd/zfscache/Makefile                    |   49 ++
  usr/src/cmd/zfscache/zfscache.c                  |  423 +++++++++++++
+ usr/src/man/man8/Makefile                        |    2 +
  usr/src/man/man8/vfsstat.8                       |  213 +++++++
  usr/src/pkg/manifests/system-file-system-zfs.p5m |    2 +
  usr/src/uts/common/Makefile.files                |    3 +-
- usr/src/uts/common/fs/zfs/arc.c                  |  214 ++++++-
+ usr/src/uts/common/fs/zfs/arc.c                  |  215 ++++++-
  usr/src/uts/common/fs/zfs/dmu_tx.c               |    4 +-
  usr/src/uts/common/fs/zfs/dsl_dir.c              |    3 +-
  usr/src/uts/common/fs/zfs/dsl_pool.c             |    3 +-
@@ -1980,11 +1974,10 @@ Co-authored-by: Keith M Wesolowski <wesolows@foobazco.org>
  usr/src/uts/common/fs/zfs/vdev_queue.c           |   14 +-
  usr/src/uts/common/fs/zfs/zfs_ioctl.c            |    7 +
  usr/src/uts/common/fs/zfs/zfs_zone.c             | 1419 ++++++++++++++++++++++++++++++++++++++++++
- usr/src/uts/common/fs/zfs/zio.c                  |    2 +
  usr/src/uts/common/os/zone.c                     |    4 +-
  usr/src/uts/common/sys/fs/zfs.h                  |    3 +
  usr/src/uts/common/sys/zone.h                    |    2 +-
- 27 files changed, 2938 insertions(+), 13 deletions(-)
+ 27 files changed, 2940 insertions(+), 12 deletions(-)
 
 ========================================================================
 [40/80] features/dump-encryption
@@ -2276,7 +2269,7 @@ Co-authored-by: Nahum Shalman <nshalman@edgecast.io>
 Co-authored-by: John Levon <john.levon@joyent.com>
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
 
- usr/src/cmd/Makefile                    |   4 +
+ usr/src/cmd/Makefile                    |   3 +
  usr/src/cmd/bhyve/common/bhyverun.c     |  44 +++++++-
  usr/src/cmd/bhyve/common/rfb.c          |   1 +
  usr/src/cmd/bhyve/common/uart_backend.c |  54 +++++++++-
@@ -2285,7 +2278,7 @@ Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
  usr/src/cmd/zhyve/Makefile              |  38 +++++++
  usr/src/cmd/zhyve/zhyve.c               | 294 ++++++++++++++++++++++++++++++++++++++++++++++++++++
  usr/src/uts/intel/sys/vmm.h             |   2 +-
- 9 files changed, 445 insertions(+), 6 deletions(-)
+ 9 files changed, 444 insertions(+), 6 deletions(-)
 
 ========================================================================
 [47/80] features/dtrace
@@ -2355,6 +2348,7 @@ Features:
   OS-5778 want usb_pipe_xopen(9F)
   OS-7200 would like thread name API
   OS-7345 Add support to mdb for anonymous/unnamed structs and unions.
+  OS-7358 Would like a refhash walker
   OS-7979 introduce /etc/versions/build (fix mismerge)
 
 Also includes the final state of fixes from 23 tickets: OS-577, OS-1011,
@@ -2375,6 +2369,7 @@ Co-authored-by: Mark Brooks <mark.brooks@joyent.com>
 Co-authored-by: John Sonnenschein <johns@joyent.com>
 Co-authored-by: Dan McDonald <danmcd@edgecast.io>
 Co-authored-by: Keith M Wesolowski <wesolows@foobazco.org>
+Co-authored-by: Jason King <jasonbking@users.noreply.github.com>
 Co-authored-by: Jordan Paige Hendricks <jordan.hendricks@joyent.com>
 
  usr/src/cmd/mdb/Makefile.common                                 |   1 +
@@ -2384,7 +2379,7 @@ Co-authored-by: Jordan Paige Hendricks <jordan.hendricks@joyent.com>
  usr/src/cmd/mdb/common/mdb/mdb_print.c                          |  47 +-
  usr/src/cmd/mdb/common/mdb/mdb_tab.c                            |  24 +-
  usr/src/cmd/mdb/common/modules/genunix/ctxop.c                  |   3 +-
- usr/src/cmd/mdb/common/modules/genunix/genunix.c                | 100 ++--
+ usr/src/cmd/mdb/common/modules/genunix/genunix.c                | 101 ++--
  usr/src/cmd/mdb/common/modules/genunix/zone.c                   |  43 +-
  usr/src/cmd/mdb/common/modules/genunix/zone.h                   |   1 +
  usr/src/cmd/mdb/common/modules/mdb_ks/mdb_ks.c                  |  67 ++-
@@ -2394,7 +2389,7 @@ Co-authored-by: Jordan Paige Hendricks <jordan.hendricks@joyent.com>
  usr/src/cmd/mdb/intel/ia32/xhci/Makefile                        |  25 +
  usr/src/test/util-tests/tests/mdb/typedef/tst.dellist.mdb.out   |   0
  usr/src/test/util-tests/tests/mdb/typedef/tst.emptylist.mdb.out |   0
- 17 files changed, 1137 insertions(+), 142 deletions(-)
+ 17 files changed, 1138 insertions(+), 142 deletions(-)
 
 ========================================================================
 [49/80] features/rtld-sgs
@@ -2408,12 +2403,10 @@ Features:
   OS-2098 yacc should check $origin for support files
   OS-2101 Need a way to specify ast binary directory
   OS-2726 want to tell rtld certain libraries are toxic
-  OS-3279 lx brand should allow delegated datasets
-  OS-3280 need a way to specify the root of a native system in the lx brand
 
-Also includes the final state of fixes from 15 tickets: OS-2069,
+Also includes the final state of fixes from 11 tickets: OS-2069,
 OS-2094, OS-2095, OS-2096, OS-2099, OS-2100, OS-3426, OS-3477, OS-4531,
-OS-5001, OS-6993, OS-6994, OS-6995, OS-6996, OS-8278.
+OS-5001, OS-8278.
 
 21 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -2426,7 +2419,7 @@ Co-authored-by: Michael Zeller <mike@mikezeller.net>
  usr/src/cmd/sgs/elfdump/amd64/Makefile           |  2 ++
  usr/src/cmd/sgs/include/conv.h                   |  2 +-
  usr/src/cmd/sgs/libconv/common/corenote.c        |  2 ++
- usr/src/cmd/sgs/libconv/common/corenote.msg      |  4 +++
+ usr/src/cmd/sgs/libconv/common/corenote.msg      |  2 ++
  usr/src/cmd/sgs/libconv/common/phdr.c            | 46 ++++++++++++++++++++++++++++++++
  usr/src/cmd/sgs/libconv/common/phdr.msg          | 30 +++++++++++++++++++++
  usr/src/cmd/sgs/librtld_db/common/librtld_db.msg |  6 ++++-
@@ -2443,7 +2436,7 @@ Co-authored-by: Michael Zeller <mike@mikezeller.net>
  usr/src/man/man1/ld.so.1.1                       | 19 +++++++++++++
  usr/src/tools/env/illumos.sh                     |  6 +++++
  usr/src/uts/common/sys/elf.h                     | 44 +++++++++++++++++++++++++++++++
- 21 files changed, 338 insertions(+), 15 deletions(-)
+ 21 files changed, 336 insertions(+), 15 deletions(-)
 
 ========================================================================
 [50/80] features/ctf
@@ -2605,20 +2598,22 @@ SmartOS: libresolv2_joy and nsswitch dns
 
 See OS-2115.
 
-Also includes the final state of fixes from 6 tickets: OS-2115, OS-2148,
-OS-2178, OS-7125, OS-7297, OS-7768.
+Also includes the final state of fixes from 7 tickets: OS-2115, OS-2148,
+OS-2178, OS-7125, OS-7297, OS-7768, 5468.
 
-189 files (0 removed). This commit applies to illumos-gate on its own;
+190 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
 Co-authored-by: John Levon <john.levon@joyent.com>
+Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
 
  exception_lists/cstyle                                     |    1 +
  exception_lists/wscheck                                    |    5 +
  usr/src/cmd/netfiles/resolv.conf                           |    0
  usr/src/head/Makefile                                      |    2 +
  usr/src/head/resolv_joy.h                                  |  472 +++++++
+ usr/src/lib/Makefile                                       |    1 +
  usr/src/lib/libresolv2_joy/Makefile                        |   76 ++
  usr/src/lib/libresolv2_joy/Makefile.com                    |  166 +++
  usr/src/lib/libresolv2_joy/THIRDPARTYLICENSE               |  185 +++
@@ -2803,7 +2798,7 @@ Co-authored-by: John Levon <john.levon@joyent.com>
  usr/src/lib/nsswitch/dns/common/dns_mt.c                   |  153 +--
  usr/src/lib/nsswitch/dns/common/gethostent.c               |    6 -
  usr/src/lib/nsswitch/dns/common/gethostent6.c              |    2 -
- 189 files changed, 46835 insertions(+), 146 deletions(-)
+ 190 files changed, 46836 insertions(+), 146 deletions(-)
 
 ========================================================================
 [54/80] features/smartlogin
@@ -2836,7 +2831,7 @@ Co-authored-by: Dan McDonald <danmcd@edgecast.io>
 
  usr/src/head/Makefile                           |   2 +
  usr/src/head/zdoor.h                            |  74 ++++++++
- usr/src/lib/Makefile                            |   2 +
+ usr/src/lib/Makefile                            |   4 +
  usr/src/lib/libsmartsshd/Makefile               |  48 +++++
  usr/src/lib/libsmartsshd/Makefile.com           |  46 +++++
  usr/src/lib/libsmartsshd/amd64/Makefile         |  30 +++
@@ -2857,7 +2852,7 @@ Co-authored-by: Dan McDonald <danmcd@edgecast.io>
  usr/src/lib/libzdoor/common/ztree.c             | 343 +++++++++++++++++++++++++++++++++++
  usr/src/lib/libzdoor/common/ztree.h             |  88 +++++++++
  usr/src/lib/libzdoor/i386/Makefile              |  29 +++
- 23 files changed, 2129 insertions(+)
+ 23 files changed, 2131 insertions(+)
 
 ========================================================================
 [55/80] features/bunyan
@@ -2873,7 +2868,7 @@ Features:
 
 Also includes the final state of fixes from 2 tickets: OS-4452, OS-5047.
 
-18 files (0 removed). This commit applies to illumos-gate on its own;
+19 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
@@ -2882,7 +2877,7 @@ Co-authored-by: Jason King <jasonbking@users.noreply.github.com>
 Co-authored-by: Dave Eddy <dave@daveeddy.com>
 Co-authored-by: John Levon <john.levon@joyent.com>
 
- usr/src/lib/Makefile                            |   1 +
+ usr/src/lib/Makefile                            |   2 +
  usr/src/lib/libbunyan/Makefile                  |  42 ++
  usr/src/lib/libbunyan/Makefile.com              |  36 ++
  usr/src/lib/libbunyan/amd64/Makefile            |  19 +
@@ -2897,10 +2892,11 @@ Co-authored-by: John Levon <john.levon@joyent.com>
  usr/src/lib/libnvpair/libnvpair.h               |   2 +
  usr/src/lib/libnvpair/mapfile-vers              |   2 +
  usr/src/lib/libnvpair/nvpair_json.c             | 284 +++++++++-----
+ usr/src/test/util-tests/tests/Makefile          |   1 +
  usr/src/test/util-tests/tests/bunyan/Makefile   |  68 ++++
  usr/src/test/util-tests/tests/bunyan/btest.c    | 316 +++++++++++++++
  usr/src/test/util-tests/tests/bunyan/bunyan.ksh |  26 ++
- 18 files changed, 1865 insertions(+), 91 deletions(-)
+ 19 files changed, 1867 insertions(+), 91 deletions(-)
 
 ========================================================================
 [56/80] features/nvpair-json
@@ -3270,30 +3266,32 @@ From BSD.
 Features:
   OS-1802 want column(1)
 
-Also includes the final state of fixes from 1 tickets: OS-7276.
+Also includes the final state of fixes from 2 tickets: OS-7276, 9088.
 
-6 files (0 removed). This commit applies to illumos-gate on its own;
+7 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
 Co-authored-by: John Levon <john.levon@joyent.com>
+Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
 
  usr/src/cmd/Makefile                         |   3 +
  usr/src/cmd/column/Makefile                  |  34 +++++
  usr/src/cmd/column/THIRDPARTYLICENSE         |  26 ++++
  usr/src/cmd/column/THIRDPARTYLICENSE.descrip |   1 +
  usr/src/cmd/column/column.c                  | 329 +++++++++++++++++++++++++++++++++++++++++++++++
+ usr/src/man/man1/Makefile                    |   1 +
  usr/src/man/man1/column.1                    | 129 +++++++++++++++++++
- 6 files changed, 522 insertions(+)
+ 7 files changed, 523 insertions(+)
 
 ========================================================================
 [62/80] features/machid
 
 SmartOS: machid(1)
 
-Also includes the final state of fixes from 1 tickets: OS-3954.
+Also includes the final state of fixes from 2 tickets: OS-3954, 9088.
 
-4 files (0 removed). This commit applies to illumos-gate on its own;
+5 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
@@ -3301,8 +3299,9 @@ Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
  usr/src/cmd/Makefile        |   3 ++
  usr/src/cmd/machid/Makefile |  80 ++++++++++++++++++++++++++++++++++++++
  usr/src/cmd/machid/machid.c | 135 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ usr/src/man/man1/Makefile   |   1 +
  usr/src/man/man1/machid.1   |  25 ++++++++++++
- 4 files changed, 243 insertions(+)
+ 5 files changed, 244 insertions(+)
 
 ========================================================================
 [63/80] features/nicstat
@@ -3331,11 +3330,12 @@ SSH is delivered from illumos-extra.
 
 Also includes the final state of fixes from 2 tickets: OS-4688, OS-4689.
 
-8 files (8 removed). This commit applies to illumos-gate on its own;
+9 files (8 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Lexi Wilson <lexi@cooperi.net>
 
+ usr/src/cmd/Makefile                      |   3 +-
  usr/src/cmd/ssh/Makefile                  |  58 ---------------
  usr/src/cmd/ssh/THIRDPARTYLICENSE.descrip |   1 -
  usr/src/cmd/ssh/doc/LICENCE               | 194 --------------------------------------------------
@@ -3344,7 +3344,7 @@ Co-authored-by: Lexi Wilson <lexi@cooperi.net>
  usr/src/cmd/ssh/etc/ssh_config            |  31 --------
  usr/src/cmd/ssh/etc/sshd                  | 127 ---------------------------------
  usr/src/cmd/ssh/etc/sshd_config           | 145 -------------------------------------
- 8 files changed, 791 deletions(-)
+ 9 files changed, 2 insertions(+), 792 deletions(-)
 
 ========================================================================
 [65/80] features/onbld-tools
@@ -3365,7 +3365,7 @@ TOOLS-2586.
 
 Plus 1 commits without a ticket ID.
 
-24 files (0 removed). This commit applies to illumos-gate on its own;
+23 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
@@ -3380,14 +3380,13 @@ Co-authored-by: Brianna Bennett <bahamat@digitalelf.net>
 
  usr/src/Makefile                               |  4 ++--
  usr/src/Makefile.master                        |  5 ++++-
- usr/src/cmd/Makefile                           |  3 ++-
+ usr/src/cmd/Makefile                           |  4 ++--
  usr/src/cmd/man/Makefile.com                   | 23 +++++++++++++++++++++++
  usr/src/tools/README.tools                     |  3 +++
  usr/src/tools/cpcgen/cpcgen.c                  |  4 ++--
  usr/src/tools/ctf/Makefile.ctf                 |  2 +-
  usr/src/tools/findunref/exception_list.git     | 39 +++++++++++++++++++++++++++++++++++++++
  usr/src/tools/findunref/exception_list.unknown |  0
- usr/src/tools/man/Makefile                     | 37 +++++++++++++++++++++++++++++++++++++
  usr/src/tools/mandoc/Makefile                  |  8 ++++----
  usr/src/tools/onbld/Checks/Cddl.py             |  2 +-
  usr/src/tools/onbld/Checks/CmtBlk.py           |  2 +-
@@ -3402,7 +3401,7 @@ Co-authored-by: Brianna Bennett <bahamat@digitalelf.net>
  usr/src/tools/scripts/webrev.sh                |  7 ++++++-
  usr/src/tools/smatch/Makefile                  |  9 +++++++++
  usr/src/tools/vtfontcvt/Makefile               |  9 ++++++++-
- 24 files changed, 186 insertions(+), 33 deletions(-)
+ 23 files changed, 149 insertions(+), 34 deletions(-)
 
 ========================================================================
 [66/80] features/smartos-test
@@ -3622,9 +3621,10 @@ Features:
   OS-8430 LX: FUTEX_WAIT_BITSET should support timeout being NULL
   OS-8543 Want support for OFD locks in lx-brand Portions-contributed-by: Dan McDonald <danmcd@mnx.io>
   OS-8682: Add net buffer size and panic-on-oops tunables to LX procfs.
+  6342 want signalfd support [fix mapfile]
   7029 want per-process exploit mitigation features (secflags) [missing manpage]
 
-Also includes the final state of fixes from 727 tickets: OS-1571,
+Also includes the final state of fixes from 729 tickets: OS-1571,
 OS-1682, OS-1694, OS-1966, OS-2810, OS-2837, OS-2840, OS-2863, OS-2873,
 OS-2877, OS-2879, OS-2885, OS-2897, OS-2982, OS-2983, OS-3006, OS-3024,
 OS-3026, OS-3038, OS-3073, OS-3087, OS-3099, OS-3101, OS-3103, OS-3107,
@@ -3643,83 +3643,83 @@ OS-3560, OS-3561, OS-3572, OS-3576, OS-3577, OS-3582, OS-3595, OS-3596,
 OS-3600, OS-3601, OS-3605, OS-3607, OS-3608, OS-3611, OS-3612, OS-3613,
 OS-3624, OS-3626, OS-3636, OS-3644, OS-3657, OS-3658, OS-3662, OS-3663,
 OS-3666, OS-3672, OS-3675, OS-3681, OS-3683, OS-3685, OS-3703, OS-3708,
-OS-3712, OS-3740, OS-3744, OS-3763, OS-3773, OS-3778, OS-3779, OS-3782,
-OS-3791, OS-3793, OS-3794, OS-3797, OS-3798, OS-3799, OS-3802, OS-3803,
-OS-3804, OS-3805, OS-3806, OS-3812, OS-3820, OS-3826, OS-3827, OS-3831,
-OS-3834, OS-3841, OS-3866, OS-3868, OS-3882, OS-3892, OS-3901, OS-3911,
-OS-3917, OS-3920, OS-3923, OS-3924, OS-3925, OS-3926, OS-3927, OS-3928,
-OS-3932, OS-3934, OS-3937, OS-3939, OS-3952, OS-3955, OS-3988, OS-3990,
-OS-3992, OS-3997, OS-4002, OS-4004, OS-4007, OS-4011, OS-4022, OS-4036,
-OS-4037, OS-4038, OS-4039, OS-4040, OS-4047, OS-4049, OS-4051, OS-4052,
-OS-4064, OS-4065, OS-4071, OS-4074, OS-4082, OS-4084, OS-4098, OS-4099,
-OS-4104, OS-4114, OS-4119, OS-4123, OS-4125, OS-4127, OS-4129, OS-4131,
-OS-4133, OS-4138, OS-4151, OS-4152, OS-4178, OS-4188, OS-4199, OS-4214,
-OS-4215, OS-4225, OS-4239, OS-4240, OS-4244, OS-4252, OS-4256, OS-4257,
-OS-4259, OS-4269, OS-4275, OS-4277, OS-4282, OS-4285, OS-4286, OS-4287,
-OS-4288, OS-4292, OS-4296, OS-4299, OS-4300, OS-4303, OS-4309, OS-4320,
-OS-4323, OS-4329, OS-4331, OS-4342, OS-4347, OS-4348, OS-4349, OS-4353,
-OS-4360, OS-4363, OS-4376, OS-4385, OS-4387, OS-4389, OS-4398, OS-4407,
-OS-4414, OS-4421, OS-4430, OS-4434, OS-4437, OS-4441, OS-4443, OS-4444,
-OS-4445, OS-4446, OS-4450, OS-4451, OS-4454, OS-4458, OS-4459, OS-4460,
-OS-4461, OS-4463, OS-4464, OS-4467, OS-4469, OS-4471, OS-4473, OS-4475,
-OS-4476, OS-4485, OS-4498, OS-4500, OS-4504, OS-4505, OS-4506, OS-4511,
-OS-4517, OS-4521, OS-4532, OS-4533, OS-4536, OS-4538, OS-4544, OS-4562,
-OS-4572, OS-4587, OS-4588, OS-4592, OS-4594, OS-4595, OS-4596, OS-4597,
-OS-4598, OS-4601, OS-4607, OS-4611, OS-4619, OS-4621, OS-4637, OS-4638,
-OS-4640, OS-4647, OS-4648, OS-4656, OS-4657, OS-4658, OS-4662, OS-4675,
-OS-4680, OS-4681, OS-4695, OS-4725, OS-4732, OS-4736, OS-4749, OS-4758,
-OS-4759, OS-4762, OS-4784, OS-4790, OS-4797, OS-4805, OS-4812, OS-4815,
-OS-4818, OS-4824, OS-4825, OS-4828, OS-4829, OS-4830, OS-4833, OS-4844,
-OS-4849, OS-4855, OS-4865, OS-4899, OS-4900, OS-4910, OS-4924, OS-4927,
-OS-4930, OS-4932, OS-4937, OS-4941, OS-4969, OS-4980, OS-4983, OS-4992,
-OS-4993, OS-4995, OS-5002, OS-5012, OS-5013, OS-5028, OS-5029, OS-5035,
-OS-5036, OS-5042, OS-5045, OS-5064, OS-5065, OS-5066, OS-5067, OS-5068,
-OS-5069, OS-5070, OS-5073, OS-5075, OS-5076, OS-5077, OS-5078, OS-5080,
-OS-5081, OS-5083, OS-5085, OS-5086, OS-5089, OS-5092, OS-5094, OS-5096,
-OS-5097, OS-5103, OS-5104, OS-5106, OS-5117, OS-5119, OS-5122, OS-5124,
-OS-5133, OS-5138, OS-5142, OS-5149, OS-5153, OS-5154, OS-5155, OS-5157,
-OS-5162, OS-5170, OS-5171, OS-5179, OS-5184, OS-5187, OS-5189, OS-5191,
-OS-5196, OS-5200, OS-5201, OS-5203, OS-5204, OS-5206, OS-5221, OS-5223,
-OS-5241, OS-5243, OS-5244, OS-5247, OS-5248, OS-5249, OS-5250, OS-5254,
-OS-5258, OS-5259, OS-5260, OS-5261, OS-5262, OS-5266, OS-5273, OS-5274,
-OS-5297, OS-5300, OS-5303, OS-5305, OS-5313, OS-5322, OS-5323, OS-5342,
-OS-5350, OS-5354, OS-5356, OS-5357, OS-5358, OS-5360, OS-5364, OS-5365,
-OS-5373, OS-5380, OS-5382, OS-5392, OS-5405, OS-5410, OS-5412, OS-5427,
-OS-5428, OS-5429, OS-5431, OS-5432, OS-5453, OS-5458, OS-5462, OS-5472,
-OS-5477, OS-5480, OS-5481, OS-5482, OS-5487, OS-5491, OS-5495, OS-5496,
-OS-5497, OS-5498, OS-5505, OS-5521, OS-5537, OS-5545, OS-5546, OS-5547,
-OS-5566, OS-5570, OS-5571, OS-5573, OS-5583, OS-5588, OS-5593, OS-5607,
-OS-5612, OS-5620, OS-5630, OS-5636, OS-5637, OS-5644, OS-5646, OS-5667,
-OS-5673, OS-5685, OS-5696, OS-5697, OS-5699, OS-5702, OS-5706, OS-5712,
-OS-5717, OS-5718, OS-5719, OS-5720, OS-5721, OS-5722, OS-5728, OS-5733,
-OS-5738, OS-5748, OS-5751, OS-5752, OS-5756, OS-5760, OS-5761, OS-5762,
-OS-5763, OS-5764, OS-5768, OS-5771, OS-5772, OS-5783, OS-5792, OS-5802,
-OS-5803, OS-5805, OS-5808, OS-5813, OS-5814, OS-5817, OS-5820, OS-5825,
-OS-5838, OS-5841, OS-5844, OS-5845, OS-5853, OS-5866, OS-5902, OS-5906,
-OS-5907, OS-5909, OS-5925, OS-5926, OS-5936, OS-5938, OS-5965, OS-5966,
-OS-5967, OS-5972, OS-5973, OS-5981, OS-5984, OS-5987, OS-5991, OS-5992,
-OS-5994, OS-5997, OS-6008, OS-6010, OS-6017, OS-6018, OS-6019, OS-6025,
-OS-6034, OS-6046, OS-6052, OS-6069, OS-6074, OS-6081, OS-6088, OS-6096,
-OS-6155, OS-6158, OS-6170, OS-6175, OS-6183, OS-6202, OS-6212, OS-6213,
-OS-6222, OS-6223, OS-6238, OS-6258, OS-6262, OS-6266, OS-6275, OS-6276,
-OS-6290, OS-6304, OS-6306, OS-6320, OS-6330, OS-6338, OS-6364, OS-6382,
-OS-6388, OS-6428, OS-6436, OS-6456, OS-6467, OS-6475, OS-6486, OS-6487,
-OS-6488, OS-6501, OS-6505, OS-6514, OS-6538, OS-6562, OS-6574, OS-6575,
-OS-6580, OS-6584, OS-6625, OS-6898, OS-6906, OS-6920, OS-6935, OS-6970,
-OS-7000, OS-7029, OS-7030, OS-7076, OS-7121, OS-7145, OS-7157, OS-7205,
-OS-7288, OS-7336, OS-7433, OS-7498, OS-7511, OS-7517, OS-7518, OS-7536,
-OS-7598, OS-7621, OS-7636, OS-7639, OS-7663, OS-7685, OS-7688, OS-7753,
-OS-7754, OS-7768, OS-7861, OS-7899, OS-7931, OS-7932, OS-7934, OS-7947,
-OS-7960, OS-7976, OS-7978, OS-7980, OS-7999, OS-8056, OS-8089, OS-8141,
-OS-8150, OS-8152, OS-8167, OS-8181, OS-8182, OS-8193, OS-8194, OS-8195,
-OS-8200, OS-8233, OS-8268, OS-8277, OS-8278, OS-8289, OS-8315, OS-8319,
-OS-8338, OS-8339, OS-8344, OS-8359, OS-8361, OS-8372, OS-8376, OS-8476,
-OS-8480, OS-8487, OS-8553, OS-8575, OS-8588, OS-8624, OS-8705, OS-8748,
-TOOLS-1603, 9027, 12789, 16344, 16538, 17297.
+OS-3712, OS-3740, OS-3744, OS-3752, OS-3763, OS-3773, OS-3778, OS-3779,
+OS-3782, OS-3791, OS-3793, OS-3794, OS-3797, OS-3798, OS-3799, OS-3802,
+OS-3803, OS-3804, OS-3805, OS-3806, OS-3812, OS-3820, OS-3826, OS-3827,
+OS-3831, OS-3834, OS-3841, OS-3866, OS-3868, OS-3882, OS-3892, OS-3901,
+OS-3911, OS-3917, OS-3920, OS-3923, OS-3924, OS-3925, OS-3926, OS-3927,
+OS-3928, OS-3932, OS-3934, OS-3937, OS-3939, OS-3952, OS-3955, OS-3969,
+OS-3988, OS-3990, OS-3992, OS-3997, OS-4002, OS-4004, OS-4007, OS-4011,
+OS-4022, OS-4036, OS-4037, OS-4038, OS-4039, OS-4040, OS-4047, OS-4049,
+OS-4051, OS-4052, OS-4064, OS-4065, OS-4071, OS-4074, OS-4082, OS-4084,
+OS-4098, OS-4099, OS-4104, OS-4114, OS-4119, OS-4123, OS-4125, OS-4127,
+OS-4129, OS-4131, OS-4133, OS-4138, OS-4151, OS-4152, OS-4178, OS-4188,
+OS-4199, OS-4214, OS-4215, OS-4225, OS-4239, OS-4240, OS-4244, OS-4252,
+OS-4256, OS-4257, OS-4259, OS-4269, OS-4275, OS-4277, OS-4282, OS-4285,
+OS-4286, OS-4287, OS-4288, OS-4292, OS-4296, OS-4299, OS-4300, OS-4303,
+OS-4309, OS-4320, OS-4323, OS-4329, OS-4331, OS-4342, OS-4347, OS-4348,
+OS-4349, OS-4353, OS-4360, OS-4363, OS-4376, OS-4385, OS-4387, OS-4389,
+OS-4398, OS-4407, OS-4414, OS-4421, OS-4430, OS-4434, OS-4437, OS-4441,
+OS-4443, OS-4444, OS-4445, OS-4446, OS-4450, OS-4451, OS-4454, OS-4458,
+OS-4459, OS-4460, OS-4461, OS-4463, OS-4464, OS-4467, OS-4469, OS-4471,
+OS-4473, OS-4475, OS-4476, OS-4485, OS-4498, OS-4500, OS-4504, OS-4505,
+OS-4506, OS-4511, OS-4517, OS-4521, OS-4532, OS-4533, OS-4536, OS-4538,
+OS-4544, OS-4562, OS-4572, OS-4587, OS-4588, OS-4592, OS-4594, OS-4595,
+OS-4596, OS-4597, OS-4598, OS-4601, OS-4607, OS-4611, OS-4619, OS-4621,
+OS-4637, OS-4638, OS-4640, OS-4647, OS-4648, OS-4656, OS-4657, OS-4658,
+OS-4662, OS-4675, OS-4680, OS-4681, OS-4695, OS-4725, OS-4732, OS-4736,
+OS-4749, OS-4758, OS-4759, OS-4762, OS-4784, OS-4790, OS-4797, OS-4805,
+OS-4812, OS-4815, OS-4818, OS-4824, OS-4825, OS-4828, OS-4829, OS-4830,
+OS-4833, OS-4844, OS-4849, OS-4855, OS-4865, OS-4899, OS-4900, OS-4910,
+OS-4924, OS-4927, OS-4930, OS-4932, OS-4937, OS-4941, OS-4969, OS-4980,
+OS-4983, OS-4992, OS-4993, OS-4995, OS-5002, OS-5012, OS-5013, OS-5028,
+OS-5029, OS-5035, OS-5036, OS-5042, OS-5045, OS-5064, OS-5065, OS-5066,
+OS-5067, OS-5068, OS-5069, OS-5070, OS-5073, OS-5075, OS-5076, OS-5077,
+OS-5078, OS-5080, OS-5081, OS-5083, OS-5085, OS-5086, OS-5089, OS-5092,
+OS-5094, OS-5096, OS-5097, OS-5103, OS-5104, OS-5106, OS-5117, OS-5119,
+OS-5122, OS-5124, OS-5133, OS-5138, OS-5142, OS-5149, OS-5153, OS-5154,
+OS-5155, OS-5157, OS-5162, OS-5170, OS-5171, OS-5179, OS-5184, OS-5187,
+OS-5189, OS-5191, OS-5196, OS-5200, OS-5201, OS-5203, OS-5204, OS-5206,
+OS-5221, OS-5223, OS-5241, OS-5243, OS-5244, OS-5247, OS-5248, OS-5249,
+OS-5250, OS-5254, OS-5258, OS-5259, OS-5260, OS-5261, OS-5262, OS-5266,
+OS-5273, OS-5274, OS-5297, OS-5300, OS-5303, OS-5305, OS-5313, OS-5322,
+OS-5323, OS-5342, OS-5350, OS-5354, OS-5356, OS-5357, OS-5358, OS-5360,
+OS-5364, OS-5365, OS-5373, OS-5380, OS-5382, OS-5392, OS-5405, OS-5410,
+OS-5412, OS-5427, OS-5428, OS-5429, OS-5431, OS-5432, OS-5453, OS-5458,
+OS-5462, OS-5472, OS-5477, OS-5480, OS-5481, OS-5482, OS-5487, OS-5491,
+OS-5495, OS-5496, OS-5497, OS-5498, OS-5505, OS-5521, OS-5537, OS-5545,
+OS-5546, OS-5547, OS-5566, OS-5570, OS-5571, OS-5573, OS-5583, OS-5588,
+OS-5593, OS-5607, OS-5612, OS-5620, OS-5630, OS-5636, OS-5637, OS-5644,
+OS-5646, OS-5667, OS-5673, OS-5685, OS-5696, OS-5697, OS-5699, OS-5702,
+OS-5706, OS-5712, OS-5717, OS-5718, OS-5719, OS-5720, OS-5721, OS-5722,
+OS-5728, OS-5733, OS-5738, OS-5748, OS-5751, OS-5752, OS-5756, OS-5760,
+OS-5761, OS-5762, OS-5763, OS-5764, OS-5768, OS-5771, OS-5772, OS-5783,
+OS-5792, OS-5802, OS-5803, OS-5805, OS-5808, OS-5813, OS-5814, OS-5817,
+OS-5820, OS-5825, OS-5838, OS-5841, OS-5844, OS-5845, OS-5853, OS-5866,
+OS-5902, OS-5906, OS-5907, OS-5909, OS-5925, OS-5926, OS-5936, OS-5938,
+OS-5965, OS-5966, OS-5967, OS-5972, OS-5973, OS-5981, OS-5984, OS-5987,
+OS-5991, OS-5992, OS-5994, OS-5997, OS-6008, OS-6010, OS-6017, OS-6018,
+OS-6019, OS-6025, OS-6034, OS-6046, OS-6052, OS-6069, OS-6074, OS-6081,
+OS-6088, OS-6096, OS-6155, OS-6158, OS-6170, OS-6175, OS-6183, OS-6202,
+OS-6212, OS-6213, OS-6222, OS-6223, OS-6238, OS-6258, OS-6262, OS-6266,
+OS-6275, OS-6276, OS-6290, OS-6304, OS-6306, OS-6320, OS-6330, OS-6338,
+OS-6364, OS-6382, OS-6388, OS-6428, OS-6436, OS-6456, OS-6467, OS-6475,
+OS-6486, OS-6487, OS-6488, OS-6501, OS-6505, OS-6514, OS-6538, OS-6562,
+OS-6574, OS-6575, OS-6580, OS-6584, OS-6625, OS-6898, OS-6906, OS-6920,
+OS-6935, OS-6970, OS-7000, OS-7029, OS-7030, OS-7076, OS-7121, OS-7145,
+OS-7157, OS-7205, OS-7288, OS-7336, OS-7433, OS-7498, OS-7511, OS-7517,
+OS-7518, OS-7536, OS-7598, OS-7621, OS-7636, OS-7639, OS-7663, OS-7685,
+OS-7688, OS-7753, OS-7754, OS-7768, OS-7861, OS-7899, OS-7931, OS-7932,
+OS-7934, OS-7947, OS-7960, OS-7976, OS-7978, OS-7980, OS-7999, OS-8056,
+OS-8089, OS-8141, OS-8150, OS-8152, OS-8167, OS-8181, OS-8182, OS-8193,
+OS-8194, OS-8195, OS-8200, OS-8233, OS-8268, OS-8277, OS-8278, OS-8289,
+OS-8315, OS-8319, OS-8338, OS-8339, OS-8344, OS-8359, OS-8361, OS-8372,
+OS-8376, OS-8476, OS-8480, OS-8487, OS-8553, OS-8575, OS-8588, OS-8624,
+OS-8705, OS-8748, TOOLS-1603, 9027, 12789, 16344, 16538, 17297.
 
 Plus 7 commits without a ticket ID.
 
-333 files (0 removed). This commit applies to illumos-gate on its own;
+334 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
@@ -3877,9 +3877,11 @@ Co-authored-by: Max Bruning <max@joyent.com>
  usr/src/lib/libdhcpagent/common/dhcpagent_util.c       |    9 +-
  usr/src/lib/libipadm/common/libipadm.c                 |   11 +-
  usr/src/lib/libnsl/common/mapfile-vers                 |    1 +
- usr/src/lib/libnsl/netselect/netselect.c               |   24 +-
+ usr/src/lib/libnsl/netselect/netselect.c               |   25 +-
  usr/src/lib/libproc/common/Pcontrol.c                  |    5 +
+ usr/src/man/man4fs/Makefile                            |    1 +
  usr/src/man/man4fs/lxproc.4fs                          |  115 +
+ usr/src/man/man7/Makefile                              |    3 +-
  usr/src/man/man7/lx.7                                  |  113 +
  usr/src/pkg/manifests/system-zones-brand-lx.p5m        |  101 +-
  usr/src/uts/common/Makefile.files                      |    8 +-
@@ -3993,7 +3995,7 @@ Co-authored-by: Max Bruning <max@joyent.com>
  usr/src/uts/common/disp/priocntl.c                     |    4 +-
  usr/src/uts/common/fs/fifofs/fifosubr.c                |   19 +-
  usr/src/uts/common/fs/fifofs/fifovnops.c               |   40 +-
- usr/src/uts/common/fs/lookup.c                         |    3 +
+ usr/src/uts/common/fs/lookup.c                         |    4 +
  usr/src/uts/common/fs/lxproc/lxpr_subr.c               |  524 +++
  usr/src/uts/common/fs/lxproc/lxpr_vfsops.c             |  367 ++
  usr/src/uts/common/fs/lxproc/lxpr_vnops.c              | 3105 ++++++++++++
@@ -4010,7 +4012,6 @@ Co-authored-by: Max Bruning <max@joyent.com>
  usr/src/uts/common/io/dld/dld_str.c                    |    4 +
  usr/src/uts/common/io/dls/dls_mgmt.c                   |    2 +-
  usr/src/uts/common/io/ptm.c                            |   47 +
- usr/src/uts/common/io/signalfd.c                       |    1 +
  usr/src/uts/common/klm/mapfile-mod                     |    6 +
  usr/src/uts/common/klm/nlm_dispatch.c                  |   11 +-
  usr/src/uts/common/klm/nlm_impl.c                      |   25 +-
@@ -4026,8 +4027,8 @@ Co-authored-by: Max Bruning <max@joyent.com>
  usr/src/uts/common/os/lwp.c                            |   61 +-
  usr/src/uts/common/os/pid.c                            |   12 +
  usr/src/uts/common/os/policy.c                         |   17 +
- usr/src/uts/common/os/sig.c                            |   73 +-
- usr/src/uts/common/os/streamio.c                       |    1 +
+ usr/src/uts/common/os/sig.c                            |   74 +-
+ usr/src/uts/common/os/streamio.c                       |    2 +
  usr/src/uts/common/os/sysent.c                         |    8 +-
  usr/src/uts/common/os/timer.c                          |  255 +-
  usr/src/uts/common/os/zone.c                           |   22 +-
@@ -4086,7 +4087,7 @@ Co-authored-by: Max Bruning <max@joyent.com>
  usr/src/uts/intel/sys/segments.h                       |    2 +
  usr/src/uts/intel/syscall/getcontext.c                 |   72 +-
  usr/src/uts/sparc/syscall/getcontext.c                 |   31 +-
- 333 files changed, 102449 insertions(+), 532 deletions(-)
+ 334 files changed, 102455 insertions(+), 533 deletions(-)
 
 ========================================================================
 [68/80] features/sed
@@ -4425,24 +4426,23 @@ Features:
   OS-3280 need a way to specify the root of a native system in the lx brand
   OS-3558 lxbrand add support for full in-kernel syscall handling
   OS-3886 Implement id_space as a library
+  OS-4092 Want a man we can run during the build
   OS-4470 lxbrand unblocking signals in new threads must be atomic
   OS-7014 Add libtopo support for Upgradable Firmware Modules
   OS-7026 Add DDI support for Upgradable Firmware Modules
-  OS-7535 allow platform builds on base-64 image
   OS-7669 Want CPU Temperature Sensors
   OS-7943 Want platform build test artifact
   OS-8113 enable ld guidance (#262)
   12217 add ld assert-deflib and guidance to gate build [fix duplicate makefile definitions from our local modif
   12665 want modern bhyve [fix broken build]
 
-Also includes the final state of fixes from 55 tickets: OS-98, OS-147,
+Also includes the final state of fixes from 48 tickets: OS-98, OS-147,
 OS-148, OS-189, OS-201, OS-421, OS-507, OS-696, OS-1512, OS-1589,
 OS-1836, OS-2592, OS-2677, OS-2778, OS-2779, OS-2786, OS-2800, OS-3545,
 OS-3561, OS-3748, OS-3868, OS-3901, OS-4509, OS-4688, OS-4689, OS-4967,
-OS-5017, OS-5585, OS-5591, OS-6041, OS-6187, OS-6282, OS-6410, OS-6795,
-OS-6920, OS-7240, OS-7498, OS-7511, OS-7517, OS-7518, OS-7536, OS-7677,
-OS-7870, OS-8324, OS-8360, OS-8361, OS-8433, OS-8458, OS-8709, OS-8756,
-5468, 6606, 9088, 13258, 14666.
+OS-5017, OS-5585, OS-5591, OS-6041, OS-6282, OS-6410, OS-6795, OS-6920,
+OS-7240, OS-7677, OS-7870, OS-8324, OS-8360, OS-8361, OS-8433, OS-8458,
+OS-8709, OS-8756, 5468, 6606, 13258, 14666.
 
 Plus 5 commits without a ticket ID.
 
@@ -4452,12 +4452,14 @@ the rest of the ticket that wrote them.
 Tickets that span many commits (sweeps) or have no other home:
   OS-696 flock() is missing (+75)
     ucbhead/Makefile +68, Makefile +7
+  OS-4092 Want a man we can run during the build (+37)
+    tools/man/Makefile +37
   OS-2800 Project Bardiche OS-2784 want sdev plugin interface OS-2783
-  want general (+24)
-    uts/common/Makefile.rules +8, uts/common/sys/Makefile +5,
-    uts/common/Makefile.files +4, cmd/Makefile +2,
-    uts/intel/Makefile.intel +2, cmd/cmd-inet/usr.sbin/snoop/Makefile
-    +1, and 2 more files
+  want general (+19)
+    uts/common/Makefile.rules +8, uts/common/Makefile.files +4,
+    cmd/Makefile +2, uts/intel/Makefile.intel +2,
+    cmd/cmd-inet/usr.sbin/snoop/Makefile +1, lib/Makefile +1, and 1 more
+    files
   OS-7943 Want platform build test artifact (+18)
     Makefile.testarchive +18
   OS-8360 We forgot about illumos 14220 in Makefile.testarchive (+17)
@@ -4467,44 +4469,37 @@ Tickets that span many commits (sweeps) or have no other home:
     lib/Makefile.lib +17
   OS-7240 libc's genassym should use proto area headers (+17)
     lib/libc/Makefile.targ +17
-  OS-8361 IPD 4 (man page renumbering) tracking issue (+13)
-    man/man4d/Makefile +3, man/man8/Makefile +3, man/man4/Makefile +2,
-    man/man4fs/Makefile +2, man/man7/Makefile +2, man/man4m/Makefile +1
   OS-3886 Implement id_space as a library (+12)
     lib/libidspace/common/mapfile-vers +7, uts/common/Makefile.rules +4,
     lib/libidspace/Makefile.com +1
   OS-7685 smartos-live overlay should be merged into illumos-joyent
   (+11)
     Makefile +11
-  OS-3294 add support for inotify (+11)
-    lib/libc/port/mapfile-vers +4, uts/common/Makefile.files +2,
-    lib/libc/amd64/Makefile +1, lib/libc/i386/Makefile.com +1,
-    lib/libc/sparc/Makefile.com +1, uts/common/sys/Makefile +1, and 1
-    more files
-  65 more tickets (+166): OS-6795, OS-978, OS-3110, OS-2834,
-  untagged:265c2123633, OS-7870, 13258, OS-1119, OS-5591, OS-7828,
-  OS-147, OS-4206, OS-3524, OS-1799, OS-8433, OS-8459,
-  untagged:5e100881386, 12217, OS-6187, OS-8324, OS-7014, OS-8709,
-  OS-8756, OS-8581, OS-8638, OS-7503, OS-201, OS-6410,
-  untagged:160e9fdbf38, OS-6920, 9088, OS-2952, OS-3463, OS-5549,
-  OS-7667, OS-4509, OS-2336, OS-1802, OS-3954, OS-2677, OS-2592,
-  OS-1836, OS-1512, OS-507, OS-2115, 12665, 5468, OS-3884, 14666,
-  OS-3561, OS-3280, OS-4470, OS-2893, untagged:cafbe6d2d97, OS-6282,
-  OS-8113, OS-6041, OS-19, OS-4360, OS-3748, OS-4665, OS-7669, OS-4256,
-  OS-4967, OS-421
+  OS-6795 illumos-joyent build tools depend on platform Perl (+10)
+    cmd/Makefile +6, cmd/auditrecord/Makefile +4
+  64 more tickets (+161): OS-3294, OS-3110, OS-2834,
+  untagged:265c2123633, OS-8361, OS-978, 13258, OS-7870, OS-1119,
+  OS-5591, OS-7828, OS-147, OS-1799, OS-8433, untagged:5e100881386,
+  12217, OS-8324, OS-3524, OS-4206, OS-7014, OS-8709, OS-8756, OS-8581,
+  OS-8638, OS-7503, OS-201, OS-6410, untagged:160e9fdbf38, OS-6920,
+  OS-2952, OS-3463, OS-5549, OS-7667, OS-4509, OS-2336, OS-1802,
+  OS-8459, OS-3954, OS-2677, OS-2592, OS-1836, OS-1512, OS-507, OS-2115,
+  12665, 5468, OS-3884, 14666, OS-3561, OS-3280, OS-4470, OS-2893,
+  untagged:cafbe6d2d97, OS-6282, OS-8113, OS-6041, OS-19, OS-4360,
+  OS-3748, OS-4665, OS-7669, OS-4256, OS-4967, OS-421
 
-  Written during merge conflict resolution (+34):
+  Written during merge conflict resolution (+33):
     lib/Makefile +8, Makefile.testarchive +7, Makefile.master +2,
     cmd/Makefile +2, test/util-tests/tests/dladm/Makefile +2,
-    cmd/cmd-inet/usr.sbin/snoop/Makefile +1, and 12 more files
+    cmd/cmd-inet/usr.sbin/snoop/Makefile +1, and 11 more files
 
-48 files (0 removed). This commit applies to illumos-gate on its own;
+42 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
+Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
 Co-authored-by: Dan McDonald <danmcd@edgecast.io>
 Co-authored-by: John Levon <john.levon@joyent.com>
-Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
 Co-authored-by: Tim Foster <tim.foster@joyent.com>
 Co-authored-by: Jason King <jasonbking@users.noreply.github.com>
 Co-authored-by: Richard Lowe <richlowe@richlowe.net>
@@ -4514,17 +4509,17 @@ Co-authored-by: John Sonnenschein <johns@joyent.com>
 Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
 Co-authored-by: Hans Rosenfeld <hans.rosenfeld@joyent.com>
 Co-authored-by: Rob Johnston <rob.johnston@joyent.com>
-Co-authored-by: Lexi Wilson <lexi@cooperi.net>
-Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 Co-authored-by: Keith M Wesolowski <wesolows@foobazco.org>
 Co-authored-by: Joshua M. Clulow <jmc@joyent.com>
 Co-authored-by: Josh Wilsdon <jwilsdon@joyent.com>
+Co-authored-by: Lexi Wilson <lexi@cooperi.net>
+Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 
  usr/src/Makefile                                  | 13 +++++----
  usr/src/Makefile.master                           | 21 +++++++++----
  usr/src/Makefile.psm.targ                         |  3 ++
  usr/src/Makefile.testarchive                      | 44 ++++++++++++++++++++++++++++
- usr/src/cmd/Makefile                              | 23 +++++++--------
+ usr/src/cmd/Makefile                              | 21 +++++++------
  usr/src/cmd/Makefile.check                        |  4 ---
  usr/src/cmd/auditrecord/Makefile                  |  6 ++--
  usr/src/cmd/cmd-inet/usr.sbin/snoop/Makefile      |  2 +-
@@ -4533,7 +4528,7 @@ Co-authored-by: Josh Wilsdon <jwilsdon@joyent.com>
  usr/src/cmd/passwd/Makefile                       |  2 ++
  usr/src/cmd/stat/Makefile                         | 11 +++++--
  usr/src/head/Makefile                             |  4 ++-
- usr/src/lib/Makefile                              | 21 ++++++++-----
+ usr/src/lib/Makefile                              | 16 +++++-----
  usr/src/lib/Makefile.lib                          |  4 +--
  usr/src/lib/libc/Makefile.targ                    | 21 +++++++++++++
  usr/src/lib/libc/amd64/Makefile                   | 13 ---------
@@ -4545,30 +4540,24 @@ Co-authored-by: Josh Wilsdon <jwilsdon@joyent.com>
  usr/src/lib/libidspace/common/mapfile-vers        | 10 +++++--
  usr/src/lib/pysolaris/Makefile.com                |  1 +
  usr/src/man/Makefile                              |  1 -
- usr/src/man/man1/Makefile                         |  2 ++
- usr/src/man/man3c/Makefile                        |  3 ++
  usr/src/man/man4/Makefile                         |  3 +-
- usr/src/man/man4d/Makefile                        |  4 ++-
- usr/src/man/man4fs/Makefile                       |  2 ++
- usr/src/man/man4m/Makefile                        |  2 ++
- usr/src/man/man7/Makefile                         |  4 ++-
- usr/src/man/man8/Makefile                         |  4 +++
+ usr/src/man/man4d/Makefile                        |  3 +-
+ usr/src/man/man7/Makefile                         |  2 +-
  usr/src/test/libc-tests/tests/Makefile            |  1 +
  usr/src/test/os-tests/tests/file-locking/Makefile |  7 ++++-
- usr/src/test/util-tests/tests/Makefile            |  1 +
  usr/src/test/util-tests/tests/dladm/Makefile      |  3 +-
  usr/src/tools/Makefile                            | 27 ++++++++---------
+ usr/src/tools/man/Makefile                        | 37 +++++++++++++++++++++++
  usr/src/ucbhead/Makefile                          | 68 +++++++++++++++++++++++++++++++++++++++++++
  usr/src/uts/common/Makefile.files                 |  2 +-
  usr/src/uts/common/Makefile.rules                 |  6 +++-
  usr/src/uts/common/mapfiles/ddi.mapfile           |  3 ++
- usr/src/uts/common/sys/Makefile                   |  2 --
  usr/src/uts/intel/Makefile                        |  2 +-
  usr/src/uts/intel/Makefile.intel                  |  7 +++--
  usr/src/uts/intel/core_pcbe/Makefile              |  4 +--
  usr/src/uts/intel/opteron_pcbe/Makefile           |  2 +-
  usr/src/uts/intel/p4_pcbe/Makefile                |  2 +-
- 48 files changed, 285 insertions(+), 110 deletions(-)
+ 42 files changed, 300 insertions(+), 106 deletions(-)
 
 ========================================================================
 [78/80] features/integration-pkg

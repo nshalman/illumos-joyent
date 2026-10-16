@@ -11,6 +11,12 @@ features, builds each feature's version of the file (BASE plus only its
 hunks; a mixed hunk goes to its dominant feature) and three-way merges
 them with `git merge-file` to see whether the result is JOYENT's file.
 
+Before that, hunks are moved so each feature's files compile: hunks in
+one C function (or within GAP lines outside functions) go together; an
+include-only hunk follows the file's other changes; a Makefile hunk of
+bare list entries is split per entry, each going to the feature that
+owns the file or subdirectory it names; then HUNK_OVERRIDES apply.
+
   hunks.py            summary
   hunks.py -v         also list files with mixed hunks or merge conflicts
 
@@ -169,6 +175,54 @@ def cohere(res, base, is_c):
             h[4] = {feat: sum(h[4].values())}
 
 
+INCLUDE = re.compile(r'^\s*#\s*include\b')
+LIST_LINE = re.compile(r'^\s*([A-Za-z0-9_.+-]+)\s*\\?\s*$')
+
+
+def split_lists(f, hs):
+    """Yield (old_start, old, new_start, new, kind).  In a Makefile, a
+    hunk that only adds or only removes subdirectory-list entries is split
+    into one-line hunks of kind 'list:ENTRY', so each entry can go to the
+    feature that owns that directory."""
+    mk = os.path.basename(f).startswith('Makefile')
+    for os_, old, ns, new in hs:
+        lines = new if not old else old if not new else None
+        if mk and lines and \
+                all(LIST_LINE.match(l) for l in lines):
+            for i, l in enumerate(lines):
+                e = LIST_LINE.match(l).group(1)
+                if new:
+                    yield os_, [], ns + i, [l], ('list:' + e, os_)
+                else:
+                    yield os_ + i, [l], ns, [], ('list:' + e, os_)
+        else:
+            yield os_, old, ns, new, None
+
+
+def assign_list_entries(per_file):
+    """Give each Makefile list entry to the feature owning most changed
+    lines in the file or under the subdirectory it names."""
+    owner = collections.defaultdict(collections.Counter)
+    for f, hs in per_file.items():
+        for h in hs:
+            if h[7] is None or h[7] in ('include', 'override'):
+                owner[f].update(h[4])
+    for f, hs in per_file.items():
+        d = os.path.dirname(f)
+        for h in hs:
+            if not (h[7] or '').startswith('list:'):
+                continue
+            sub = d + '/' + h[7][5:]
+            c = collections.Counter()
+            for dd, cc in owner.items():
+                if dd == sub or dd.startswith(sub + '/'):
+                    c.update(cc)
+            if not c:
+                c = h[8]
+            feat = sorted(c.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
+            h[4] = {feat: sum(h[4].values())}
+
+
 def dominant(h):
     """The feature owning most of a hunk's lines (ties: alphabetical)."""
     return sorted(h[4].items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
@@ -209,7 +263,7 @@ def main():
         gone = set(l for h in hs for l in h[1])
         rm = removers(f, gone) if gone else {}
         res = []
-        for os_, old, ns, new in hs:
+        for os_, old, ns, new, kind in split_lists(f, hs):
             c = collections.Counter()
             who = collections.Counter()     # sha -> lines, for credit
             for i in range(len(new)):
@@ -222,18 +276,44 @@ def main():
                 c[feature(shas[0] if shas else None, f)] += 1
                 if shas:
                     who[shas[0]] += 1
+            if kind is None and all(INCLUDE.match(l) or not l.strip()
+                                    for l in old + new) and \
+                    any(INCLUDE.match(l) for l in old + new):
+                kind = 'include'
             res.append([os_, len(old), ns, len(new), dict(c), dict(who),
-                        old + new])
-        if status[f] == 'M' and len(res) > 1:
-            cohere(res, show(BASE, f) or b'', f.endswith('.c'))
+                        old + new, kind])
+        # a list entry nothing owns keeps the vote of the hunk it came from
+        parent = collections.defaultdict(collections.Counter)
+        for h in res:
+            if isinstance(h[7], tuple):
+                parent[h[7][1]].update(h[4])
+        for h in res:
+            if isinstance(h[7], tuple):
+                h.append(dict(parent[h[7][1]]))
+                h[7] = h[7][0]
+        plain = [h for h in res if h[7] is None]
+        if status[f] == 'M' and len(plain) > 1:
+            cohere(plain, show(BASE, f) or b'', f.endswith('.c'))
+        # an include-only hunk serves the file's other changes
+        others = collections.Counter()
+        for h in plain:
+            others.update(h[4])
+        for h in res:
+            if h[7] == 'include' and others:
+                feat = sorted(others.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
+                h[4] = {feat: sum(h[4].values())}
         for h in res:
             for p, rx, feat in HUNK_OVERRIDES:
                 if p == f and any(re.search(rx, l) for l in h[6]):
                     h[4] = {feat: sum(h[4].values())}
-        return f, [tuple(h[:6]) for h in res]
+                    h[7] = 'override'
+        return f, res
 
     with concurrent.futures.ThreadPoolExecutor(10) as ex:
         per_file = dict(ex.map(analyse, [f for st, f in delta]))
+    assign_list_entries(per_file)
+    per_file = dict((f, [tuple(h[:6]) for h in hs])
+                    for f, hs in per_file.items())
     json.dump(per_file, open(DATA + '/hunks.json', 'w'))
 
     # Separability
@@ -278,7 +358,7 @@ def main():
             # after which to insert).
             out = []
             pos = 0
-            for os_, no, ns, nn, _, _ in sorted(hs, key=lambda h: h[0]):
+            for os_, no, ns, nn in sorted((h[:4] for h in hs), key=lambda h: h[0]):
                 start = os_ - 1 if no else os_
                 out += bl[pos:start]
                 out += tl[ns - 1:ns - 1 + nn] if nn else []

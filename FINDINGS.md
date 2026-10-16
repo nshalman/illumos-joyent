@@ -18,25 +18,42 @@ to `master` by design, so it carries every bug listed below.
 
 ## Independent feature branches
 
-`features.py` builds 81 `features/*` branches, each based directly on
+`features.py` builds 80 `features/*` branches, each based directly on
 illumos-gate and holding only that feature's hunks (shared files carry
 just their share, plus copies of the file's copyright hunks), and
-`features-merged`, an octopus merge of all 81.
+`features-merged`, an octopus merge of all 80.  The branches merge with
+no conflicts, and the merged tree equals `master`.
 
-- About 0.95% of changed lines sit in a hunk dominated by another
-  feature; those hunks go to their dominant feature for now.
-- Merging the branches with git conflicts in 2 files (zoneadmd.c: zfd
-  vs zones-admin; timer.c: lx vs brand-events).  They are resolved to
-  the known combined content, and the merged tree equals `master`.
-- `deps.py` (static, identifiers only): 49 branches show no dependency
-  on another.  The rest form one 14-feature cycle (brand-* hooks, lx,
-  zone-kernel, zones-admin, zones-tools, inotify, ptools, zfd,
-  zfs-zvol), three cyclic pairs (datalink/vnd, boot/dboot,
-  zfs-zio/zfs-zone-io), and features that depend on those.  Many edges
-  come from foundational definitions sitting in whichever feature's
-  ticket wrote them (e.g. `zone_did`, `zone_get_nroot`, the zone VFS
-  kstats); re-homing those should break much of the cycle.
-- Compile checks are under way; see the next section.
+Each hunk goes to the feature that wrote most of its lines, then
+`hunks.py` moves hunks for compilability:
+
+- **Function coherence.**  Hunks in the same C function body, or within
+  3 lines of each other outside functions, go together.  Splitting
+  interleaved hunks across features left uncompilable files (poll.c,
+  timer.c).  This moved 158 hunks.
+- **Includes.**  A hunk that only adds or removes `#include` lines goes
+  to the feature owning most of the file's other changes.  For example,
+  `#include <sys/brand.h>` in signalfd.c was written by an lx ticket
+  but is needed by brand-events.
+- **Makefile lists.**  Hunks of bare list entries (SUBDIRS, CHKHDRS)
+  are split into one line per entry.  Each entry goes to the feature
+  owning that subdirectory or file, e.g. `libresolv2_joy` to resolver,
+  `zfscache` to zfs-zone-io.  An entry with no owner keeps the vote of
+  the hunk it came from.
+- **Hand overrides** (`HUNK_OVERRIDES` in `overrides.py`).
+
+After these passes, about 0.6% of changed lines sit in a hunk owned by
+another feature.  This undercounts, because the passes do not keep the
+attribution of the hunks they move.
+
+`deps.py` (static, identifiers only) reports that 49 branches depend on
+no other feature.  The rest form one 14-feature cycle (brand-* hooks,
+lx, zone-kernel, zones-admin, zones-tools, inotify, ptools, zfd,
+zfs-zvol), three cyclic pairs (datalink/vnd, boot/dboot,
+zfs-zio/zfs-zone-io), and features that depend on those.  Many edges
+come from foundational definitions sitting in whichever feature's
+ticket wrote them (e.g. `zone_did`, `zone_get_nroot`, the zone VFS
+kstats).  Re-homing those should break much of the cycle.
 
 ## Compile checks
 
@@ -66,7 +83,18 @@ illumos-joyent's headers, cannot hide a missing dependency.
   `-L`, so every build prints `-L: unknown option` (harmless).
 - With postfix disabled, nightly's `-m` leaves a hung sendmail/postdrop
   pair per build; the experiment builds drop `-m`.
-- Per-feature results: in progress (`buildcheck.sh summary` on the host).
+- **First sweep, each feature alone on the gate baseline:** 35 of 80
+  branches build cleanly (`buildcheck-results.txt`; `buildfail.py`
+  names the feature defining what each failure was missing).
+  - The failures are mostly the dependency cycle above.  Other causes
+    were misplaced hunks: include lines, Makefile list entries,
+    corenote.msg's brand names, tmpfs's own changes sitting in
+    hyprlofs, and tools/man.  The placement passes above now fix
+    those.
+  - 31 branches changed with those fixes and are being rebuilt.
+  - Known remaining cross-feature references: bunyan and vnd use
+    `lib/Makefile.usdt` (integration), and the smartos-test and
+    zfs-tests runfiles list other features' tests.
 
 ## Bugs
 
