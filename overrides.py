@@ -143,6 +143,9 @@ man/man3xnet/htonl.3xnet
 # bunyan is the smaller of its two users
 ('bunyan', 'lib/Makefile.usdt'),
 ('rtld-sgs', 'uts/common/sys/elf.h man/man1/ld.so.1.1'),
+# an empty file (no lines to vote with) added by OS-7685, the
+# smartos-live overlay merge, with netfiles/Makefile's line installing it
+('platform-config', 'cmd/netfiles/resolv.conf'),
 ('platform-config', '''
 cmd/auditd/auditd.xml cmd/cmd-crypto/etc/pkcs11.conf cmd/cmd-inet/etc/services cmd/coreadm/coreadm.xml
 cmd/dispadmin/dispadmin.conf cmd/localedef/UTF-8.x cmd/cmd-inet/usr.sbin/routeadm/routeadm.c

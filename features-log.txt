@@ -2605,7 +2605,7 @@ See OS-2115.
 Also includes the final state of fixes from 7 tickets: OS-2115, OS-2148,
 OS-2178, OS-7125, OS-7297, OS-7768, 5468.
 
-190 files (0 removed). This commit applies to illumos-gate on its own;
+189 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
@@ -2614,7 +2614,6 @@ Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
 
  exception_lists/cstyle                                     |    1 +
  exception_lists/wscheck                                    |    5 +
- usr/src/cmd/netfiles/resolv.conf                           |    0
  usr/src/head/Makefile                                      |    2 +
  usr/src/head/resolv_joy.h                                  |  472 +++++++
  usr/src/lib/Makefile                                       |    1 +
@@ -2802,7 +2801,7 @@ Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
  usr/src/lib/nsswitch/dns/common/dns_mt.c                   |  153 +--
  usr/src/lib/nsswitch/dns/common/gethostent.c               |    6 -
  usr/src/lib/nsswitch/dns/common/gethostent6.c              |    2 -
- 190 files changed, 46836 insertions(+), 146 deletions(-)
+ 189 files changed, 46836 insertions(+), 146 deletions(-)
 
 ========================================================================
 [54/80] features/smartlogin
@@ -3049,7 +3048,7 @@ OS-8683, OS-8684, OS-8703, 10703, 16492.
 
 Plus 3 commits without a ticket ID.
 
-166 files (2 removed). This commit applies to illumos-gate on its own;
+167 files (2 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: John Levon <john.levon@joyent.com>
@@ -3117,6 +3116,7 @@ Co-authored-by: noahmehl <noahmehl@gmail.com>
  usr/src/cmd/login/login.dfl                              |   17 +-
  usr/src/cmd/netfiles/Makefile                            |    4 +-
  usr/src/cmd/netfiles/nsswitch.conf                       |    4 +-
+ usr/src/cmd/netfiles/resolv.conf                         |    0
  usr/src/cmd/nsadmin/Makefile                             |   93 +-
  usr/src/cmd/nsadmin/bash/bash_completion                 | 9417 ++++++++++++++++++++++++++++++++++
  usr/src/cmd/nsadmin/bash/bash_completion.d/dladm         |   34 +
@@ -3240,7 +3240,7 @@ Co-authored-by: noahmehl <noahmehl@gmail.com>
  usr/src/uts/intel/os/minor_perm                          |  304 +-
  usr/src/uts/intel/os/name_to_major                       |  330 ++
  usr/src/uts/intel/os/path_to_inst                        |    4 +-
- 166 files changed, 21534 insertions(+), 1381 deletions(-)
+ 167 files changed, 21534 insertions(+), 1381 deletions(-)
 
 ========================================================================
 [60/80] features/altexec

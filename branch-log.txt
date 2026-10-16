@@ -2606,16 +2606,14 @@ See OS-2115.
 Also includes the final state of fixes from 6 tickets: OS-2115, OS-2148,
 OS-2178, OS-7297, OS-7685, OS-7768.
 
-188 files (0 removed). Tickets are those whose lines survive in these
+186 files (0 removed). Tickets are those whose lines survive in these
 files. Co-authors also include the authors of removed lines.
 
 Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
 Co-authored-by: John Levon <john.levon@joyent.com>
 
 
- usr/src/cmd/netfiles/Makefile                              |    4 +-
  usr/src/cmd/netfiles/nsswitch.conf                         |    4 +-
- usr/src/cmd/netfiles/resolv.conf                           |    0
  usr/src/head/resolv_joy.h                                  |  472 +++++++
  usr/src/lib/libresolv2_joy/Makefile                        |   76 ++
  usr/src/lib/libresolv2_joy/Makefile.com                    |  166 +++
@@ -2801,7 +2799,7 @@ Co-authored-by: John Levon <john.levon@joyent.com>
  usr/src/lib/nsswitch/dns/common/dns_mt.c                   |  153 +--
  usr/src/lib/nsswitch/dns/common/gethostent.c               |    6 -
  usr/src/lib/nsswitch/dns/common/gethostent6.c              |    2 -
- 188 files changed, 46832 insertions(+), 149 deletions(-)
+ 186 files changed, 46829 insertions(+), 148 deletions(-)
 
 ========================================================================
 [54/82] SmartOS: libzdoor and libsmartsshd
@@ -3021,7 +3019,7 @@ OS-2828, OS-3000, OS-3080, OS-3948, OS-4922, OS-7685, OS-7911, OS-7921,
 OS-7972, OS-8086, OS-8142, OS-8190, OS-8253, OS-8257, OS-8341, OS-8346,
 OS-8370, OS-8425, OS-8644, OS-8703, 10703.
 
-84 files (1 removed). Tickets are those whose lines survive in these
+85 files (1 removed). Tickets are those whose lines survive in these
 files. Co-authors also include the authors of removed lines.
 
 Co-authored-by: John Levon <john.levon@joyent.com>
@@ -3076,6 +3074,7 @@ Co-authored-by: noahmehl <noahmehl@gmail.com>
  usr/src/cmd/logadm/logadm.conf                        |   11 +-
  usr/src/cmd/logadm/main.c                             |   24 -
  usr/src/cmd/login/login.dfl                           |   17 +-
+ usr/src/cmd/netfiles/resolv.conf                      |    0
  usr/src/cmd/nsadmin/Makefile                          |   93 +-
  usr/src/cmd/nsadmin/bash/bash_completion              | 9417 +++++++++++++++++++++++++++++++++++++
  usr/src/cmd/nsadmin/bash/bash_completion.d/dladm      |   34 +
@@ -3127,7 +3126,7 @@ Co-authored-by: noahmehl <noahmehl@gmail.com>
  usr/src/man/man1/crontab.1                            |   49 +-
  usr/src/man/man8/reboot.8                             |    3 +-
  usr/src/tools/protocmp/stdusers.c                     |    2 +
- 84 files changed, 14420 insertions(+), 1286 deletions(-)
+ 85 files changed, 14420 insertions(+), 1286 deletions(-)
 
 ========================================================================
 [60/82] SmartOS: altexec(8)
@@ -4385,8 +4384,8 @@ the rest of the ticket that wrote them.
   build tool changes (+30):
     cmd/man/Makefile.com +23, tools/mandoc/Makefile +4, Makefile.master
     +2, Makefile +1
-  platform image configuration (+16):
-    Makefile +11, cmd/tail/Makefile +5
+  platform image configuration (+19):
+    Makefile +11, cmd/tail/Makefile +5, cmd/netfiles/Makefile +3
   inotify(7) and file event monitoring (+11):
     lib/libc/port/mapfile-vers +4, uts/common/Makefile.files +2,
     lib/libc/amd64/Makefile +1, lib/libc/i386/Makefile.com +1,
@@ -4478,7 +4477,7 @@ Tickets that span many commits (sweeps) or have no other home:
     cmd/Makefile +2, test/util-tests/tests/dladm/Makefile +2,
     cmd/cmd-inet/usr.sbin/snoop/Makefile +1, and 12 more files
 
-60 files (0 removed). Tickets are those whose lines survive in these
+61 files (0 removed). Tickets are those whose lines survive in these
 files. Co-authors also include the authors of removed lines.
 
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
@@ -4514,6 +4513,7 @@ Co-authored-by: Brendan Gregg <brendan.gregg@joyent.com>
  usr/src/cmd/cmd-inet/usr.sbin/snoop/Makefile      |  7 ++--
  usr/src/cmd/fs.d/Makefile                         |  4 +-
  usr/src/cmd/man/Makefile.com                      | 23 +++++++++++
+ usr/src/cmd/netfiles/Makefile                     |  4 +-
  usr/src/cmd/nscd/Makefile                         |  1 +
  usr/src/cmd/passwd/Makefile                       |  2 +
  usr/src/cmd/smbios/Makefile                       |  4 ++
@@ -4564,7 +4564,7 @@ Co-authored-by: Brendan Gregg <brendan.gregg@joyent.com>
  usr/src/uts/intel/core_pcbe/Makefile              |  4 +-
  usr/src/uts/intel/opteron_pcbe/Makefile           |  2 +-
  usr/src/uts/intel/p4_pcbe/Makefile                |  2 +-
- 60 files changed, 616 insertions(+), 134 deletions(-)
+ 61 files changed, 619 insertions(+), 135 deletions(-)
 
 ========================================================================
 [79/82] SmartOS: integration: package manifests and man page links
