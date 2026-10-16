@@ -109,32 +109,44 @@ snapshot() {
 }
 
 feature() {
-	local name=$1 snap=${2:-gate-built} out
+	local name=$1 snap=${2:-gate-built}
 	[[ -n $name ]] || die "feature needs a name"
-	out=$RESULTS/feature-$name
+	merge_build "feature-$name" "$snap" "$name"
+}
+
+# merge_build LABEL SNAP NAME...: roll back to SNAP, merge features/NAME...
+# from $SRCWS, touch every file the merge changes, and build as LABEL
+merge_build() {
+	local label=$1 snap=$2 out n
+	shift 2
+	out=$RESULTS/$label
 	zfs rollback -r "$DATASET@$snap" || die "rollback to $snap failed"
 	cd "$WS" || die "no $WS"
 	local pre=$(git rev-parse HEAD)
-	git fetch -q "$SRCWS" "refs/heads/features/$name:refs/heads/features/$name" \
-	    || die "no features/$name in $SRCWS"
+	local refs=()
+	for n in "$@"; do
+		git fetch -q "$SRCWS" "refs/heads/features/$n:refs/heads/features/$n" \
+		    || die "no features/$n in $SRCWS"
+		refs+=("features/$n")
+	done
 	if ! git -c user.name=buildcheck -c user.email=buildcheck@localhost \
-	    merge -q --no-edit "features/$name" > "$RESULTS/merge-$name.log" 2>&1; then
+	    merge -q --no-edit "${refs[@]}" > "$RESULTS/merge-$label.log" 2>&1; then
 		rm -rf "$out"; mkdir -p "$out"
-		mv "$RESULTS/merge-$name.log" "$out"/merge.log
+		mv "$RESULTS/merge-$label.log" "$out"/merge.log
 		git merge --abort
 		echo "status=merge-conflict seconds=0" > "$out"/result
 		cat "$out"/result
 		return
 	fi
-	rm -f "$RESULTS/merge-$name.log"
+	rm -f "$RESULTS/merge-$label.log"
 	# make sure dmake sees every changed file as new (the merge moved the
 	# checked-out branch, so compare with the commit from before it)
-	git diff --name-only -z --diff-filter=d "$pre" HEAD > "$RESULTS/touch-$name"
-	[[ -s $RESULTS/touch-$name ]] && xargs -0 touch < "$RESULTS/touch-$name"
-	tr '\0' '\n' < "$RESULTS/touch-$name" > "$RESULTS/touched-$name.txt"
-	rm -f "$RESULTS/touch-$name"
-	build "feature-$name"
-	mv "$RESULTS/touched-$name.txt" "$RESULTS/feature-$name/touched.txt"
+	git diff --name-only -z --diff-filter=d "$pre" HEAD > "$RESULTS/touch-$label"
+	[[ -s $RESULTS/touch-$label ]] && xargs -0 touch < "$RESULTS/touch-$label"
+	tr '\0' '\n' < "$RESULTS/touch-$label" > "$RESULTS/touched-$label.txt"
+	rm -f "$RESULTS/touch-$label"
+	build "$label"
+	mv "$RESULTS/touched-$label.txt" "$out"/touched.txt
 }
 
 run() {
