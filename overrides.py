@@ -345,6 +345,8 @@ HUNK_OVERRIDES = [
     # OS-369 added killall()'s force argument; this caller goes with the
     # rest of that change in zone-kernel
     ('usr/src/uts/common/syscall/uadmin.c', r'killall\(ALL_ZONES', 'zone-kernel'),
+    # snoop_svp.c (overlay-svp) is snoop's only libuuid user
+    ('usr/src/cmd/cmd-inet/usr.sbin/snoop/Makefile', r'-luuid', 'overlay-svp'),
     # boot/forth/Makefile (boot) installs it as menu.rc
     ('usr/src/boot/forth/triton.menu.rc', r'.', 'boot'),
 ]
