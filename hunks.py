@@ -178,7 +178,7 @@ def cohere(res, base, is_c):
 
 
 INCLUDE = re.compile(r'^\s*#\s*include\b')
-LIST_LINE = re.compile(r'^\s*([A-Za-z0-9_.+-]+)\s*\\?\s*$')
+LIST_LINE = re.compile(r'^\s*([A-Za-z0-9_.+/-]+)\s*\\?\s*$')
 SYM_LINE = re.compile(r'^\s*([A-Za-z_]\w*)\s*(\{[^}]*\})?\s*;\s*$')
 # a C function definition in illumos style: the name starts the line
 C_DEF = re.compile(r'^([A-Za-z_]\w*)\(')

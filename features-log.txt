@@ -3340,12 +3340,13 @@ SSH is delivered from illumos-extra.
 
 Also includes the final state of fixes from 2 tickets: OS-4688, OS-4689.
 
-9 files (8 removed). This commit applies to illumos-gate on its own;
+10 files (8 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Lexi Wilson <lexi@cooperi.net>
 
  usr/src/cmd/Makefile                      |   3 +-
+ usr/src/cmd/Makefile.check                |   1 -
  usr/src/cmd/ssh/Makefile                  |  58 ---------------
  usr/src/cmd/ssh/THIRDPARTYLICENSE.descrip |   1 -
  usr/src/cmd/ssh/doc/LICENCE               | 194 --------------------------------------------------
@@ -3354,7 +3355,7 @@ Co-authored-by: Lexi Wilson <lexi@cooperi.net>
  usr/src/cmd/ssh/etc/ssh_config            |  31 --------
  usr/src/cmd/ssh/etc/sshd                  | 127 ---------------------------------
  usr/src/cmd/ssh/etc/sshd_config           | 145 -------------------------------------
- 9 files changed, 2 insertions(+), 792 deletions(-)
+ 10 files changed, 2 insertions(+), 793 deletions(-)
 
 ========================================================================
 [65/80] features/onbld-tools
@@ -4440,12 +4441,12 @@ Features:
   12217 add ld assert-deflib and guidance to gate build [fix duplicate makefile definitions from our local modif
   12665 want modern bhyve [fix broken build]
 
-Also includes the final state of fixes from 42 tickets: OS-98, OS-147,
+Also includes the final state of fixes from 40 tickets: OS-98, OS-147,
 OS-148, OS-189, OS-201, OS-421, OS-507, OS-696, OS-1512, OS-1589,
 OS-1836, OS-2592, OS-2677, OS-2778, OS-2779, OS-2786, OS-2800, OS-3748,
-OS-4509, OS-4688, OS-4689, OS-4967, OS-5017, OS-5585, OS-5591, OS-6282,
-OS-6410, OS-6795, OS-6920, OS-7240, OS-7677, OS-7870, OS-8324, OS-8360,
-OS-8361, OS-8433, OS-8458, OS-8709, OS-8756, 5468, 6606, 13258.
+OS-4509, OS-4967, OS-5017, OS-5585, OS-5591, OS-6282, OS-6410, OS-6795,
+OS-6920, OS-7240, OS-7677, OS-7870, OS-8324, OS-8360, OS-8361, OS-8433,
+OS-8458, OS-8709, OS-8756, 5468, 6606, 13258.
 
 Plus 5 commits without a ticket ID.
 
@@ -4514,14 +4515,13 @@ Co-authored-by: Rob Johnston <rob.johnston@joyent.com>
 Co-authored-by: Keith M Wesolowski <wesolows@foobazco.org>
 Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 Co-authored-by: Josh Wilsdon <jwilsdon@joyent.com>
-Co-authored-by: Lexi Wilson <lexi@cooperi.net>
 
  usr/src/Makefile                                  | 13 +++++----
  usr/src/Makefile.master                           | 21 +++++++++----
  usr/src/Makefile.psm.targ                         |  3 ++
  usr/src/Makefile.testarchive                      | 44 ++++++++++++++++++++++++++++
  usr/src/cmd/Makefile                              | 21 +++++++------
- usr/src/cmd/Makefile.check                        |  4 ---
+ usr/src/cmd/Makefile.check                        |  3 --
  usr/src/cmd/auditrecord/Makefile                  |  6 ++--
  usr/src/cmd/fs.d/Makefile                         |  4 +--
  usr/src/cmd/nscd/Makefile                         |  1 +
@@ -4553,7 +4553,7 @@ Co-authored-by: Lexi Wilson <lexi@cooperi.net>
  usr/src/uts/intel/core_pcbe/Makefile              |  4 +--
  usr/src/uts/intel/opteron_pcbe/Makefile           |  2 +-
  usr/src/uts/intel/p4_pcbe/Makefile                |  2 +-
- 37 files changed, 243 insertions(+), 90 deletions(-)
+ 37 files changed, 243 insertions(+), 89 deletions(-)
 
 ========================================================================
 [78/80] features/integration-pkg
