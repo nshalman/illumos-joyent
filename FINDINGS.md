@@ -97,9 +97,12 @@ illumos-joyent's headers, cannot hide a missing dependency.
     (`stackplan.py --cycles`: 19 features, plus boot/dboot and
     datalink/vnd).
   - Dependencies the identifier analysis cannot see:
-    - lib/brand/Makefile names several brands' directories on one line
-      (`i386_SUBDIRS= bhyve kvm lx`), so platform-config needs those
-      brands.  bhyve installs into a directory platform-config makes.
+    - Some Makefile lines name several features' directories at once,
+      so a line cannot be split between features:
+      lib/brand/Makefile's `i386_SUBDIRS= bhyve kvm lx` (platform-config
+      needs those brands) and uts/intel/Makefile.intel's `FS_KMODS +=`
+      lines (lx's modules with hyprlofs, so lx needs hyprlofs).  bhyve
+      installs into a directory platform-config makes.
     - integration holds the shared hub lines (e.g. libc's
       `mapfile-vers` exports of `zone_get_nroot`, test-directory
       lists), so it builds only with everything else.  Moving such
