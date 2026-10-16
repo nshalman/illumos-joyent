@@ -10,7 +10,9 @@ To see what the commits look like without running anything, read
 The same delta is also built as independent branches, one per feature,
 each applying to illumos-gate on its own (`./hunks.py && ./features.py`);
 `features-log.txt` shows those, and an octopus merge of all of them
-reproduces `master`'s tree.
+reproduces `master`'s tree.  `buildcheck-results.txt` records which
+of them build alone on illumos-gate, and that every one that does not
+builds once merged with the features it needs.
 
 Suspected bugs, deliberate divergences from upstream and cleanup
 candidates found along the way are in `FINDINGS.md`.

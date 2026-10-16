@@ -83,37 +83,49 @@ illumos-joyent's headers, cannot hide a missing dependency.
   `-L`, so every build prints `-L: unknown option` (harmless).
 - With postfix disabled, nightly's `-m` leaves a hung sendmail/postdrop
   pair per build; the experiment builds drop `-m`.
-- **Each feature alone on the gate baseline:** 38 of 80 branches build
-  cleanly (`buildcheck-results.txt`).  `buildfail.py` names the feature
-  defining what each failure was missing.
+- **Each feature alone on the gate baseline:** 40 of 80 branches
+  build cleanly (`buildcheck-results.txt`).  `buildfail.py` names the
+  feature defining what each failure was missing.
   - The first sweep passed 35.  Fixing misplaced hunks raised that to
-    38 (hyprlofs, resolver, bunyan).  The misplacements were include
-    lines, Makefile list entries, corenote.msg's brand names, tmpfs's
-    own changes, vnd's ipf hook names, and the split-up USDT and
-    build-time man support.  Several other branches now get further
-    and stop on real dependencies: zfs-arc needs only zfs-zone-io's
-    `sys/zfs_zone.h`, and vnd needs only datalink.
-  - Most remaining failures are the dependency cycle above
-    (`stackplan.py --cycles`: 19 features, plus boot/dboot and
-    datalink/vnd).
-  - Dependencies the identifier analysis cannot see:
-    - Some Makefile lines name several features' directories at once,
-      so a line cannot be split between features:
-      lib/brand/Makefile's `i386_SUBDIRS= bhyve kvm lx` (platform-config
-      needs those brands) and uts/intel/Makefile.intel's `FS_KMODS +=`
-      lines (lx's modules with hyprlofs, so lx needs hyprlofs).  bhyve
-      installs into a directory platform-config makes.
-    - integration holds the shared hub lines (e.g. libc's
-      `mapfile-vers` exports of `zone_get_nroot`, test-directory
-      lists), so it builds only with everything else.  Moving such
-      lines to the feature that defines the symbol is a stage-2
-      cleanup.
-    - The smartos-test and zfs-tests runfiles list other features'
-      tests.
-- **Stacked builds (step A)**, in progress: `stackcheck.sh` builds the
-  small cycles, then the core cycle with everything it needs as one
-  build, then each feature needing the core on top of it
-  (`stack-plan-*.txt`).
+    40 (hyprlofs, resolver, bunyan, tmpfs, ssh-removal).
+    The misplacements were include lines, Makefile list entries,
+    mapfile exports, corenote.msg's brand names, tmpfs's own changes,
+    vnd's ipf hook names, the split-up USDT and build-time man
+    support, and a few single callers of changed functions.
+  - The remaining failures are features that need others: the core
+    cycle (`stackplan.py --cycles`: 19 features), boot/dboot,
+    datalink/vnd, and the features that need those.
+- **Each failing feature with what it needs (step A):** every stacked
+  build passes, with no errors or warnings (`stackcheck.sh`,
+  `stack-plan-*.txt`).
+  - The core is 23 features built together: the 19-feature cycle plus
+    brand-events, bunyan, zone-brands and hyprlofs.
+  - boot with dboot, and overlay-svp with bunyan, build from the gate
+    baseline.
+  - The 14 other failing features each build on top of the core with
+    their own needs: brand-fs, ctf, dtrace, ipf-cfw, mdb, rtld-sgs,
+    tmpfs, zfs-arc, zfs-props, zfs-zvol, zfs-cli, datalink, vnd, and
+    platform-config with bhyve.
+  - Not stack-built: integration, smartos-test and zfs-tests, which
+    refer to every feature.  All 80 together is master's tree.
+  - So the measured dependency graph is sufficient.  It is not shown to
+    be minimal: each stack merged everything the static analysis
+    suggested.
+  - Making the core fixes needed: libc's mapfile exports (moved to the
+    defining features), OS-369's `killall` caller, tmpfs's calls to
+    inotify's new vnevent functions, and hyprlofs (below).
+- **Dependencies the identifier analysis cannot see:**
+  - Some Makefile lines name several features' directories at once,
+    so a line cannot be split between features:
+    lib/brand/Makefile's `i386_SUBDIRS= bhyve kvm lx` (platform-config
+    needs those brands) and uts/intel/Makefile.intel's `FS_KMODS +=`
+    lines (lx's modules with hyprlofs, so lx needs hyprlofs).  bhyve
+    installs into a directory platform-config makes.
+  - integration holds the shared hub lines, such as test-directory
+    lists, so it builds only with everything else.
+  - The smartos-test and zfs-tests runfiles list other features' tests.
+  - SmartOS's cmd/Adm reads `$(ROOT)/buildstamp`, which smartos-live
+    writes.  buildcheck.sh writes one the same way.
 
 ## Bugs
 

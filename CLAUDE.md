@@ -69,6 +69,13 @@ tooling itself.
 | `hunks.py` | Hunk-level feature split and merge-back simulation; writes `data/hunks.json` |
 | `features.py` | One branch per feature off BASE (`features/*`, each with only its hunks, plus copies of the file's copyright hunks), and `features-merged`, an octopus merge whose tree must equal JOYENT |
 | `deps.py` | Static estimate of which feature branches need which others (identifiers defined by one, used by another); writes `data/deps.json` |
+| `where.py` | Which hunks add lines mentioning a word, and whose they are |
+| `buildcheck.sh` | On the build host: gate baseline, per-feature and stacked incremental builds in a private ZFS dataset (see its header) |
+| `baseline.py`, `baseline.txt` | The plumbing plain illumos-gate needs to build in smartos-live, each entry with its reason |
+| `buildfail.py` | Maps a sweep's build failures to the features defining what was missing; writes `buildfail.json` |
+| `stackplan.py` | Plans stacked builds (each failing feature with its transitive needs); `--cycles` lists dependency cycles |
+| `stackcheck.sh`, `stack-plan-*.txt` | Step A: small cycles, the core cycle as one build, then the rest on top of it |
+| `buildcheck-results.txt` | Per-feature and stacked results, and the provider analysis |
 
 ## How files are placed
 
