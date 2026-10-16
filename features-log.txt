@@ -253,8 +253,7 @@ SmartOS: file and terminal syscalls for lx
 open/close/fcntl moved into the kernel for lx, O_PATH emulation, chdir
 with CLONE_FS, umount and uadmin locking fixes, pty changes.
 
-Also includes the final state of fixes from 3 tickets: OS-369, OS-5761,
-OS-8278.
+Also includes the final state of fixes from 2 tickets: OS-5761, OS-8278.
 
 4 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -264,9 +263,9 @@ Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
 
  usr/src/uts/common/os/fio.c         | 22 +++++++++++++++++++---
  usr/src/uts/common/sys/file.h       |  1 +
- usr/src/uts/common/syscall/uadmin.c |  6 ++++--
+ usr/src/uts/common/syscall/uadmin.c |  4 +++-
  usr/src/uts/common/syscall/umount.c | 11 ++++++++---
- 4 files changed, 32 insertions(+), 8 deletions(-)
+ 4 files changed, 31 insertions(+), 7 deletions(-)
 
 ========================================================================
 [7/80] features/brand-nfs
@@ -436,12 +435,12 @@ Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
  usr/src/uts/common/sys/uadmin.h               |   3 +-
  usr/src/uts/common/sys/zone.h                 | 185 ++++++++-
  usr/src/uts/common/syscall/sysconfig.c        |  49 +--
- usr/src/uts/common/syscall/uadmin.c           |   6 +-
+ usr/src/uts/common/syscall/uadmin.c           |   8 +-
  usr/src/uts/common/vm/page.h                  |   7 +-
  usr/src/uts/i86pc/os/startup.c                |   1 +
  usr/src/uts/i86pc/vm/hment.c                  |   7 +
  usr/src/uts/sfmmu/vm/hat_sfmmu.c              |   5 +
- 19 files changed, 1383 insertions(+), 124 deletions(-)
+ 19 files changed, 1384 insertions(+), 125 deletions(-)
 
 ========================================================================
 [11/80] features/zone-memory

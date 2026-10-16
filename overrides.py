@@ -342,6 +342,9 @@ HUNK_OVERRIDES = [
     ('usr/src/lib/Makefile.usdt', r'.', 'bunyan'),
     ('usr/src/lib/Makefile.lib', r'USDT', 'bunyan'),
     ('usr/src/lib/Makefile.targ', r'USDT', 'bunyan'),
+    # OS-369 added killall()'s force argument; this caller goes with the
+    # rest of that change in zone-kernel
+    ('usr/src/uts/common/syscall/uadmin.c', r'killall\(ALL_ZONES', 'zone-kernel'),
     # boot/forth/Makefile (boot) installs it as menu.rc
     ('usr/src/boot/forth/triton.menu.rc', r'.', 'boot'),
 ]
