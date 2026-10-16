@@ -21,6 +21,12 @@
 #                                 build incrementally as feature-NAME
 #   buildcheck.sh run [SNAP]      build every feature in buildcheck-order.txt
 #                                 that has no result yet, one at a time
+#   buildcheck.sh stack [-s SNAP] [-l LABEL] NAME PROVIDER...
+#                                 like feature, merging the providers'
+#                                 branches too; builds as stack-LABEL
+#                                 (default stack-NAME)
+#   buildcheck.sh stacks PLAN     build every line "NAME PROVIDER..." of PLAN
+#                                 (stackplan.py) that has no result yet
 #   buildcheck.sh summary         one line per result in $RESULTS
 #
 # The illumos.sh is smartos-live's, except that the workspace is $FB's
@@ -149,6 +155,32 @@ merge_build() {
 	mv "$RESULTS/touched-$label.txt" "$out"/touched.txt
 }
 
+stack() {
+	local snap=gate-built label= args=()
+	while (( $# )); do
+		case $1 in
+		-s) snap=$2; shift 2 ;;
+		-l) label=$2; shift 2 ;;
+		*) args+=("$1"); shift ;;
+		esac
+	done
+	(( ${#args[@]} )) || die "stack needs a name"
+	merge_build "stack-${label:-${args[0]}}" "$snap" "${args[@]}"
+}
+
+stacks() {
+	local plan=$1 name rest
+	[[ -f $plan ]] || die "no plan $plan"
+	grep -v '^#' "$plan" | while read -r name rest; do
+		[[ -n $name ]] || continue
+		[[ -f $RESULTS/stack-$name/result ]] && continue
+		echo "=== stack $name ($(date -u +%H:%M:%S))"
+		( stack "$name" $rest )
+	done
+	zfs rollback -r "$DATASET@gate-built"
+	echo "=== done ($(date -u +%H:%M:%S))"
+}
+
 run() {
 	local here name rest
 	here=$(cd "$(dirname "$0")" && pwd)
@@ -196,6 +228,8 @@ build) shift; build "$@" ;;
 snapshot) shift; snapshot "$@" ;;
 feature) shift; feature "$@" ;;
 run) shift; run "$@" ;;
+stack) shift; stack "$@" ;;
+stacks) shift; stacks "$@" ;;
 summary) summary ;;
 *) die "usage: buildcheck.sh setup | baseline BASE JOYENT | build LABEL |" \
     "snapshot NAME | feature NAME [SNAP] | run [SNAP] | summary" ;;
