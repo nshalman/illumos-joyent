@@ -13,9 +13,9 @@ feature-brand-native           status=1 seconds=167             errors=99  warni
 feature-brand-net              status=1 seconds=231             errors=4   warnings=7   checks=0   stage=nightly
 feature-brand-nfs              status=1 seconds=202             errors=16  warnings=18  checks=0   stage=nightly
 feature-brand-ops              status=1 seconds=206             errors=6   warnings=9   checks=0   stage=nightly
-feature-brand-process          status=1 seconds=251             errors=74  warnings=72  checks=13  stage=nightly
+feature-brand-process          status=1 seconds=261             errors=72  warnings=72  checks=13  stage=nightly
 feature-brand-x86              status=1 seconds=387             errors=9   warnings=16  checks=0   stage=nightly
-feature-bunyan                 status=1 seconds=245             errors=7   warnings=13  checks=0   stage=nightly
+feature-bunyan                 status=0 seconds=246             errors=0   warnings=0   checks=0   stage=-
 feature-column                 status=0 seconds=208             errors=0   warnings=0   checks=0   stage=-
 feature-compiler-fixes         status=0 seconds=219             errors=0   warnings=0   checks=0   stage=-
 feature-copyright-residue      status=0 seconds=382             errors=0   warnings=0   checks=0   stage=-
@@ -29,26 +29,26 @@ feature-fm-topo                status=0 seconds=215             errors=0   warni
 feature-hyprlofs               status=0 seconds=363             errors=0   warnings=0   checks=0   stage=-
 feature-icmp-bpf               status=0 seconds=232             errors=0   warnings=0   checks=0   stage=-
 feature-inotify                status=1 seconds=255             errors=4   warnings=7   checks=0   stage=nightly
-feature-integration            status=1 seconds=20              errors=0   warnings=0   checks=0   stage=setup
+feature-integration            status=1 seconds=536             errors=86  warnings=250 checks=15  stage=nightly
 feature-integration-checks     status=0 seconds=209             errors=0   warnings=0   checks=0   stage=-
 feature-integration-manifest   status=0 seconds=209             errors=0   warnings=0   checks=0   stage=-
 feature-integration-pkg        status=0 seconds=212             errors=0   warnings=0   checks=0   stage=-
-feature-ipf-cfw                status=1 seconds=210             errors=4   warnings=11  checks=0   stage=nightly
+feature-ipf-cfw                status=1 seconds=211             errors=4   warnings=11  checks=0   stage=nightly
 feature-kernel-platform        status=0 seconds=426             errors=0   warnings=0   checks=0   stage=-
 feature-link-protection        status=0 seconds=257             errors=0   warnings=0   checks=0   stage=-
-feature-lx                     status=1 seconds=267             errors=56  warnings=35  checks=0   stage=nightly
+feature-lx                     status=1 seconds=271             errors=64  warnings=35  checks=0   stage=nightly
 feature-machid                 status=0 seconds=211             errors=0   warnings=0   checks=0   stage=-
 feature-man-fixes              status=0 seconds=208             errors=0   warnings=0   checks=0   stage=-
-feature-mdb                    status=1 seconds=219             errors=18  warnings=19  checks=0   stage=nightly
+feature-mdb                    status=1 seconds=220             errors=12  warnings=17  checks=0   stage=nightly
 feature-misc                   status=0 seconds=372             errors=0   warnings=0   checks=0   stage=-
 feature-net-misc               status=1 seconds=209             errors=5   warnings=10  checks=0   stage=nightly
 feature-nfp                    status=0 seconds=208             errors=0   warnings=0   checks=0   stage=-
 feature-nfs                    status=0 seconds=210             errors=0   warnings=0   checks=0   stage=-
 feature-nicstat                status=0 seconds=211             errors=0   warnings=0   checks=0   stage=-
 feature-nvpair-json            status=0 seconds=208             errors=0   warnings=0   checks=0   stage=-
-feature-onbld-tools            status=0 seconds=209             errors=0   warnings=0   checks=0   stage=-
+feature-onbld-tools            status=0 seconds=210             errors=0   warnings=0   checks=0   stage=-
 feature-openssl-sunw           status=0 seconds=208             errors=0   warnings=0   checks=0   stage=-
-feature-overlay-svp            status=1 seconds=225             errors=82  warnings=41  checks=0   stage=nightly
+feature-overlay-svp            status=1 seconds=229             errors=72  warnings=33  checks=0   stage=nightly
 feature-platform-config        status=1 seconds=229             errors=3   warnings=34  checks=0   stage=nightly
 feature-ptools                 status=1 seconds=238             errors=47  warnings=41  checks=0   stage=nightly
 feature-resolver               status=0 seconds=210             errors=0   warnings=0   checks=0   stage=-
@@ -65,23 +65,23 @@ feature-sysv-ipc               status=0 seconds=225             errors=0   warni
 feature-tcp-connstat           status=0 seconds=298             errors=0   warnings=0   checks=0   stage=-
 feature-tmpfs                  status=1 seconds=206             errors=6   warnings=9   checks=0   stage=nightly
 feature-vmxnet                 status=0 seconds=209             errors=0   warnings=0   checks=0   stage=-
-feature-vnd                    status=1 seconds=368             errors=25  warnings=24  checks=0   stage=nightly
+feature-vnd                    status=1 seconds=371             errors=7   warnings=18  checks=0   stage=nightly
 feature-zfd                    status=1 seconds=210             errors=10  warnings=7   checks=0   stage=nightly
 feature-zfs                    status=0 seconds=208             errors=0   warnings=0   checks=0   stage=-
-feature-zfs-arc                status=1 seconds=208             errors=13  warnings=19  checks=0   stage=nightly
+feature-zfs-arc                status=1 seconds=210             errors=10  warnings=19  checks=0   stage=nightly
 feature-zfs-cli                status=1 seconds=204             errors=28  warnings=11  checks=0   stage=nightly
 feature-zfs-metaslab           status=0 seconds=213             errors=0   warnings=0   checks=0   stage=-
 feature-zfs-props              status=1 seconds=217             errors=3   warnings=9   checks=0   stage=nightly
 feature-zfs-tests              status=1 seconds=207             errors=0   warnings=0   checks=7   stage=nightly
 feature-zfs-zio                status=1 seconds=236             errors=13  warnings=20  checks=0   stage=nightly
-feature-zfs-zone-io            status=1 seconds=248             errors=7   warnings=7   checks=0   stage=nightly
+feature-zfs-zone-io            status=1 seconds=250             errors=7   warnings=7   checks=0   stage=nightly
 feature-zfs-zvol               status=1 seconds=210             errors=41  warnings=11  checks=0   stage=nightly
-feature-zone-brands            status=0 seconds=209             errors=0   warnings=0   checks=0   stage=-
+feature-zone-brands            status=0 seconds=208             errors=0   warnings=0   checks=0   stage=-
 feature-zone-cpu               status=1 seconds=202             errors=15  warnings=8   checks=0   stage=nightly
 feature-zone-kernel            status=1 seconds=227             errors=66  warnings=56  checks=9   stage=nightly
 feature-zone-memory            status=1 seconds=311             errors=26  warnings=13  checks=0   stage=nightly
 feature-zone-security          status=0 seconds=362             errors=0   warnings=0   checks=0   stage=-
-feature-zones-admin            status=1 seconds=240             errors=91  warnings=17  checks=1   stage=nightly
+feature-zones-admin            status=1 seconds=244             errors=95  warnings=17  checks=1   stage=nightly
 feature-zones-tools            status=1 seconds=214             errors=63  warnings=21  checks=0   stage=nightly
 
 # Failures by provider (buildfail.py): identifiers and headers the
@@ -102,11 +102,9 @@ brand-nfs        needs brand-native(1)
 brand-ops        needs lx(1)
                  unexplained: brand_setbrand
 brand-process    needs brand-exec(2), zone-kernel(1), zones-admin(1), lx(1), brand-native(1)
-                 unexplained: BROP PROC_IS_BRANDED b_exit_with_sig b_map32limit lwp_ctmpl_clear
+                 unexplained: b_exit_with_sig b_map32limit b_sig_ignorable lwp_ctmpl_clear
 brand-x86        needs brand-process(1)
                  unexplained: brand_sys_int80 sys_int80
-bunyan           needs -
-                 other: collect2: error: ld returned 1 exit status
 ctf              needs brand-native(1)
 datalink         needs brand-native(1), vnd(1)
 dboot            needs boot(1)
@@ -114,14 +112,15 @@ dtrace           needs zone-kernel(1), zones-tools(1), brand-native(1)
                  unexplained: b_fsbase
 inotify          needs lx(1), ptools(1)
 integration      needs -
+                 other: collect2: error: ld returned 1 exit status
 ipf-cfw          needs zones-admin(1), zones-tools(1)
 lx               needs brand-events(2), brand-process(2), brand-x86(1), ptools(1), brand-native(1)
-                 unexplained: zone_get_state
-mdb              needs brand-native(1), zones-admin(1), zones-tools(1), overlay-svp(1)
+                 unexplained: BROP PROC_IS_BRANDED zone_get_state
+mdb              needs brand-native(1), zones-admin(1), zones-tools(1)
 net-misc         needs -
                  other: arp.c:124:23: error: initialization of 'const char *' from 'int' makes pointer from integer without a cast [-W
 overlay-svp      needs bunyan(1)
-                 unexplained: REFHASH_WALK_DESC REFHASH_WALK_NAME refhash_walk_init refhash_walk_step uuid_parse
+                 unexplained: uuid_parse
 platform-config  needs -
 ptools           needs brand-exec(3), brand-native(1), lx(1)
                  unexplained: arglen
@@ -130,10 +129,9 @@ smartos-test     needs -
 ssh-removal      needs -
 tmpfs            needs inotify(2)
 vnd              needs datalink(2), link-protection(1)
-                 unexplained: hook4_vnd_in hook4_vnd_in_gz hook4_vnd_out hook4_vnd_out_gz hook6_vnd_in hook6_vnd_in_gz hook6_vnd_out hook6_vnd_out_gz
 zfd              needs -
                  unexplained: get_console_master
-zfs-arc          needs zfs-zone-io(2)
+zfs-arc          needs zfs-zone-io(1)
 zfs-cli          needs zfs-props(2)
 zfs-props        needs zfs-zone-io(2)
 zfs-tests        needs -
@@ -148,6 +146,6 @@ zone-kernel      needs zone-cpu(4), zones-admin(3), zones-tools(1), brand-proces
 zone-memory      needs zone-kernel(4), zones-admin(1)
                  unexplained: ZPO_ANON ZPO_ANONDIRTY ZPO_DIRTY ZPO_FS zone_num_over_cap zone_pdata
 zones-admin      needs zones-tools(8), zfd(4), zone-kernel(4)
-                 unexplained: ctlfd disconnect snap_hndl zone_create zone_phys_mcap zonepath
+                 unexplained: ctlfd disconnect ppt_devpath_to_dev snap_hndl uuid_unparse zone_create zone_phys_mcap zonepath
 zones-tools      needs brand-native(1), zone-memory(1)
                  unexplained: zonecfg_add_res_attr zonecfg_fix_obsolete zonecfg_free_res_attr_list zonecfg_get_did zonecfg_getmcapent zonecfg_notify_create zonecfg_remove_res_attr zonecfg_set_did zonecfg_set_uuid
