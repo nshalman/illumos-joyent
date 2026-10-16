@@ -51,6 +51,9 @@ DEFS = [
 
 
 def strip(line):
+    # a block comment's continuation line (" * text")
+    if re.match(r'^\s*\*(\s|/|$)', line):
+        return ''
     line = re.sub(r'"(\\.|[^"\\])*"', '""', line)
     line = re.sub(r"'(\\.|[^'\\])*'", "''", line)
     line = re.sub(r'/\*.*?\*/', ' ', line)
