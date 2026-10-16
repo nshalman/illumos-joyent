@@ -337,6 +337,9 @@ HUNK_OVERRIDES = [
     # added in the same hunk are vnd's (blame credits the realignment)
     ('usr/src/uts/common/inet/ipf/ip_fil_solaris.c',
      r'^char \*hook[46]_nicevents =', 'vnd'),
-    # as in B above: libbunyan, not lx, carries the shared USDT rules
+    # as in B above: libbunyan, not lx, carries the shared USDT rules,
+    # with OS-3643's USDT hooks in Makefile.lib and Makefile.targ
     ('usr/src/lib/Makefile.usdt', r'.', 'bunyan'),
+    ('usr/src/lib/Makefile.lib', r'USDT', 'bunyan'),
+    ('usr/src/lib/Makefile.targ', r'USDT', 'bunyan'),
 ]

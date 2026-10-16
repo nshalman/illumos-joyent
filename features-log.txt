@@ -2868,10 +2868,10 @@ Features:
   OS-6341 bunyan_child adds keys to parent, not child
   OS-8113 enable ld guidance (#262)
 
-Also includes the final state of fixes from 3 tickets: OS-3644, OS-4452,
-OS-5047.
+Also includes the final state of fixes from 4 tickets: OS-3644, OS-4452,
+OS-5047, 14666.
 
-20 files (0 removed). This commit applies to illumos-gate on its own;
+22 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
@@ -2879,9 +2879,12 @@ Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 Co-authored-by: Joshua M. Clulow <jmc@joyent.com>
 Co-authored-by: Jason King <jasonbking@users.noreply.github.com>
 Co-authored-by: Dave Eddy <dave@daveeddy.com>
+Co-authored-by: Dan McDonald <danmcd@edgecast.io>
 Co-authored-by: John Levon <john.levon@joyent.com>
 
  usr/src/lib/Makefile                            |   2 +
+ usr/src/lib/Makefile.lib                        |  23 +-
+ usr/src/lib/Makefile.targ                       |   2 +-
  usr/src/lib/Makefile.usdt                       |  28 ++
  usr/src/lib/libbunyan/Makefile                  |  42 ++
  usr/src/lib/libbunyan/Makefile.com              |  36 ++
@@ -2901,7 +2904,7 @@ Co-authored-by: John Levon <john.levon@joyent.com>
  usr/src/test/util-tests/tests/bunyan/Makefile   |  68 ++++
  usr/src/test/util-tests/tests/bunyan/btest.c    | 316 +++++++++++++++
  usr/src/test/util-tests/tests/bunyan/bunyan.ksh |  26 ++
- 20 files changed, 1895 insertions(+), 91 deletions(-)
+ 22 files changed, 1917 insertions(+), 94 deletions(-)
 
 ========================================================================
 [56/80] features/nvpair-json
@@ -3725,7 +3728,7 @@ OS-8705, OS-8748, TOOLS-1603, 9027, 12789, 16344, 16538, 17297.
 
 Plus 7 commits without a ticket ID.
 
-333 files (0 removed). This commit applies to illumos-gate on its own;
+331 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
@@ -3784,8 +3787,6 @@ Co-authored-by: Toomas Soome <tsoome@me.com>
  usr/src/common/brand/lx/tools/README.md                |   39 +
  usr/src/common/brand/lx/tools/gen_errno.c              |  444 ++
  usr/src/head/regexp.h                                  |   12 +-
- usr/src/lib/Makefile.lib                               |   19 +
- usr/src/lib/Makefile.targ                              |    2 +-
  usr/src/lib/brand/lx/Makefile                          |   55 +
  usr/src/lib/brand/lx/Makefile.lx                       |   32 +
  usr/src/lib/brand/lx/librtld_db/Makefile               |   52 +
@@ -4092,7 +4093,7 @@ Co-authored-by: Toomas Soome <tsoome@me.com>
  usr/src/uts/intel/sys/segments.h                       |    2 +
  usr/src/uts/intel/syscall/getcontext.c                 |   72 +-
  usr/src/uts/sparc/syscall/getcontext.c                 |   31 +-
- 333 files changed, 102426 insertions(+), 533 deletions(-)
+ 331 files changed, 102406 insertions(+), 532 deletions(-)
 
 ========================================================================
 [68/80] features/sed
@@ -4440,13 +4441,13 @@ Features:
   12217 add ld assert-deflib and guidance to gate build [fix duplicate makefile definitions from our local modif
   12665 want modern bhyve [fix broken build]
 
-Also includes the final state of fixes from 47 tickets: OS-98, OS-147,
+Also includes the final state of fixes from 46 tickets: OS-98, OS-147,
 OS-148, OS-189, OS-201, OS-421, OS-507, OS-696, OS-1512, OS-1589,
 OS-1836, OS-2592, OS-2677, OS-2778, OS-2779, OS-2786, OS-2800, OS-3545,
 OS-3561, OS-3748, OS-3868, OS-3901, OS-4509, OS-4688, OS-4689, OS-4967,
 OS-5017, OS-5585, OS-5591, OS-6282, OS-6410, OS-6795, OS-6920, OS-7240,
 OS-7677, OS-7870, OS-8324, OS-8360, OS-8361, OS-8433, OS-8458, OS-8709,
-OS-8756, 5468, 6606, 13258, 14666.
+OS-8756, 5468, 6606, 13258.
 
 Plus 5 commits without a ticket ID.
 
@@ -4464,9 +4465,6 @@ Tickets that span many commits (sweeps) or have no other home:
     files
   OS-7943 Want platform build test artifact (+18)
     Makefile.testarchive +18
-  OS-3643 lx brand: add USDT provider to lx_brand.so.1 OS-3644 lx brand:
-  ptrace_in (+17)
-    lib/Makefile.lib +17
   OS-7240 libc's genassym should use proto area headers (+17)
     lib/libc/Makefile.targ +17
   OS-8360 We forgot about illumos 14220 in Makefile.testarchive (+17)
@@ -4483,23 +4481,26 @@ Tickets that span many commits (sweeps) or have no other home:
     lib/libc/sparc/Makefile.com +1, uts/intel/Makefile.intel +1
   OS-6795 illumos-joyent build tools depend on platform Perl (+10)
     cmd/Makefile +6, cmd/auditrecord/Makefile +4
-  62 more tickets (+150): OS-3110, OS-2834, OS-8361, OS-978,
+  OS-3110 Add support for nfp driver (+9)
+    uts/common/Makefile.files +4, uts/common/Makefile.rules +4,
+    uts/intel/Makefile.intel +1
+  60 more tickets (+140): OS-2834, OS-8361, OS-978,
   untagged:265c2123633, 13258, OS-1119, OS-7870, OS-5591, OS-7828,
   OS-147, 12217, OS-1799, OS-3524, OS-4206, OS-7014, OS-8324, OS-8433,
   untagged:5e100881386, OS-201, OS-2952, OS-3463, OS-5549, OS-6410,
   OS-6920, OS-7503, OS-7667, OS-8581, OS-8638, OS-8709, OS-8756,
-  untagged:160e9fdbf38, 12665, 14666, 5468, OS-1512, OS-1802, OS-1836,
-  OS-19, OS-2115, OS-2336, OS-2592, OS-2677, OS-2893, OS-3280, OS-3561,
+  untagged:160e9fdbf38, 12665, 5468, OS-1512, OS-1802, OS-1836, OS-19,
+  OS-2115, OS-2336, OS-2592, OS-2677, OS-2893, OS-3280, OS-3561,
   OS-3748, OS-3884, OS-3954, OS-421, OS-4256, OS-4360, OS-4470, OS-4509,
   OS-4665, OS-4967, OS-507, OS-6282, OS-7669, OS-8113, OS-8459,
   untagged:cafbe6d2d97
 
-  Written during merge conflict resolution (+32):
+  Written during merge conflict resolution (+31):
     lib/Makefile +8, Makefile.testarchive +7, Makefile.master +2,
     cmd/Makefile +2, test/util-tests/tests/dladm/Makefile +2,
-    cmd/cmd-inet/usr.sbin/snoop/Makefile +1, and 10 more files
+    cmd/cmd-inet/usr.sbin/snoop/Makefile +1, and 9 more files
 
-40 files (0 removed). This commit applies to illumos-gate on its own;
+39 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
@@ -4535,7 +4536,6 @@ Co-authored-by: Lexi Wilson <lexi@cooperi.net>
  usr/src/cmd/stat/Makefile                         | 11 +++++--
  usr/src/head/Makefile                             |  4 ++-
  usr/src/lib/Makefile                              | 16 +++++-----
- usr/src/lib/Makefile.lib                          |  4 +--
  usr/src/lib/libc/Makefile.targ                    | 21 +++++++++++++
  usr/src/lib/libc/amd64/Makefile                   | 13 ---------
  usr/src/lib/libc/i386/Makefile.com                | 16 ----------
@@ -4561,7 +4561,7 @@ Co-authored-by: Lexi Wilson <lexi@cooperi.net>
  usr/src/uts/intel/core_pcbe/Makefile              |  4 +--
  usr/src/uts/intel/opteron_pcbe/Makefile           |  2 +-
  usr/src/uts/intel/p4_pcbe/Makefile                |  2 +-
- 40 files changed, 249 insertions(+), 93 deletions(-)
+ 39 files changed, 247 insertions(+), 91 deletions(-)
 
 ========================================================================
 [78/80] features/integration-pkg
