@@ -14,12 +14,18 @@ solaris10 brands updated to fill in the new operations.
 
 Features:
   OS-2834 ship lx brand
+  OS-2887 lxbrand add WALL, WCLONE, WNOTHREAD support to waitid
+  OS-3279 lx brand should allow delegated datasets
+  OS-3280 need a way to specify the root of a native system in the lx brand
+  OS-3558 lxbrand add support for full in-kernel syscall handling
   OS-6211 support Linux accounting
 
-Also includes the final state of fixes from 20 tickets: OS-2877,
-OS-3517, OS-3554, OS-3712, OS-4119, OS-4129, OS-4151, OS-4188, OS-4303,
-OS-4460, OS-4825, OS-4937, OS-5189, OS-5354, OS-5462, OS-5805, OS-6018,
-OS-6158, OS-8747, OS-8748.
+Also includes the final state of fixes from 34 tickets: OS-2877,
+OS-3149, OS-3517, OS-3545, OS-3554, OS-3561, OS-3600, OS-3685, OS-3712,
+OS-3794, OS-3820, OS-3834, OS-3868, OS-3901, OS-3920, OS-3926, OS-4047,
+OS-4119, OS-4129, OS-4151, OS-4188, OS-4303, OS-4437, OS-4460, OS-4825,
+OS-4937, OS-5189, OS-5354, OS-5462, OS-5805, OS-6018, OS-6158, OS-8747,
+OS-8748.
 
 8 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -28,16 +34,19 @@ Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
 Co-authored-by: Andy Fiddaman <illumos@fiddaman.net>
 Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
+Co-authored-by: Joshua M. Clulow <jmc@joyent.com>
+Co-authored-by: DJ Hoffman <dj.hoffman@joyent.com>
+Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
 
  usr/src/uts/common/brand/sn1/sn1_brand.c       |  20 ++---
  usr/src/uts/common/brand/sn1/sn1_brand.h       |   7 +-
  usr/src/uts/common/brand/solaris10/s10_brand.c |  20 ++---
  usr/src/uts/common/brand/solaris10/s10_brand.h |   6 +-
  usr/src/uts/common/os/brand.c                  | 209 ++++++++++++++++++++++++++++-----------------
- usr/src/uts/common/os/fork.c                   |  27 ++++--
- usr/src/uts/common/sys/brand.h                 |  65 ++++++++++++--
+ usr/src/uts/common/os/fork.c                   |  28 ++++--
+ usr/src/uts/common/sys/brand.h                 |  90 +++++++++++++++++--
  usr/src/uts/common/syscall/brandsys.c          |   8 +-
- 8 files changed, 237 insertions(+), 125 deletions(-)
+ 8 files changed, 263 insertions(+), 125 deletions(-)
 
 ========================================================================
 [2/80] features/brand-exec
@@ -59,20 +68,20 @@ Features:
   OS-5072 lxbrand support PT_GNU_STACK
   OS-5202 Support AT_SECURE & AT_*ID in LX
 
-Also includes the final state of fixes from 40 tickets: OS-2877,
-OS-3382, OS-3438, OS-3513, OS-3517, OS-3545, OS-3561, OS-3615, OS-3696,
-OS-3733, OS-3735, OS-3868, OS-3871, OS-3901, OS-4119, OS-4129, OS-4151,
-OS-4188, OS-4364, OS-4460, OS-4818, OS-4824, OS-5015, OS-5192, OS-5293,
-OS-5354, OS-5761, OS-6158, OS-6993, OS-6994, OS-6995, OS-6996, OS-7931,
-OS-7932, OS-7934, OS-7960, OS-8258, OS-8748, 13925, 14823.
+Also includes the final state of fixes from 41 tickets: OS-2877,
+OS-3382, OS-3438, OS-3513, OS-3517, OS-3545, OS-3561, OS-3611, OS-3615,
+OS-3696, OS-3733, OS-3735, OS-3868, OS-3871, OS-3901, OS-4119, OS-4129,
+OS-4151, OS-4188, OS-4364, OS-4460, OS-4818, OS-4824, OS-5015, OS-5192,
+OS-5293, OS-5354, OS-5761, OS-6158, OS-6993, OS-6994, OS-6995, OS-6996,
+OS-7931, OS-7932, OS-7934, OS-7960, OS-8258, OS-8748, 13925, 14823.
 
 16 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
-Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
 Co-authored-by: Andy Fiddaman <illumos@fiddaman.net>
+Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
 Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
 Co-authored-by: Ulyssa Mello <cody.mello@joyent.com>
 Co-authored-by: Dan McDonald <danmcd@edgecast.io>
@@ -93,9 +102,9 @@ Co-authored-by: Joshua M. Clulow <jmc@joyent.com>
  usr/src/uts/common/os/core.c                   |   2 +
  usr/src/uts/common/os/exec.c                   | 111 +++++++++--
  usr/src/uts/common/os/mmapobj.c                |  13 +-
- usr/src/uts/common/sys/auxv.h                  |  30 ++-
- usr/src/uts/common/sys/exec.h                  |  15 +-
- 16 files changed, 557 insertions(+), 176 deletions(-)
+ usr/src/uts/common/sys/auxv.h                  |  28 ++-
+ usr/src/uts/common/sys/exec.h                  |  20 +-
+ 16 files changed, 559 insertions(+), 177 deletions(-)
 
 ========================================================================
 [3/80] features/brand-process
@@ -122,13 +131,13 @@ Features:
   14019 Allow more control over zone init exit actions (fix mismerge)
 
 Also includes the final state of fixes from 40 tickets: OS-3140,
-OS-3149, OS-3209, OS-3545, OS-3561, OS-3600, OS-3642, OS-3868, OS-3901,
-OS-4129, OS-4144, OS-4188, OS-4300, OS-4303, OS-4437, OS-4534, OS-4818,
-OS-4825, OS-5097, OS-5192, OS-5209, OS-5311, OS-5322, OS-5510, OS-5569,
+OS-3149, OS-3209, OS-3382, OS-3545, OS-3561, OS-3600, OS-3642, OS-3868,
+OS-3901, OS-4129, OS-4144, OS-4188, OS-4300, OS-4303, OS-4437, OS-4534,
+OS-4818, OS-4825, OS-5097, OS-5192, OS-5209, OS-5311, OS-5322, OS-5510,
 OS-5642, OS-5845, OS-5991, OS-5992, OS-6355, OS-6612, OS-6626, OS-6917,
 OS-7003, OS-7389, OS-7625, OS-7644, OS-7753, OS-8748, 11909.
 
-38 files (0 removed). This commit applies to illumos-gate on its own;
+39 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
@@ -146,7 +155,7 @@ Co-authored-by: John Levon <john.levon@joyent.com>
  usr/src/cmd/ptools/pargs/pargs.c          |   2 +
  usr/src/lib/libc/amd64/gen/siginfolst.c   |   2 +
  usr/src/lib/libc/i386/gen/siginfolst.c    |   2 +
- usr/src/lib/libc/inc/thr_uberdata.h       |   2 +
+ usr/src/lib/libc/inc/thr_uberdata.h       |   1 +
  usr/src/lib/libc/port/gen/siglist.c       |   2 +
  usr/src/lib/libc/port/gen/str2sig.c       |   3 +-
  usr/src/lib/libc/port/mapfile-vers        |   1 +
@@ -167,7 +176,8 @@ Co-authored-by: John Levon <john.levon@joyent.com>
  usr/src/uts/common/os/rctl_proc.c         |  28 ++++++++++
  usr/src/uts/common/os/sig.c               |  29 +++++++++--
  usr/src/uts/common/os/sysent.c            |  30 +++++++----
- usr/src/uts/common/sys/contract/process.h |   4 +-
+ usr/src/uts/common/sys/auxv.h             |   2 +
+ usr/src/uts/common/sys/contract/process.h |   1 +
  usr/src/uts/common/sys/cpuvar.h           |   2 +
  usr/src/uts/common/sys/fss.h              |   1 +
  usr/src/uts/common/sys/ia.h               |   1 +
@@ -181,7 +191,7 @@ Co-authored-by: John Levon <john.levon@joyent.com>
  usr/src/uts/common/sys/vmsystm.h          |   5 ++
  usr/src/uts/i86pc/sys/comm_page.h         |   2 +
  usr/src/uts/i86pc/vm/vm_machdep.c         |   6 +--
- 38 files changed, 420 insertions(+), 120 deletions(-)
+ 39 files changed, 419 insertions(+), 119 deletions(-)
 
 ========================================================================
 [4/80] features/brand-events
@@ -228,7 +238,7 @@ for lx zones.
 Also includes the final state of fixes from 5 tickets: OS-3752, OS-4647,
 OS-4699, OS-4952, OS-5073.
 
-7 files (0 removed). This commit applies to illumos-gate on its own;
+8 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Ulyssa Mello <cody.mello@joyent.com>
@@ -237,13 +247,14 @@ Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
 
  usr/src/cmd/cmd-inet/sbin/dhcpagent/defaults.c | 36 +++++++++++++++++++++++++++++++++---
+ usr/src/cmd/truss/print.c                      |  1 +
  usr/src/uts/common/fs/sockfs/socksubr.c        |  1 +
  usr/src/uts/common/inet/ip/conn_opt.c          |  1 +
  usr/src/uts/common/inet/udp/udp.c              | 20 +++++++++++++++++++-
  usr/src/uts/common/inet/udp/udp_opt_data.c     |  4 +++-
  usr/src/uts/common/inet/udp_impl.h             |  4 ++--
  usr/src/uts/common/netinet/udp.h               |  2 ++
- 7 files changed, 61 insertions(+), 7 deletions(-)
+ 8 files changed, 62 insertions(+), 7 deletions(-)
 
 ========================================================================
 [6/80] features/brand-fs
@@ -316,7 +327,7 @@ Also includes the final state of fixes from 11 tickets: OS-3215,
 OS-3223, OS-3545, OS-3561, OS-3735, OS-3868, OS-3901, OS-4368, OS-4930,
 OS-5322, 12349.
 
-10 files (0 removed). This commit applies to illumos-gate on its own;
+11 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
@@ -334,9 +345,10 @@ Co-authored-by: Joshua M. Clulow <jmc@joyent.com>
  usr/src/uts/intel/os/comm_page_util.c    |   4 +-
  usr/src/uts/intel/os/cpuid.c             |   6 +++
  usr/src/uts/intel/os/desctbls.c          |  28 ++++++++++----
+ usr/src/uts/intel/sys/machbrand.h        |   8 ++--
  usr/src/uts/intel/sys/segments.h         |   2 +
  usr/src/uts/intel/sys/ucontext.h         |  12 +++++-
- 10 files changed, 144 insertions(+), 29 deletions(-)
+ 11 files changed, 149 insertions(+), 32 deletions(-)
 
 ========================================================================
 [9/80] features/brand-native
@@ -351,9 +363,9 @@ Features:
   OS-3280 need a way to specify the root of a native system in the lx brand
 
 Also includes the final state of fixes from 9 tickets: OS-180, OS-399,
-OS-1044, OS-3709, OS-4647, OS-4716, OS-8278, OS-8361, OS-8373.
+OS-1044, OS-3709, OS-4716, OS-5569, OS-8278, OS-8361, OS-8373.
 
-8 files (0 removed). This commit applies to illumos-gate on its own;
+10 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
@@ -363,14 +375,16 @@ Co-authored-by: Ryan Zezeski <rpz@joyent.com>
 Co-authored-by: Michael Zeller <mike@mikezeller.net>
 
  usr/src/cmd/prstat/prstat.c              | 40 ++++++++++++++++++++++++++++++++++++----
- usr/src/cmd/truss/codes.c                |  5 ++++-
- usr/src/cmd/truss/print.c                | 16 +++++++++++++++-
+ usr/src/cmd/truss/codes.c                |  1 +
+ usr/src/cmd/truss/print.c                | 15 ++++++++++++++-
+ usr/src/head/zone.h                      |  2 ++
+ usr/src/lib/libc/inc/thr_uberdata.h      |  2 ++
  usr/src/lib/libc/port/mapfile-vers       |  1 +
  usr/src/lib/libc/port/stdio/system.c     | 11 ++++++++++-
  usr/src/lib/libc/port/sys/zone.c         | 13 ++++++++++++-
  usr/src/lib/libcurses/screen/setupterm.c |  5 ++++-
  usr/src/man/man8/prstat.8                | 10 ++++++----
- 8 files changed, 88 insertions(+), 13 deletions(-)
+ 10 files changed, 88 insertions(+), 12 deletions(-)
 
 ========================================================================
 [10/80] features/zone-kernel
@@ -391,23 +405,21 @@ Features:
   OS-800 need a metric (kstat) to track when we're bursting
   OS-1234 add new rctls to resource_controls(5) man page
   OS-1704 add a time field with ISO time or unix timestamp to zoneevent output
-  OS-3279 lx brand should allow delegated datasets
-  OS-3280 need a way to specify the root of a native system in the lx brand
   OS-3429 Expose zone's init exit status
   OS-4017 would like zfs-io-priority values > 1024
   OS-4781 would like to be able to add CT_PR_EV_EXIT to fatal event set of current contract
   OS-4915 want FX high priority zone configuration option
 
-Also includes the final state of fixes from 42 tickets: OS-11, OS-19,
+Also includes the final state of fixes from 43 tickets: OS-11, OS-19,
 OS-100, OS-147, OS-148, OS-163, OS-164, OS-165, OS-172, OS-180, OS-192,
 OS-208, OS-338, OS-339, OS-355, OS-369, OS-399, OS-803, OS-1024,
-OS-1043, OS-1047, OS-3776, OS-4109, OS-4925, OS-5187, OS-5189, OS-5483,
-OS-5642, OS-5682, OS-5696, OS-5697, OS-6285, OS-6306, OS-6355, OS-6540,
-OS-7263, OS-7335, OS-7339, OS-7389, OS-7509, OS-8361, OS-8373.
+OS-1043, OS-1047, OS-3776, OS-4109, OS-4818, OS-4925, OS-5187, OS-5189,
+OS-5483, OS-5642, OS-5682, OS-5696, OS-5697, OS-6285, OS-6306, OS-6355,
+OS-6540, OS-7263, OS-7335, OS-7339, OS-7389, OS-7509, OS-8361, OS-8373.
 
 Plus 1 commits without a ticket ID.
 
-19 files (0 removed). This commit applies to illumos-gate on its own;
+20 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
@@ -419,10 +431,9 @@ Co-authored-by: Dan McDonald <danmcd@edgecast.io>
 Co-authored-by: John Levon <john.levon@joyent.com>
 Co-authored-by: Michael Zeller <mike@mikezeller.net>
 Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
-Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
 
  usr/src/cmd/mdb/common/modules/genunix/zone.c |   5 +-
- usr/src/head/zone.h                           |   9 +-
+ usr/src/head/zone.h                           |   8 +-
  usr/src/man/man5/process.5                    |   1 +
  usr/src/man/man7/resource_controls.7          |  74 +++-
  usr/src/uts/common/contract/process.c         |  23 ++
@@ -430,17 +441,18 @@ Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
  usr/src/uts/common/fs/vnode.c                 | 111 +++++-
  usr/src/uts/common/os/cred.c                  |   8 +
  usr/src/uts/common/os/exit.c                  |  23 +-
- usr/src/uts/common/os/zone.c                  | 985 +++++++++++++++++++++++++++++++++++++++++++---
+ usr/src/uts/common/os/zone.c                  | 987 +++++++++++++++++++++++++++++++++++++++++++---
+ usr/src/uts/common/sys/contract/process.h     |   4 +-
  usr/src/uts/common/sys/cred.h                 |   1 +
  usr/src/uts/common/sys/uadmin.h               |   3 +-
- usr/src/uts/common/sys/zone.h                 | 185 ++++++++-
+ usr/src/uts/common/sys/zone.h                 | 190 ++++++++-
  usr/src/uts/common/syscall/sysconfig.c        |  49 +--
  usr/src/uts/common/syscall/uadmin.c           |   8 +-
  usr/src/uts/common/vm/page.h                  |   7 +-
  usr/src/uts/i86pc/os/startup.c                |   1 +
  usr/src/uts/i86pc/vm/hment.c                  |   7 +
  usr/src/uts/sfmmu/vm/hat_sfmmu.c              |   5 +
- 19 files changed, 1384 insertions(+), 125 deletions(-)
+ 20 files changed, 1391 insertions(+), 128 deletions(-)
 
 ========================================================================
 [11/80] features/zone-memory
@@ -594,7 +606,7 @@ Features:
   7029 want per-process exploit mitigation features (secflags) [missing manpage]
   14019 Allow more control over zone init exit actions (fix mismerge)
 
-Also includes the final state of fixes from 77 tickets: OS-11, OS-180,
+Also includes the final state of fixes from 73 tickets: OS-11, OS-180,
 OS-192, OS-223, OS-249, OS-259, OS-280, OS-287, OS-327, OS-399, OS-477,
 OS-478, OS-511, OS-592, OS-746, OS-809, OS-837, OS-1019, OS-1179,
 OS-1571, OS-1576, OS-1697, OS-1763, OS-1795, OS-1969, OS-2018, OS-2328,
@@ -602,42 +614,40 @@ OS-2564, OS-2608, OS-3075, OS-3342, OS-3388, OS-3492, OS-3494, OS-3718,
 OS-3741, OS-3764, OS-3776, OS-3777, OS-3831, OS-3869, OS-4109, OS-4253,
 OS-4569, OS-4792, OS-4863, OS-4925, OS-4932, OS-5185, OS-5198, OS-5292,
 OS-5330, OS-5363, OS-5388, OS-5919, OS-6355, OS-6594, OS-6669, OS-6760,
-OS-6802, OS-6831, OS-6834, OS-6845, OS-6867, OS-6868, OS-6977, OS-7052,
-OS-7144, OS-7389, OS-7543, OS-7768, OS-7779, OS-8083, OS-8197, OS-8361,
-OS-8451, OS-8667.
+OS-6802, OS-6831, OS-6834, OS-6845, OS-6867, OS-6868, OS-6977, OS-7543,
+OS-7768, OS-7779, OS-8083, OS-8361, OS-8451, OS-8667.
 
-14 files (0 removed). This commit applies to illumos-gate on its own;
+13 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
 Co-authored-by: Mike Gerdts <mike.gerdts@joyent.com>
-Co-authored-by: Jason King <jasonbking@users.noreply.github.com>
 Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
 Co-authored-by: John Levon <john.levon@joyent.com>
 Co-authored-by: Ryan Zezeski <rpz@joyent.com>
 Co-authored-by: Josh Wilsdon <jwilsdon@joyent.com>
 Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
 Co-authored-by: Joshua M. Clulow <jmc@joyent.com>
+Co-authored-by: Jason King <jasonbking@users.noreply.github.com>
 Co-authored-by: Dan McDonald <danmcd@edgecast.io>
 Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 Co-authored-by: Hans Rosenfeld <hans.rosenfeld@joyent.com>
 Co-authored-by: Ulyssa Mello <cody.mello@joyent.com>
 
- usr/src/cmd/zlogin/zlogin.c                |  485 +++++++++++++++++++----
- usr/src/cmd/zoneadm/zoneadm.c              |   46 ++-
- usr/src/cmd/zoneadmd/Makefile              |   10 +-
- usr/src/cmd/zoneadmd/log.c                 | 1027 ++++++++++++++++++++++++++++++++++++++++++++++++
- usr/src/cmd/zoneadmd/vplat.c               |  534 ++++++++++++-------------
- usr/src/cmd/zoneadmd/zcons.c               |  175 ++++++---
- usr/src/cmd/zoneadmd/zoneadmd.c            |  928 +++++++++++++++++++++++++++++++++++--------
- usr/src/cmd/zoneadmd/zoneadmd.h            |   42 +-
- usr/src/lib/libbrand/common/libbrand.c     |    8 +
- usr/src/lib/libppt/common/llib-lppt        |   19 +
- usr/src/lib/libzonecfg/common/libzonecfg.c |   12 +-
- usr/src/man/man1/zlogin.1                  |   68 ++--
- usr/src/uts/common/os/zone.c               |    8 +-
- usr/src/uts/common/sys/zone.h              |   11 +-
- 14 files changed, 2734 insertions(+), 639 deletions(-)
+ usr/src/cmd/zlogin/zlogin.c                | 485 +++++++++++++++++++++-----
+ usr/src/cmd/zoneadm/zoneadm.c              |  46 ++-
+ usr/src/cmd/zoneadmd/Makefile              |  10 +-
+ usr/src/cmd/zoneadmd/vplat.c               | 534 +++++++++++++---------------
+ usr/src/cmd/zoneadmd/zcons.c               | 175 +++++++---
+ usr/src/cmd/zoneadmd/zoneadmd.c            | 928 ++++++++++++++++++++++++++++++++++++++++---------
+ usr/src/cmd/zoneadmd/zoneadmd.h            |  25 +-
+ usr/src/lib/libbrand/common/libbrand.c     |   8 +
+ usr/src/lib/libppt/common/llib-lppt        |  19 +
+ usr/src/lib/libzonecfg/common/libzonecfg.c |  12 +-
+ usr/src/man/man1/zlogin.1                  |  68 ++--
+ usr/src/uts/common/os/zone.c               |   8 +-
+ usr/src/uts/common/sys/zone.h              |   6 +-
+ 13 files changed, 1686 insertions(+), 638 deletions(-)
 
 ========================================================================
 [15/80] features/zones-tools
@@ -809,31 +819,34 @@ Features:
   OS-4854 would like option to disable gz logging via zfd [fix mancheck issues]
   OS-5052 zoneadmd should be able to rotate files when they reach a specified size
 
-Also includes the final state of fixes from 30 tickets: OS-1179,
-OS-1576, OS-3718, OS-3723, OS-3728, OS-3831, OS-4099, OS-4108, OS-4109,
-OS-4164, OS-4655, OS-4798, OS-4799, OS-5198, OS-5330, OS-5375, OS-5388,
-OS-5424, OS-6175, OS-6521, OS-6594, OS-6831, OS-6834, OS-6845, OS-6867,
-OS-6868, OS-7543, OS-7906, OS-8322, OS-8361.
+Also includes the final state of fixes from 37 tickets: OS-1179,
+OS-1576, OS-2564, OS-3718, OS-3723, OS-3728, OS-3831, OS-4099, OS-4108,
+OS-4109, OS-4164, OS-4655, OS-4798, OS-4799, OS-5198, OS-5330, OS-5375,
+OS-5388, OS-5424, OS-6175, OS-6521, OS-6594, OS-6802, OS-6831, OS-6834,
+OS-6845, OS-6867, OS-6868, OS-6977, OS-7052, OS-7144, OS-7543, OS-7768,
+OS-7906, OS-8197, OS-8322, OS-8361.
 
-18 files (0 removed). This commit applies to illumos-gate on its own;
+19 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
-Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
-Co-authored-by: Dan McDonald <danmcd@edgecast.io>
 Co-authored-by: Mike Gerdts <mike.gerdts@joyent.com>
+Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
+Co-authored-by: Jason King <jasonbking@users.noreply.github.com>
+Co-authored-by: Dan McDonald <danmcd@edgecast.io>
+Co-authored-by: John Levon <john.levon@joyent.com>
 Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
 Co-authored-by: Ryan Zezeski <rpz@joyent.com>
 Co-authored-by: Joshua M. Clulow <jmc@joyent.com>
-Co-authored-by: John Levon <john.levon@joyent.com>
 
  usr/src/cmd/devfsadm/misc_link.c                     |   39 +-
  usr/src/cmd/zlogin/zlogin.c                          |  107 ++--
+ usr/src/cmd/zoneadmd/log.c                           | 1027 +++++++++++++++++++++++++++++++
  usr/src/cmd/zoneadmd/vplat.c                         |   20 +-
  usr/src/cmd/zoneadmd/zcons.c                         |   16 +-
  usr/src/cmd/zoneadmd/zfd.c                           | 1238 ++++++++++++++++++++++++++++++++++++++
  usr/src/cmd/zoneadmd/zoneadmd.c                      |   37 +-
- usr/src/cmd/zoneadmd/zoneadmd.h                      |    3 +
+ usr/src/cmd/zoneadmd/zoneadmd.h                      |   20 +
  usr/src/lib/varpd/libvarpd/common/libvarpd_overlay.c |    2 +-
  usr/src/man/man1/zlogin.1                            |   14 +-
  usr/src/man/man4d/zfd.4d                             |   81 +++
@@ -845,7 +858,7 @@ Co-authored-by: John Levon <john.levon@joyent.com>
  usr/src/uts/intel/Makefile.intel                     |    3 +-
  usr/src/uts/intel/zfd/Makefile                       |   40 ++
  usr/src/uts/sparc/zfd/Makefile                       |   42 ++
- 18 files changed, 2816 insertions(+), 75 deletions(-)
+ 19 files changed, 3860 insertions(+), 75 deletions(-)
 
 ========================================================================
 [18/80] features/datalink
@@ -1521,11 +1534,11 @@ Co-authored-by: Mike Gerdts <mike.gerdts@joyent.com>
 Co-authored-by: Andy Fiddaman <illumos@fiddaman.net>
 Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
-Co-authored-by: Michael Zeller <mike@mikezeller.net>
 Co-authored-by: Lexi Wilson <lexi@cooperi.net>
 Co-authored-by: Youzhong Yang <Youzhong.Yang@mathworks.com>
 Co-authored-by: Dan McDonald <danmcd@edgecast.io>
 Co-authored-by: John Levon <john.levon@joyent.com>
+Co-authored-by: Michael Zeller <mike@mikezeller.net>
 Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
 Co-authored-by: Spencer Evans-Cole <spencer.ec09@gmail.com>
 
@@ -1559,7 +1572,7 @@ Co-authored-by: Spencer Evans-Cole <spencer.ec09@gmail.com>
  usr/src/uts/common/fs/udfs/udf_dir.c                            |    6 +-
  usr/src/uts/common/fs/udfs/udf_vnops.c                          |   14 +-
  usr/src/uts/common/fs/ufs/ufs_vnops.c                           |   25 +-
- usr/src/uts/common/fs/vnode.c                                   |   63 +-
+ usr/src/uts/common/fs/vnode.c                                   |   48 +-
  usr/src/uts/common/fs/zfs/zfs_vfsops.c                          |    4 +-
  usr/src/uts/common/fs/zfs/zfs_vnops.c                           |   18 +-
  usr/src/uts/common/io/inotify.c                                 | 1796 +++++++++++++++++++++++++++
@@ -1574,7 +1587,7 @@ Co-authored-by: Spencer Evans-Cole <spencer.ec09@gmail.com>
  usr/src/uts/intel/inotify/Makefile                              |   60 +
  usr/src/uts/intel/ml/swtch.S                                    |   38 +
  usr/src/uts/sparc/inotify/Makefile                              |   61 +
- 45 files changed, 4243 insertions(+), 186 deletions(-)
+ 45 files changed, 4229 insertions(+), 185 deletions(-)
 
 ========================================================================
 [28/80] features/hyprlofs
@@ -1854,11 +1867,11 @@ Co-authored-by: Bill Pijewski <wdp@joyent.com>
 Co-authored-by: Joshua M. Clulow <jmc@joyent.com>
 Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 
- usr/src/uts/common/fs/zfs/sys/zio.h   | 11 +++++++++--
+ usr/src/uts/common/fs/zfs/sys/zio.h   | 10 ++++++++--
  usr/src/uts/common/fs/zfs/vdev_disk.c |  8 ++++++++
  usr/src/uts/common/fs/zfs/zil.c       | 37 ++++++++++++++++++++++++++++++-------
  usr/src/uts/common/fs/zfs/zio.c       | 29 ++++++++++++++++++++++++++---
- 4 files changed, 73 insertions(+), 12 deletions(-)
+ 4 files changed, 72 insertions(+), 12 deletions(-)
 
 ========================================================================
 [37/80] features/zfs
@@ -1944,7 +1957,7 @@ OS-8361.
 
 Plus 3 commits without a ticket ID.
 
-27 files (0 removed). This commit applies to illumos-gate on its own;
+26 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Bill Pijewski <wdp@joyent.com>
@@ -1972,15 +1985,14 @@ Co-authored-by: Keith M Wesolowski <wesolows@foobazco.org>
  usr/src/uts/common/fs/zfs/sys/arc.h              |    2 +
  usr/src/uts/common/fs/zfs/sys/vdev_impl.h        |    1 +
  usr/src/uts/common/fs/zfs/sys/zfs_zone.h         |   63 ++
- usr/src/uts/common/fs/zfs/sys/zio.h              |    1 +
+ usr/src/uts/common/fs/zfs/sys/zio.h              |    2 +
  usr/src/uts/common/fs/zfs/txg.c                  |    3 +
  usr/src/uts/common/fs/zfs/vdev_queue.c           |   14 +-
  usr/src/uts/common/fs/zfs/zfs_ioctl.c            |    7 +
  usr/src/uts/common/fs/zfs/zfs_zone.c             | 1419 ++++++++++++++++++++++++++++++++++++++++++
- usr/src/uts/common/os/zone.c                     |    4 +-
  usr/src/uts/common/sys/fs/zfs.h                  |    3 +
  usr/src/uts/common/sys/zone.h                    |    2 +-
- 27 files changed, 2939 insertions(+), 12 deletions(-)
+ 26 files changed, 2938 insertions(+), 10 deletions(-)
 
 ========================================================================
 [40/80] features/dump-encryption
@@ -2549,7 +2561,7 @@ OS-3207, OS-3383, OS-3513, OS-3870, OS-3897, OS-4277, OS-4408, OS-4506,
 OS-6365, OS-7931, OS-7932, OS-7934, OS-7960, OS-8278, OS-8361, OS-8389,
 OS-8497, 13102.
 
-31 files (0 removed). This commit applies to illumos-gate on its own;
+30 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: John Levon <john.levon@joyent.com>
@@ -2559,8 +2571,8 @@ Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
 Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 Co-authored-by: Jason King <jasonbking@users.noreply.github.com>
 Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
-Co-authored-by: Michael Zeller <mike@mikezeller.net>
 Co-authored-by: Dan McDonald <danmcd@edgecast.io>
+Co-authored-by: Michael Zeller <mike@mikezeller.net>
 
  usr/src/cmd/pgrep/Makefile                |   9 +-
  usr/src/cmd/pgrep/idtab.c                 |   7 +-
@@ -2572,7 +2584,7 @@ Co-authored-by: Dan McDonald <danmcd@edgecast.io>
  usr/src/cmd/ptools/Makefile.bld           |  37 +++-
  usr/src/cmd/ptools/common/ptools_common.c |  50 +++++
  usr/src/cmd/ptools/common/ptools_common.h |  36 ++++
- usr/src/cmd/ptools/pfiles/pfiles.c        |  10 +-
+ usr/src/cmd/ptools/pfiles/pfiles.c        |   5 +-
  usr/src/cmd/ptools/pmap/pmap.c            |  10 +-
  usr/src/cmd/ptools/pmap/pmap_common.c     |   5 +-
  usr/src/cmd/ptools/preap/preap.c          |   6 +-
@@ -2590,10 +2602,9 @@ Co-authored-by: Dan McDonald <danmcd@edgecast.io>
  usr/src/uts/common/fs/proc/prvnops.c      | 203 ++++++++++++++++++-
  usr/src/uts/common/os/exec.c              |  44 +++--
  usr/src/uts/common/os/zone.c              |   6 +-
- usr/src/uts/common/sys/exec.h             |   3 +-
  usr/src/uts/common/sys/procfs.h           |   6 +-
  usr/src/uts/common/sys/user.h             |   6 +-
- 31 files changed, 1318 insertions(+), 392 deletions(-)
+ 30 files changed, 1312 insertions(+), 390 deletions(-)
 
 ========================================================================
 [53/80] features/resolver
@@ -3731,7 +3742,7 @@ OS-8705, OS-8748, TOOLS-1603, 9027, 12789, 16344, 16538, 17297.
 
 Plus 7 commits without a ticket ID.
 
-332 files (0 removed). This commit applies to illumos-gate on its own;
+333 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
@@ -3775,9 +3786,10 @@ Co-authored-by: Toomas Soome <tsoome@me.com>
  usr/src/cmd/fs.d/lxproc/Makefile                       |   32 +
  usr/src/cmd/fs.d/lxproc/mount.c                        |  140 +
  usr/src/cmd/mdb/common/modules/libc/libc.c             |   28 +-
- usr/src/cmd/ptools/pfiles/pfiles.c                     |    3 +-
+ usr/src/cmd/ptools/pfiles/pfiles.c                     |    8 +-
  usr/src/cmd/ptools/pflags/pflags.c                     |    5 +-
  usr/src/cmd/rcap/rcapstat/Makefile                     |    3 +-
+ usr/src/cmd/truss/codes.c                              |    5 +-
  usr/src/cmd/truss/systable.c                           |    8 +-
  usr/src/common/brand/lx/lx_auxv.c                      |   97 +
  usr/src/common/brand/lx/lx_auxv.h                      |   32 +
@@ -3880,7 +3892,7 @@ Co-authored-by: Toomas Soome <tsoome@me.com>
  usr/src/lib/brand/lx/zone/lx_boot_zone_void.ksh        |   17 +
  usr/src/lib/brand/lx/zone/platform.xml                 |  163 +
  usr/src/lib/libbrand/common/libbrand.c                 |    7 +-
- usr/src/lib/libc/inc/thr_uberdata.h                    |    3 +
+ usr/src/lib/libc/inc/thr_uberdata.h                    |    2 +
  usr/src/lib/libc/port/mapfile-vers                     |    1 +
  usr/src/lib/libc/port/threads/sigaction.c              |   29 +-
  usr/src/lib/libc/port/threads/thr.c                    |    1 +
@@ -4017,6 +4029,7 @@ Co-authored-by: Toomas Soome <tsoome@me.com>
  usr/src/uts/common/fs/sockfs/socksubr.c                |    5 +-
  usr/src/uts/common/fs/sockfs/socktpi_impl.h            |    3 +
  usr/src/uts/common/fs/vfs.c                            |    2 +
+ usr/src/uts/common/fs/vnode.c                          |   16 +-
  usr/src/uts/common/inet/ip/ip_if.c                     |    2 +-
  usr/src/uts/common/inet/tcp/tcp_timers.c               |    2 +-
  usr/src/uts/common/io/dld/dld_str.c                    |    4 +
@@ -4032,7 +4045,7 @@ Co-authored-by: Toomas Soome <tsoome@me.com>
  usr/src/uts/common/os/exec.c                           |    8 +-
  usr/src/uts/common/os/exit.c                           |   55 +-
  usr/src/uts/common/os/fio.c                            |    5 +-
- usr/src/uts/common/os/fork.c                           |   23 +-
+ usr/src/uts/common/os/fork.c                           |   22 +-
  usr/src/uts/common/os/grow.c                           |    4 +-
  usr/src/uts/common/os/lwp.c                            |   61 +-
  usr/src/uts/common/os/pid.c                            |   12 +
@@ -4043,9 +4056,8 @@ Co-authored-by: Toomas Soome <tsoome@me.com>
  usr/src/uts/common/os/timer.c                          |  255 +-
  usr/src/uts/common/os/zone.c                           |   22 +-
  usr/src/uts/common/sys/acct.h                          |    3 +-
- usr/src/uts/common/sys/brand.h                         |   37 +-
+ usr/src/uts/common/sys/brand.h                         |   12 +-
  usr/src/uts/common/sys/cpuvar.h                        |    1 +
- usr/src/uts/common/sys/exec.h                          |    2 +
  usr/src/uts/common/sys/file.h                          |   11 +
  usr/src/uts/common/sys/fs/fifonode.h                   |   16 +-
  usr/src/uts/common/sys/klwp.h                          |   11 +-
@@ -4093,11 +4105,11 @@ Co-authored-by: Toomas Soome <tsoome@me.com>
  usr/src/uts/intel/lxprocfs/Makefile                    |   80 +
  usr/src/uts/intel/os/archdep.c                         |   22 +
  usr/src/uts/intel/os/sendsig.c                         |   53 +-
- usr/src/uts/intel/sys/machbrand.h                      |   12 +-
+ usr/src/uts/intel/sys/machbrand.h                      |    5 +
  usr/src/uts/intel/sys/segments.h                       |    2 +
  usr/src/uts/intel/syscall/getcontext.c                 |   72 +-
  usr/src/uts/sparc/syscall/getcontext.c                 |   31 +-
- 332 files changed, 102407 insertions(+), 532 deletions(-)
+ 333 files changed, 102397 insertions(+), 532 deletions(-)
 
 ========================================================================
 [68/80] features/sed

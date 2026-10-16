@@ -355,4 +355,33 @@ HUNK_OVERRIDES = [
     ('usr/src/cmd/cmd-inet/usr.sbin/snoop/Makefile', r'-luuid', 'overlay-svp'),
     # boot/forth/Makefile (boot) installs it as menu.rc
     ('usr/src/boot/forth/triton.menu.rc', r'.', 'boot'),
+    # Layering the core cycle: a definition used by a lower feature moves
+    # down to it (FINDINGS, "Compile checks").
+    ('usr/src/head/zone.h', r'zone_get_nroot', 'brand-native'),
+    ('usr/src/uts/common/sys/contract/process.h', r'CT_PR_KEEP_EXEC', 'zone-kernel'),
+    ('usr/src/uts/common/os/zone.c', r'^zone_rctl_kstat_create_common\(', 'zone-kernel'),
+    ('usr/src/uts/common/fs/zfs/sys/zio.h', r'io_zoneid', 'zfs-zone-io'),
+    ('usr/src/uts/common/sys/zone.h',
+     r'zone_did;|zone_init_status;|zone_proc_init_restarts;', 'zone-kernel'),
+    ('usr/src/lib/libc/inc/thr_uberdata.h', r'\bub_broot;', 'brand-native'),
+    ('usr/src/lib/libc/inc/thr_uberdata.h', r'\bsetctxt;', 'brand-process'),
+    ('usr/src/uts/common/os/fork.c', r'define\s+GETPROC_ZSCHED', 'brand-ops'),
+    ('usr/src/uts/common/sys/brand.h', r'\b(b_data_size|b_intp_parse_arg);',
+     'brand-ops'),
+    ('usr/src/uts/common/sys/auxv.h', r'define\s+AT_SUN_BRAND_(AUX4|NROOT)\s',
+     'brand-process'),
+    ('usr/src/uts/common/sys/exec.h', r'\b(stk_prot_override|argstrlen|envstrlen);',
+     'brand-exec'),
+    ('usr/src/uts/intel/sys/machbrand.h', r'BRAND_CB_INT80', 'brand-x86'),
+    # ... or a stray use moves up to the feature owning the concept:
+    # truss decodes brand-net's socket option, and __FLXPATH is lx's
+    # private O_PATH interface (vnode.c's hook says so)
+    ('usr/src/cmd/truss/print.c', r'UDP_SND_TO_CONNECTED', 'brand-net'),
+    ('usr/src/cmd/truss/codes.c', r'__FLXPATH', 'lx'),
+    ('usr/src/cmd/ptools/pfiles/pfiles.c', r'__FLXPATH', 'lx'),
+    ('usr/src/uts/common/fs/vnode.c', r'__FLXPATH', 'lx'),
+    ('usr/src/uts/common/sys/file.h', r'__FLXPATH', 'lx'),
+    # OS-6834 (zfd logging made generic) wrote zoneadmd's logstream
+    ('usr/src/cmd/zoneadmd/log.c', r'.', 'zfd'),
+    ('usr/src/cmd/zoneadmd/zoneadmd.h', r'logstream', 'zfd'),
 ]
