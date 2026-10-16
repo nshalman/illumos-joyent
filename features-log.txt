@@ -118,6 +118,7 @@ Features:
   OS-5701 lxbrand doesn't support per-process RLIMIT_MEMLOCK
   OS-6211 support Linux accounting
   OS-6627 bhyve needs to support 100+ GB RAM
+  6342 want signalfd support [fix mapfile]
   14019 Allow more control over zone init exit actions (fix mismerge)
 
 Also includes the final state of fixes from 40 tickets: OS-3140,
@@ -163,7 +164,7 @@ Co-authored-by: John Levon <john.levon@joyent.com>
  usr/src/uts/common/os/pid.c               |  13 +++++
  usr/src/uts/common/os/rctl.c              |  32 +++++++++---
  usr/src/uts/common/os/rctl_proc.c         |  28 ++++++++++
- usr/src/uts/common/os/sig.c               |  28 ++++++++--
+ usr/src/uts/common/os/sig.c               |  29 +++++++++--
  usr/src/uts/common/os/sysent.c            |  30 +++++++----
  usr/src/uts/common/sys/contract/process.h |   4 +-
  usr/src/uts/common/sys/cpuvar.h           |   2 +
@@ -179,7 +180,7 @@ Co-authored-by: John Levon <john.levon@joyent.com>
  usr/src/uts/common/sys/vmsystm.h          |   5 ++
  usr/src/uts/i86pc/sys/comm_page.h         |   2 +
  usr/src/uts/i86pc/vm/vm_machdep.c         |   6 +--
- 37 files changed, 418 insertions(+), 120 deletions(-)
+ 37 files changed, 419 insertions(+), 120 deletions(-)
 
 ========================================================================
 [4/80] features/brand-events
@@ -627,7 +628,7 @@ Co-authored-by: Ulyssa Mello <cody.mello@joyent.com>
  usr/src/cmd/zoneadmd/log.c                 | 1027 ++++++++++++++++++++++++++++++++++++++++++++++++
  usr/src/cmd/zoneadmd/vplat.c               |  534 ++++++++++++-------------
  usr/src/cmd/zoneadmd/zcons.c               |  175 ++++++---
- usr/src/cmd/zoneadmd/zoneadmd.c            |  930 +++++++++++++++++++++++++++++++++++--------
+ usr/src/cmd/zoneadmd/zoneadmd.c            |  928 +++++++++++++++++++++++++++++++++++--------
  usr/src/cmd/zoneadmd/zoneadmd.h            |   42 +-
  usr/src/lib/libbrand/common/libbrand.c     |    8 +
  usr/src/lib/libppt/common/llib-lppt        |   19 +
@@ -635,7 +636,7 @@ Co-authored-by: Ulyssa Mello <cody.mello@joyent.com>
  usr/src/man/man1/zlogin.1                  |   68 ++--
  usr/src/uts/common/os/zone.c               |    8 +-
  usr/src/uts/common/sys/zone.h              |   11 +-
- 14 files changed, 2736 insertions(+), 639 deletions(-)
+ 14 files changed, 2734 insertions(+), 639 deletions(-)
 
 ========================================================================
 [15/80] features/zones-tools
@@ -739,13 +740,13 @@ Features:
   OS-8633: Want builder brand for RFD 184
   OS-8723 Expose virtio1 zone attribute via vmadm
 
-Also includes the final state of fixes from 27 tickets: OS-2301,
-OS-3023, OS-3491, OS-6620, OS-6669, OS-6695, OS-6728, OS-6747, OS-6777,
-OS-6800, OS-6831, OS-6863, OS-6882, OS-6952, OS-6963, OS-7116, OS-7205,
-OS-7246, OS-7685, OS-7975, OS-8117, OS-8361, OS-8378, OS-8683, OS-8722,
-12775, 14578.
+Also includes the final state of fixes from 28 tickets: OS-2301,
+OS-3023, OS-3491, OS-6620, OS-6669, OS-6695, OS-6728, OS-6747, OS-6760,
+OS-6777, OS-6800, OS-6831, OS-6863, OS-6882, OS-6952, OS-6963, OS-7116,
+OS-7205, OS-7246, OS-7685, OS-7975, OS-8117, OS-8361, OS-8378, OS-8683,
+OS-8722, 12775, 14578.
 
-23 files (0 removed). This commit applies to illumos-gate on its own;
+24 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Mike Gerdts <mike.gerdts@joyent.com>
@@ -764,6 +765,7 @@ Co-authored-by: Michael Zeller <mike@mikezeller.net>
 
  usr/src/Targetdirs                            |  24 +-
  usr/src/cmd/smbios/Makefile                   |   4 +
+ usr/src/cmd/zoneadmd/zoneadmd.c               |   3 +
  usr/src/lib/brand/bhyve/Makefile              |  32 ++
  usr/src/lib/brand/bhyve/Makefile.bhyve        |  17 +
  usr/src/lib/brand/bhyve/zone/Makefile         |  45 +++
@@ -785,7 +787,7 @@ Co-authored-by: Michael Zeller <mike@mikezeller.net>
  usr/src/lib/brand/joyent/zone/SUNWdefault.xml |  32 ++
  usr/src/lib/brand/shared/zone/common.ksh      |  98 +++--
  usr/src/lib/brand/shared/zone/uninstall.ksh   |  50 +--
- 23 files changed, 1964 insertions(+), 76 deletions(-)
+ 24 files changed, 1967 insertions(+), 76 deletions(-)
 
 ========================================================================
 [17/80] features/zfd
@@ -997,6 +999,7 @@ squeues, and the libdlpi/snoop support for them.
 
 Features:
   OS-610 snoop and libdlpi should be able to consume /dev/net/zone/%zonename
+  OS-2544 ipf rules from the GZ should be add to in-zone rules, not replace them (man page and style fixes)
   OS-2780 Want dlpi primitive DL_EXCLUSIVE_REQ
   OS-2781 dlpi promisc modes should be able to be RX-only
   OS-2782 want /dev/net/zone/%zonename/%datalink
@@ -1009,6 +1012,7 @@ Features:
   OS-6558 sdev_create_minor_node should allow non-666
   OS-7662 need a way to disable SMT
   OS-7943 Want platform build test artifact
+  OS-8064 test-fw "enable / disable - enable zone fw" has "ipf -E" failing with SIOCFRENB error (#242)
 
 Also includes the final state of fixes from 40 tickets: OS-830, OS-2778,
 OS-2779, OS-2786, OS-2800, OS-2841, OS-2920, OS-3094, OS-3119, OS-3142,
@@ -1026,8 +1030,8 @@ Co-authored-by: Dan McDonald <danmcd@edgecast.io>
 Co-authored-by: John Levon <john.levon@joyent.com>
 Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 Co-authored-by: Mike Gerdts <mike.gerdts@joyent.com>
-Co-authored-by: Jason King <jasonbking@users.noreply.github.com>
 Co-authored-by: Rob Gulewich <robert.gulewich@joyent.com>
+Co-authored-by: Jason King <jasonbking@users.noreply.github.com>
 Co-authored-by: Dave Pacheco <dap@joyent.com>
 Co-authored-by: Tim Foster <tim.foster@joyent.com>
 Co-authored-by: Ulyssa Mello <cody.mello@joyent.com>
@@ -1150,7 +1154,7 @@ Co-authored-by: Ulyssa Mello <cody.mello@joyent.com>
  usr/src/uts/common/dtrace/sdt_subr.c                      |   33 +
  usr/src/uts/common/fs/dev/sdev_netops.c                   |  259 +-
  usr/src/uts/common/inet/ip/ip_squeue.c                    |    2 +-
- usr/src/uts/common/inet/ipf/ip_fil_solaris.c              |  114 +-
+ usr/src/uts/common/inet/ipf/ip_fil_solaris.c              |  164 +-
  usr/src/uts/common/inet/ipf/netinet/ipf_stack.h           |   13 +-
  usr/src/uts/common/inet/squeue.c                          |  101 +-
  usr/src/uts/common/io/dld/dld_proto.c                     |   71 +-
@@ -1183,7 +1187,7 @@ Co-authored-by: Ulyssa Mello <cody.mello@joyent.com>
  usr/src/uts/intel/Makefile.intel                          |    3 +-
  usr/src/uts/intel/gsqueue/Makefile                        |   41 +
  usr/src/uts/intel/vnd/Makefile                            |   52 +
- 151 files changed, 18184 insertions(+), 126 deletions(-)
+ 151 files changed, 18214 insertions(+), 146 deletions(-)
 
 ========================================================================
 [21/80] features/overlay-svp
@@ -1224,7 +1228,7 @@ Co-authored-by: Brianna Bennett <bahamat@digitalelf.net>
  usr/src/cmd/cmd-inet/usr.sbin/snoop/snoop_rport.c     |    9 +-
  usr/src/cmd/cmd-inet/usr.sbin/snoop/snoop_svp.c       |  557 ++++++++++++++++++
  usr/src/cmd/mdb/common/modules/genunix/Makefile.files |    1 +
- usr/src/cmd/mdb/common/modules/genunix/genunix.c      |    4 +
+ usr/src/cmd/mdb/common/modules/genunix/genunix.c      |    5 +
  usr/src/cmd/mdb/common/modules/genunix/refhash.c      |   61 ++
  usr/src/cmd/mdb/common/modules/genunix/refhash.h      |   35 ++
  usr/src/cmd/varpd/Makefile                            |    3 +
@@ -1279,7 +1283,7 @@ Co-authored-by: Brianna Bennett <bahamat@digitalelf.net>
  usr/src/uts/common/io/overlay/overlay_mux.c           |   10 +-
  usr/src/uts/common/sys/Makefile                       |    1 +
  usr/src/uts/common/sys/refhash.h                      |    8 +
- 60 files changed, 6235 insertions(+), 49 deletions(-)
+ 60 files changed, 6236 insertions(+), 49 deletions(-)
 
 ========================================================================
 [22/80] features/ipf-cfw
@@ -1291,7 +1295,6 @@ Hooks in ipfilter for Triton Cloud Firewall (cfw) logging.
 Features:
   OS-610 snoop and libdlpi should be able to consume /dev/net/zone/%zonename
   OS-777 ipfilter should support loading / modifying per-zone rules from the GZ
-  OS-2544 ipf rules from the GZ should be add to in-zone rules, not replace them (man page and style fixes)
   OS-2780 Want dlpi primitive DL_EXCLUSIVE_REQ
   OS-2781 dlpi promisc modes should be able to be RX-only
   OS-2782 want /dev/net/zone/%zonename/%datalink
@@ -1328,7 +1331,7 @@ Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
  usr/src/uts/common/Makefile.files               |   6 +-
  usr/src/uts/common/inet/ipf/cfw.c               | 659 ++++++++++++++++++++++++++++++++++++++++++++
  usr/src/uts/common/inet/ipf/fil.c               |   5 +-
- usr/src/uts/common/inet/ipf/ip_fil_solaris.c    | 192 ++++++++++---
+ usr/src/uts/common/inet/ipf/ip_fil_solaris.c    | 142 ++++++++--
  usr/src/uts/common/inet/ipf/ip_log.c            |   4 +-
  usr/src/uts/common/inet/ipf/ip_state.c          |  19 +-
  usr/src/uts/common/inet/ipf/ipf.conf            |   5 +
@@ -1342,7 +1345,7 @@ Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
  usr/src/uts/intel/ipf/Makefile                  |   3 +-
  usr/src/uts/intel/ipf/ipf.global-objs.debug64   |  23 +-
  usr/src/uts/sparc/ipf/ipf.global-objs.debug64   |  19 +-
- 27 files changed, 1116 insertions(+), 76 deletions(-)
+ 27 files changed, 1086 insertions(+), 56 deletions(-)
 
 ========================================================================
 [23/80] features/icmp-bpf
@@ -1703,8 +1706,8 @@ files shared with other features carry only this feature's hunks.
 Co-authored-by: Bill Pijewski <wdp@joyent.com>
 Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 
- usr/src/uts/common/fs/zfs/arc.c | 9 +++++++++
- 1 file changed, 9 insertions(+)
+ usr/src/uts/common/fs/zfs/arc.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
 
 ========================================================================
 [32/80] features/zfs-props
@@ -1932,12 +1935,12 @@ Features:
   OS-2463 restore zone-based zfs scheduling, based on new behavior
   OS-8638 Want ability to specify zfs_arc_max
 
-Also includes the final state of fixes from 38 tickets: OS-19, OS-52,
+Also includes the final state of fixes from 37 tickets: OS-19, OS-52,
 OS-66, OS-98, OS-100, OS-124, OS-135, OS-137, OS-147, OS-148, OS-163,
-OS-172, OS-176, OS-195, OS-221, OS-272, OS-285, OS-289, OS-306, OS-338,
-OS-339, OS-355, OS-478, OS-525, OS-611, OS-1244, OS-2377, OS-2531,
-OS-2576, OS-2659, OS-2943, OS-3043, OS-6433, OS-6540, OS-6588, OS-7250,
-OS-7798, OS-8361.
+OS-172, OS-176, OS-195, OS-221, OS-272, OS-285, OS-289, OS-338, OS-339,
+OS-355, OS-478, OS-525, OS-611, OS-1244, OS-2377, OS-2531, OS-2576,
+OS-2659, OS-2943, OS-3043, OS-6433, OS-6540, OS-6588, OS-7250, OS-7798,
+OS-8361.
 
 Plus 3 commits without a ticket ID.
 
@@ -1962,7 +1965,7 @@ Co-authored-by: Keith M Wesolowski <wesolows@foobazco.org>
  usr/src/man/man8/vfsstat.8                       |  213 +++++++
  usr/src/pkg/manifests/system-file-system-zfs.p5m |    2 +
  usr/src/uts/common/Makefile.files                |    3 +-
- usr/src/uts/common/fs/zfs/arc.c                  |  215 ++++++-
+ usr/src/uts/common/fs/zfs/arc.c                  |  214 ++++++-
  usr/src/uts/common/fs/zfs/dmu_tx.c               |    4 +-
  usr/src/uts/common/fs/zfs/dsl_dir.c              |    3 +-
  usr/src/uts/common/fs/zfs/dsl_pool.c             |    3 +-
@@ -1977,7 +1980,7 @@ Co-authored-by: Keith M Wesolowski <wesolows@foobazco.org>
  usr/src/uts/common/os/zone.c                     |    4 +-
  usr/src/uts/common/sys/fs/zfs.h                  |    3 +
  usr/src/uts/common/sys/zone.h                    |    2 +-
- 27 files changed, 2940 insertions(+), 12 deletions(-)
+ 27 files changed, 2939 insertions(+), 12 deletions(-)
 
 ========================================================================
 [40/80] features/dump-encryption
@@ -2348,7 +2351,6 @@ Features:
   OS-5778 want usb_pipe_xopen(9F)
   OS-7200 would like thread name API
   OS-7345 Add support to mdb for anonymous/unnamed structs and unions.
-  OS-7358 Would like a refhash walker
   OS-7979 introduce /etc/versions/build (fix mismerge)
 
 Also includes the final state of fixes from 23 tickets: OS-577, OS-1011,
@@ -2369,7 +2371,6 @@ Co-authored-by: Mark Brooks <mark.brooks@joyent.com>
 Co-authored-by: John Sonnenschein <johns@joyent.com>
 Co-authored-by: Dan McDonald <danmcd@edgecast.io>
 Co-authored-by: Keith M Wesolowski <wesolows@foobazco.org>
-Co-authored-by: Jason King <jasonbking@users.noreply.github.com>
 Co-authored-by: Jordan Paige Hendricks <jordan.hendricks@joyent.com>
 
  usr/src/cmd/mdb/Makefile.common                                 |   1 +
@@ -2379,7 +2380,7 @@ Co-authored-by: Jordan Paige Hendricks <jordan.hendricks@joyent.com>
  usr/src/cmd/mdb/common/mdb/mdb_print.c                          |  47 +-
  usr/src/cmd/mdb/common/mdb/mdb_tab.c                            |  24 +-
  usr/src/cmd/mdb/common/modules/genunix/ctxop.c                  |   3 +-
- usr/src/cmd/mdb/common/modules/genunix/genunix.c                | 101 ++--
+ usr/src/cmd/mdb/common/modules/genunix/genunix.c                | 100 ++--
  usr/src/cmd/mdb/common/modules/genunix/zone.c                   |  43 +-
  usr/src/cmd/mdb/common/modules/genunix/zone.h                   |   1 +
  usr/src/cmd/mdb/common/modules/mdb_ks/mdb_ks.c                  |  67 ++-
@@ -2389,7 +2390,7 @@ Co-authored-by: Jordan Paige Hendricks <jordan.hendricks@joyent.com>
  usr/src/cmd/mdb/intel/ia32/xhci/Makefile                        |  25 +
  usr/src/test/util-tests/tests/mdb/typedef/tst.dellist.mdb.out   |   0
  usr/src/test/util-tests/tests/mdb/typedef/tst.emptylist.mdb.out |   0
- 17 files changed, 1138 insertions(+), 142 deletions(-)
+ 17 files changed, 1137 insertions(+), 142 deletions(-)
 
 ========================================================================
 [49/80] features/rtld-sgs
@@ -2862,22 +2863,26 @@ SmartOS: libbunyan
 Bunyan-format JSON logging.
 
 Features:
+  OS-3643 lx brand: add USDT provider to lx_brand.so.1
   OS-3884 Want libbunyan
   OS-6341 bunyan_child adds keys to parent, not child
   OS-8113 enable ld guidance (#262)
 
-Also includes the final state of fixes from 2 tickets: OS-4452, OS-5047.
+Also includes the final state of fixes from 3 tickets: OS-3644, OS-4452,
+OS-5047.
 
-19 files (0 removed). This commit applies to illumos-gate on its own;
+20 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
+Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 Co-authored-by: Joshua M. Clulow <jmc@joyent.com>
 Co-authored-by: Jason King <jasonbking@users.noreply.github.com>
 Co-authored-by: Dave Eddy <dave@daveeddy.com>
 Co-authored-by: John Levon <john.levon@joyent.com>
 
  usr/src/lib/Makefile                            |   2 +
+ usr/src/lib/Makefile.usdt                       |  28 ++
  usr/src/lib/libbunyan/Makefile                  |  42 ++
  usr/src/lib/libbunyan/Makefile.com              |  36 ++
  usr/src/lib/libbunyan/amd64/Makefile            |  19 +
@@ -2896,7 +2901,7 @@ Co-authored-by: John Levon <john.levon@joyent.com>
  usr/src/test/util-tests/tests/bunyan/Makefile   |  68 ++++
  usr/src/test/util-tests/tests/bunyan/btest.c    | 316 +++++++++++++++
  usr/src/test/util-tests/tests/bunyan/bunyan.ksh |  26 ++
- 19 files changed, 1867 insertions(+), 91 deletions(-)
+ 20 files changed, 1895 insertions(+), 91 deletions(-)
 
 ========================================================================
 [56/80] features/nvpair-json
@@ -3621,7 +3626,6 @@ Features:
   OS-8430 LX: FUTEX_WAIT_BITSET should support timeout being NULL
   OS-8543 Want support for OFD locks in lx-brand Portions-contributed-by: Dan McDonald <danmcd@mnx.io>
   OS-8682: Add net buffer size and panic-on-oops tunables to LX procfs.
-  6342 want signalfd support [fix mapfile]
   7029 want per-process exploit mitigation features (secflags) [missing manpage]
 
 Also includes the final state of fixes from 729 tickets: OS-1571,
@@ -3719,7 +3723,7 @@ OS-8705, OS-8748, TOOLS-1603, 9027, 12789, 16344, 16538, 17297.
 
 Plus 7 commits without a ticket ID.
 
-334 files (0 removed). This commit applies to illumos-gate on its own;
+333 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
@@ -3780,7 +3784,6 @@ Co-authored-by: Toomas Soome <tsoome@me.com>
  usr/src/head/regexp.h                                  |   12 +-
  usr/src/lib/Makefile.lib                               |   19 +
  usr/src/lib/Makefile.targ                              |    2 +-
- usr/src/lib/Makefile.usdt                              |   28 +
  usr/src/lib/brand/lx/Makefile                          |   55 +
  usr/src/lib/brand/lx/Makefile.lx                       |   32 +
  usr/src/lib/brand/lx/librtld_db/Makefile               |   52 +
@@ -4027,7 +4030,7 @@ Co-authored-by: Toomas Soome <tsoome@me.com>
  usr/src/uts/common/os/lwp.c                            |   61 +-
  usr/src/uts/common/os/pid.c                            |   12 +
  usr/src/uts/common/os/policy.c                         |   17 +
- usr/src/uts/common/os/sig.c                            |   74 +-
+ usr/src/uts/common/os/sig.c                            |   73 +-
  usr/src/uts/common/os/streamio.c                       |    2 +
  usr/src/uts/common/os/sysent.c                         |    8 +-
  usr/src/uts/common/os/timer.c                          |  255 +-
@@ -4087,7 +4090,7 @@ Co-authored-by: Toomas Soome <tsoome@me.com>
  usr/src/uts/intel/sys/segments.h                       |    2 +
  usr/src/uts/intel/syscall/getcontext.c                 |   72 +-
  usr/src/uts/sparc/syscall/getcontext.c                 |   31 +-
- 334 files changed, 102455 insertions(+), 533 deletions(-)
+ 333 files changed, 102426 insertions(+), 533 deletions(-)
 
 ========================================================================
 [68/80] features/sed

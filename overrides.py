@@ -139,6 +139,9 @@ man/man3xnet/htonl.3xnet
 ('zfs', 'lib/libbe/common/be_list.c lib/libgrubmgmt/common/libgrub_fs.c '),
 ('dump-encryption', 'lib/libc/port/gen/arc4random.c test/libc-tests/tests/random/chacha_tv.c'),
 ('bunyan', 'test/util-tests/tests/bunyan/btest.c test/util-tests/tests/bunyan/bunyan.ksh'),
+# written for lx's USDT provider (OS-3643) but also used by libbunyan;
+# bunyan is the smaller of its two users
+('bunyan', 'lib/Makefile.usdt'),
 ('rtld-sgs', 'uts/common/sys/elf.h man/man1/ld.so.1.1'),
 ('platform-config', '''
 cmd/auditd/auditd.xml cmd/cmd-crypto/etc/pkcs11.conf cmd/cmd-inet/etc/services cmd/coreadm/coreadm.xml
@@ -328,4 +331,10 @@ HUNK_OVERRIDES = [
     # OS-2800 moved the sdev headers within FSHDRS; keep both halves of
     # the move together
     ('usr/src/uts/common/sys/Makefile', r'sdev_(impl|plugin)\.h', 'vnd'),
+    # ipf-cfw only realigned these declarations; the vnd hook names
+    # added in the same hunk are vnd's (blame credits the realignment)
+    ('usr/src/uts/common/inet/ipf/ip_fil_solaris.c',
+     r'^char \*hook[46]_nicevents =', 'vnd'),
+    # as in B above: libbunyan, not lx, carries the shared USDT rules
+    ('usr/src/lib/Makefile.usdt', r'.', 'bunyan'),
 ]

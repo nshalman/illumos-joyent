@@ -13,7 +13,8 @@ them with `git merge-file` to see whether the result is JOYENT's file.
 
 Before that, hunks are moved so each feature's files compile: hunks in
 one C function (or within GAP lines outside functions) go together; an
-include-only hunk follows the file's other changes; a Makefile hunk of
+include-only hunk from a feature with no other change in the file
+follows the file's other changes; a Makefile hunk of
 bare list entries is split per entry, each going to the feature that
 owns the file or subdirectory it names; then HUNK_OVERRIDES apply.
 
@@ -294,12 +295,13 @@ def main():
         plain = [h for h in res if h[7] is None]
         if status[f] == 'M' and len(plain) > 1:
             cohere(plain, show(BASE, f) or b'', f.endswith('.c'))
-        # an include-only hunk serves the file's other changes
+        # an include-only hunk from a feature with no other change here
+        # serves the file's other changes
         others = collections.Counter()
         for h in plain:
             others.update(h[4])
         for h in res:
-            if h[7] == 'include' and others:
+            if h[7] == 'include' and others and dominant(h) not in others:
                 feat = sorted(others.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
                 h[4] = {feat: sum(h[4].values())}
         for h in res:

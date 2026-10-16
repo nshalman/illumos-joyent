@@ -2860,21 +2860,24 @@ Co-authored-by: Dan McDonald <danmcd@edgecast.io>
 Bunyan-format JSON logging.
 
 Features:
+  OS-3643 lx brand: add USDT provider to lx_brand.so.1
   OS-3884 Want libbunyan
   OS-6341 bunyan_child adds keys to parent, not child
   OS-8113 enable ld guidance (#262)
 
-Also includes the final state of fixes from 1 tickets: OS-4452.
+Also includes the final state of fixes from 2 tickets: OS-3644, OS-4452.
 
-14 files (0 removed). Tickets are those whose lines survive in these
+15 files (0 removed). Tickets are those whose lines survive in these
 files. Co-authors also include the authors of removed lines.
 
 Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
+Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 Co-authored-by: Joshua M. Clulow <jmc@joyent.com>
 Co-authored-by: Jason King <jasonbking@users.noreply.github.com>
 Co-authored-by: John Levon <john.levon@joyent.com>
 
 
+ usr/src/lib/Makefile.usdt                       |  28 ++
  usr/src/lib/libbunyan/Makefile                  |  42 ++
  usr/src/lib/libbunyan/Makefile.com              |  36 ++
  usr/src/lib/libbunyan/amd64/Makefile            |  19 +
@@ -2889,7 +2892,7 @@ Co-authored-by: John Levon <john.levon@joyent.com>
  usr/src/test/util-tests/tests/bunyan/Makefile   |  68 ++++
  usr/src/test/util-tests/tests/bunyan/btest.c    | 316 +++++++++++++++
  usr/src/test/util-tests/tests/bunyan/bunyan.ksh |  26 ++
- 14 files changed, 1667 insertions(+)
+ 15 files changed, 1695 insertions(+)
 
 ========================================================================
 [56/82] SmartOS: nvlist JSON output
@@ -4368,11 +4371,10 @@ Plus 4 commits without a ticket ID.
 
 Changes by feature: lines added here, grouped by the commit that holds
 the rest of the ticket that wrote them.
-  lx brand: illumos-joyent changes on top of OmniOS (+159):
-    uts/intel/Makefile.files +91, lib/Makefile.usdt +28,
-    lib/Makefile.lib +17, uts/common/Makefile.files +8,
-    uts/intel/Makefile.intel +5, uts/common/Makefile.rules +4, and 4
-    more files
+  lx brand: illumos-joyent changes on top of OmniOS (+131):
+    uts/intel/Makefile.files +91, lib/Makefile.lib +17,
+    uts/common/Makefile.files +8, uts/intel/Makefile.intel +5,
+    uts/common/Makefile.rules +4, lib/Makefile +2, and 3 more files
   vnd: Project Bardiche (vnd, frameio, gsqueue, sdev plugins) (+58):
     man/man3vnd/Makefile +33, uts/common/Makefile.rules +8,
     uts/common/sys/Makefile +5, uts/common/Makefile.files +4,
@@ -4476,14 +4478,14 @@ Tickets that span many commits (sweeps) or have no other home:
     cmd/Makefile +2, test/util-tests/tests/dladm/Makefile +2,
     cmd/cmd-inet/usr.sbin/snoop/Makefile +1, and 12 more files
 
-61 files (0 removed). Tickets are those whose lines survive in these
+60 files (0 removed). Tickets are those whose lines survive in these
 files. Co-authors also include the authors of removed lines.
 
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
 Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
-Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 Co-authored-by: Dan McDonald <danmcd@edgecast.io>
 Co-authored-by: John Levon <john.levon@joyent.com>
+Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 Co-authored-by: Jason King <jasonbking@users.noreply.github.com>
 Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
 Co-authored-by: Tim Foster <tim.foster@joyent.com>
@@ -4521,7 +4523,6 @@ Co-authored-by: Brendan Gregg <brendan.gregg@joyent.com>
  usr/src/lib/Makefile                              | 27 +++++++++----
  usr/src/lib/Makefile.lib                          | 23 ++++++++++-
  usr/src/lib/Makefile.targ                         |  2 +-
- usr/src/lib/Makefile.usdt                         | 28 +++++++++++++
  usr/src/lib/libc/Makefile.targ                    | 21 ++++++++++
  usr/src/lib/libc/amd64/Makefile                   | 14 +------
  usr/src/lib/libc/i386/Makefile.com                | 17 +-------
@@ -4563,7 +4564,7 @@ Co-authored-by: Brendan Gregg <brendan.gregg@joyent.com>
  usr/src/uts/intel/core_pcbe/Makefile              |  4 +-
  usr/src/uts/intel/opteron_pcbe/Makefile           |  2 +-
  usr/src/uts/intel/p4_pcbe/Makefile                |  2 +-
- 61 files changed, 644 insertions(+), 134 deletions(-)
+ 60 files changed, 616 insertions(+), 134 deletions(-)
 
 ========================================================================
 [79/82] SmartOS: integration: package manifests and man page links
