@@ -16,7 +16,8 @@ one C function (or within GAP lines outside functions) go together; an
 include-only hunk from a feature with no other change in the file
 follows the file's other changes; a Makefile hunk of
 bare list entries is split per entry, each going to the feature that
-owns the file or subdirectory it names; then HUNK_OVERRIDES apply.
+owns the file or subdirectory it names, and a mapfile hunk of symbols
+per symbol, each going to the feature adding its definition; then HUNK_OVERRIDES apply.
 
   hunks.py            summary
   hunks.py -v         also list files with mixed hunks or merge conflicts
@@ -178,46 +179,70 @@ def cohere(res, base, is_c):
 
 INCLUDE = re.compile(r'^\s*#\s*include\b')
 LIST_LINE = re.compile(r'^\s*([A-Za-z0-9_.+-]+)\s*\\?\s*$')
+SYM_LINE = re.compile(r'^\s*([A-Za-z_]\w*)\s*(\{[^}]*\})?\s*;\s*$')
+# a C function definition in illumos style: the name starts the line
+C_DEF = re.compile(r'^([A-Za-z_]\w*)\(')
 
 
 def split_lists(f, hs):
-    """Yield (old_start, old, new_start, new, kind).  In a Makefile, a
-    hunk that only adds or only removes subdirectory-list entries is split
-    into one-line hunks of kind 'list:ENTRY', so each entry can go to the
-    feature that owns that directory."""
-    mk = os.path.basename(f).startswith('Makefile')
+    """Yield (old_start, old, new_start, new, kind).  A hunk that only
+    adds or only removes list entries is split into one-line hunks, so
+    each entry can go to the feature it belongs to: in a Makefile,
+    subdirectory entries (kind 'list:ENTRY'); in a mapfile, exported
+    symbols (kind 'sym:NAME')."""
+    base = os.path.basename(f)
+    if base.startswith('Makefile'):
+        rx, tag = LIST_LINE, 'list:'
+    elif base.startswith('mapfile'):
+        rx, tag = SYM_LINE, 'sym:'
+    else:
+        rx = None
     for os_, old, ns, new in hs:
         lines = new if not old else old if not new else None
-        if mk and lines and \
-                all(LIST_LINE.match(l) for l in lines):
+        if rx and lines and all(rx.match(l) for l in lines):
             for i, l in enumerate(lines):
-                e = LIST_LINE.match(l).group(1)
+                e = rx.match(l).group(1)
                 if new:
-                    yield os_, [], ns + i, [l], ('list:' + e, os_)
+                    yield os_, [], ns + i, [l], (tag + e, os_)
                 else:
-                    yield os_ + i, [l], ns, [], ('list:' + e, os_)
+                    yield os_ + i, [l], ns, [], (tag + e, os_)
         else:
             yield os_, old, ns, new, None
 
 
 def assign_list_entries(per_file):
     """Give each Makefile list entry to the feature owning most changed
-    lines in the file or under the subdirectory it names."""
+    lines in the file or under the subdirectory it names, and each mapfile
+    symbol to the feature adding its definition."""
     owner = collections.defaultdict(collections.Counter)
     for f, hs in per_file.items():
         for h in hs:
             if h[7] is None or h[7] in ('include', 'override'):
                 owner[f].update(h[4])
+    # who adds each C function's definition
+    defs = collections.defaultdict(collections.Counter)
+    for f, hs in per_file.items():
+        if not f.endswith('.c'):
+            continue
+        for h in hs:
+            for l in h[6][h[1]:]:
+                m = C_DEF.match(l)
+                if m:
+                    defs[m.group(1)].update({dominant(h): 1})
     for f, hs in per_file.items():
         d = os.path.dirname(f)
         for h in hs:
-            if not (h[7] or '').startswith('list:'):
+            kind = h[7] or ''
+            if kind.startswith('sym:'):
+                c = defs.get(kind[4:])
+            elif kind.startswith('list:'):
+                sub = d + '/' + kind[5:]
+                c = collections.Counter()
+                for dd, cc in owner.items():
+                    if dd == sub or dd.startswith(sub + '/'):
+                        c.update(cc)
+            else:
                 continue
-            sub = d + '/' + h[7][5:]
-            c = collections.Counter()
-            for dd, cc in owner.items():
-                if dd == sub or dd.startswith(sub + '/'):
-                    c.update(cc)
             if not c:
                 c = h[8]
             feat = sorted(c.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]

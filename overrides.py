@@ -342,4 +342,6 @@ HUNK_OVERRIDES = [
     ('usr/src/lib/Makefile.usdt', r'.', 'bunyan'),
     ('usr/src/lib/Makefile.lib', r'USDT', 'bunyan'),
     ('usr/src/lib/Makefile.targ', r'USDT', 'bunyan'),
+    # boot/forth/Makefile (boot) installs it as menu.rc
+    ('usr/src/boot/forth/triton.menu.rc', r'.', 'boot'),
 ]
