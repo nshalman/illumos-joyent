@@ -349,7 +349,7 @@ def write_message(b, title, body, files, tickets, authors, subj, status,
     msg += wrap('%d files (%d removed).  %s' % (len(files), nd, credit_note))
     if authors:
         msg.append('')
-        for a, _ in authors.most_common():
+        for a, _ in sorted(authors.items(), key=lambda x: (-x[1], x[0])):
             if People.split(a)[1].lower() not in BOTS:
                 msg.append('Co-authored-by: ' + a)
     # git strips trailing whitespace from messages; match it
@@ -380,7 +380,7 @@ def by_feature(files, blame, home, titles, subj, per=6, ntix=10):
 
     def files_line(c):
         items = ['%s +%d' % (f.replace('usr/src/', ''), n)
-                 for f, n in c.most_common(per)]
+                 for f, n in sorted(c.items(), key=lambda x: (-x[1], x[0]))[:per]]
         if len(c) > per:
             items.append('and %d more files' % (len(c) - per))
         return ['    ' + l for l in wrap(', '.join(items), 68)]
@@ -388,10 +388,12 @@ def by_feature(files, blame, home, titles, subj, per=6, ntix=10):
     size = lambda k: sum(g[k].values())
     lines = wrap('Changes by feature: lines added here, grouped by the commit '
                  'that holds the rest of the ticket that wrote them.')
-    for k in sorted((k for k in g if k[0] == 'bucket'), key=lambda k: -size(k)):
+    for k in sorted((k for k in g if k[0] == 'bucket'),
+                    key=lambda k: (-size(k), k[1])):
         lines.append('  %s (+%d):' % (titles.get(k[1], k[1]), size(k)))
         lines += files_line(g[k])
-    tix = sorted((k for k in g if k[0] == 'ticket'), key=lambda k: -size(k))
+    tix = sorted((k for k in g if k[0] == 'ticket'),
+                 key=lambda k: (-size(k), k[1]))
     if tix:
         lines.append('')
         lines += wrap('Tickets that span many commits (sweeps) or have no '

@@ -25,8 +25,8 @@ OS-6158, OS-8747, OS-8748.
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
-Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 Co-authored-by: Andy Fiddaman <illumos@fiddaman.net>
+Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
 
  usr/src/uts/common/brand/sn1/sn1_brand.c       |  20 ++---
@@ -231,8 +231,8 @@ files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Ulyssa Mello <cody.mello@joyent.com>
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
-Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
 Co-authored-by: Bryan Cantrill <bryan@joyent.com>
+Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
 
  usr/src/cmd/cmd-inet/sbin/dhcpagent/defaults.c | 36 +++++++++++++++++++++++++++++++++---
  usr/src/uts/common/fs/sockfs/socksubr.c        |  1 +
@@ -320,8 +320,8 @@ files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
 Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
-Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
 Co-authored-by: Lexi Wilson <lexi@cooperi.net>
+Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
 Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 Co-authored-by: Joshua M. Clulow <jmc@joyent.com>
 
@@ -415,8 +415,8 @@ Co-authored-by: Ryan Zezeski <rpz@joyent.com>
 Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 Co-authored-by: Dan McDonald <danmcd@edgecast.io>
 Co-authored-by: John Levon <john.levon@joyent.com>
-Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
 Co-authored-by: Michael Zeller <mike@mikezeller.net>
+Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
 Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
 
  usr/src/cmd/mdb/common/modules/genunix/zone.c |   5 +-
@@ -618,8 +618,8 @@ Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
 Co-authored-by: Joshua M. Clulow <jmc@joyent.com>
 Co-authored-by: Dan McDonald <danmcd@edgecast.io>
 Co-authored-by: Bryan Cantrill <bryan@joyent.com>
-Co-authored-by: Ulyssa Mello <cody.mello@joyent.com>
 Co-authored-by: Hans Rosenfeld <hans.rosenfeld@joyent.com>
+Co-authored-by: Ulyssa Mello <cody.mello@joyent.com>
 
  usr/src/cmd/zlogin/zlogin.c                |  485 +++++++++++++++++++----
  usr/src/cmd/zoneadm/zoneadm.c              |   46 ++-
@@ -888,8 +888,8 @@ Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
 Co-authored-by: Ryan Zezeski <rpz@joyent.com>
 Co-authored-by: Ulyssa Mello <cody.mello@joyent.com>
 Co-authored-by: Bryan Cantrill <bryan@joyent.com>
-Co-authored-by: John Levon <john.levon@joyent.com>
 Co-authored-by: Dan McDonald <danmcd@edgecast.io>
+Co-authored-by: John Levon <john.levon@joyent.com>
 
  usr/src/cmd/cmd-inet/lib/ipmgmtd/Makefile         |   4 +-
  usr/src/cmd/cmd-inet/lib/ipmgmtd/ipmgmt_impl.h    |  25 +++---
@@ -1024,8 +1024,8 @@ Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
 Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
 Co-authored-by: Dan McDonald <danmcd@edgecast.io>
 Co-authored-by: John Levon <john.levon@joyent.com>
-Co-authored-by: Mike Gerdts <mike.gerdts@joyent.com>
 Co-authored-by: Bryan Cantrill <bryan@joyent.com>
+Co-authored-by: Mike Gerdts <mike.gerdts@joyent.com>
 Co-authored-by: Jason King <jasonbking@users.noreply.github.com>
 Co-authored-by: Rob Gulewich <robert.gulewich@joyent.com>
 Co-authored-by: Dave Pacheco <dap@joyent.com>
@@ -1518,12 +1518,12 @@ Co-authored-by: Andy Fiddaman <illumos@fiddaman.net>
 Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
 Co-authored-by: Michael Zeller <mike@mikezeller.net>
-Co-authored-by: Youzhong Yang <Youzhong.Yang@mathworks.com>
 Co-authored-by: Lexi Wilson <lexi@cooperi.net>
+Co-authored-by: Youzhong Yang <Youzhong.Yang@mathworks.com>
 Co-authored-by: Dan McDonald <danmcd@edgecast.io>
 Co-authored-by: John Levon <john.levon@joyent.com>
-Co-authored-by: Spencer Evans-Cole <spencer.ec09@gmail.com>
 Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
+Co-authored-by: Spencer Evans-Cole <spencer.ec09@gmail.com>
 
  usr/src/cmd/devfsadm/misc_link.c                                |    5 +-
  usr/src/lib/libc/amd64/Makefile                                 |    1 +
@@ -1726,8 +1726,8 @@ files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Bill Pijewski <wdp@joyent.com>
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
-Co-authored-by: John Levon <john.levon@joyent.com>
 Co-authored-by: Dan McDonald <danmcd@edgecast.io>
+Co-authored-by: John Levon <john.levon@joyent.com>
 Co-authored-by: Keith M Wesolowski <wesolows@foobazco.org>
 
  usr/src/cmd/zfs/zfs_main.c                 |   7 ++-
@@ -1765,9 +1765,9 @@ files shared with other features carry only this feature's hunks.
 Co-authored-by: Bill Pijewski <wdp@joyent.com>
 Co-authored-by: Kody A Kantor <kody@kkantor.com>
 Co-authored-by: John Sonnenschein <johns@joyent.com>
-Co-authored-by: John Levon <john.levon@joyent.com>
-Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
 Co-authored-by: Dave Pacheco <dap@joyent.com>
+Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
+Co-authored-by: John Levon <john.levon@joyent.com>
 
  usr/src/cmd/zfs/zfs_main.c              | 150 ++++++++++++++++++++++++++++++++++++++++------------
  usr/src/cmd/zpool/zpool_main.c          |   3 ++
@@ -3059,9 +3059,9 @@ Co-authored-by: Jordan Paige Hendricks <jordan.hendricks@joyent.com>
 Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 Co-authored-by: Jorge Schrauwen <sjorge@blackdot.be>
 Co-authored-by: Michael Zeller <mike@mikezeller.net>
+Co-authored-by: Hans Rosenfeld <hans.rosenfeld@joyent.com>
 Co-authored-by: John Sonnenschein <johns@joyent.com>
 Co-authored-by: noahmehl <noahmehl@gmail.com>
-Co-authored-by: Hans Rosenfeld <hans.rosenfeld@joyent.com>
 
  usr/src/Makefile                                         |   14 +-
  usr/src/Targetdirs                                       |   10 +
@@ -3375,8 +3375,8 @@ Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 Co-authored-by: John Levon <john.levon@joyent.com>
 Co-authored-by: Tim Foster <tim.foster@joyent.com>
 Co-authored-by: Dan McDonald <danmcd@edgecast.io>
-Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
 Co-authored-by: Brianna Bennett <bahamat@digitalelf.net>
+Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
 
  usr/src/Makefile                               |  4 ++--
  usr/src/Makefile.master                        |  5 ++++-
@@ -3750,8 +3750,8 @@ Co-authored-by: Josh Wilsdon <jwilsdon@joyent.com>
 Co-authored-by: Tobias Oetiker <tobi@oetiker.ch>
 Co-authored-by: Jorge Schrauwen <sjorge@blackdot.be>
 Co-authored-by: Dominik Hassler <hadfl@omnios.org>
-Co-authored-by: Toomas Soome <tsoome@me.com>
 Co-authored-by: Max Bruning <max@joyent.com>
+Co-authored-by: Toomas Soome <tsoome@me.com>
 
  usr/src/Makefile.master.64                             |    1 +
  usr/src/Targetdirs                                     |    5 +
@@ -4348,20 +4348,20 @@ Plus 2 commits without a ticket ID.
 38 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
-Co-authored-by: John Levon <john.levon@joyent.com>
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
+Co-authored-by: John Levon <john.levon@joyent.com>
 Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
 Co-authored-by: Dan McDonald <danmcd@edgecast.io>
 Co-authored-by: Dave Pacheco <dap@joyent.com>
 Co-authored-by: Sam Gwydir <sam.gwydir@joyent.com>
 Co-authored-by: Hans Rosenfeld <hans.rosenfeld@joyent.com>
 Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
-Co-authored-by: Mike Gerdts <mike.gerdts@joyent.com>
-Co-authored-by: Kody A Kantor <kody@kkantor.com>
 Co-authored-by: Bill Pijewski <wdp@joyent.com>
-Co-authored-by: Tim Kordas <tim.kordas@joyent.com>
-Co-authored-by: Richard Lowe <richlowe@richlowe.net>
+Co-authored-by: Kody A Kantor <kody@kkantor.com>
 Co-authored-by: Lexi Wilson <lexi@cooperi.net>
+Co-authored-by: Mike Gerdts <mike.gerdts@joyent.com>
+Co-authored-by: Richard Lowe <richlowe@richlowe.net>
+Co-authored-by: Tim Kordas <tim.kordas@joyent.com>
 
  exception_lists/check_rtime                               | 1 +
  usr/src/cmd/dtrace/test/tst/common/llquantize/tst.range.d | 4 ----
@@ -4462,31 +4462,33 @@ Tickets that span many commits (sweeps) or have no other home:
     files
   OS-7943 Want platform build test artifact (+18)
     Makefile.testarchive +18
-  OS-8360 We forgot about illumos 14220 in Makefile.testarchive (+17)
-    Makefile.testarchive +17
   OS-3643 lx brand: add USDT provider to lx_brand.so.1 OS-3644 lx brand:
   ptrace_in (+17)
     lib/Makefile.lib +17
   OS-7240 libc's genassym should use proto area headers (+17)
     lib/libc/Makefile.targ +17
+  OS-8360 We forgot about illumos 14220 in Makefile.testarchive (+17)
+    Makefile.testarchive +17
   OS-3886 Implement id_space as a library (+12)
     lib/libidspace/common/mapfile-vers +7, uts/common/Makefile.rules +4,
     lib/libidspace/Makefile.com +1
   OS-7685 smartos-live overlay should be merged into illumos-joyent
   (+11)
     Makefile +11
-  OS-6795 illumos-joyent build tools depend on platform Perl (+10)
-    cmd/Makefile +6, cmd/auditrecord/Makefile +4
-  64 more tickets (+161): OS-3294, OS-3110, OS-2834,
-  untagged:265c2123633, OS-8361, OS-978, 13258, OS-7870, OS-1119,
-  OS-5591, OS-7828, OS-147, OS-1799, OS-8433, untagged:5e100881386,
-  12217, OS-8324, OS-3524, OS-4206, OS-7014, OS-8709, OS-8756, OS-8581,
-  OS-8638, OS-7503, OS-201, OS-6410, untagged:160e9fdbf38, OS-6920,
-  OS-2952, OS-3463, OS-5549, OS-7667, OS-4509, OS-2336, OS-1802,
-  OS-8459, OS-3954, OS-2677, OS-2592, OS-1836, OS-1512, OS-507, OS-2115,
-  12665, 5468, OS-3884, 14666, OS-3561, OS-3280, OS-4470, OS-2893,
-  untagged:cafbe6d2d97, OS-6282, OS-8113, OS-6041, OS-19, OS-4360,
-  OS-3748, OS-4665, OS-7669, OS-4256, OS-4967, OS-421
+  OS-3294 add support for inotify (+10)
+    lib/libc/port/mapfile-vers +4, uts/common/Makefile.files +2,
+    lib/libc/amd64/Makefile +1, lib/libc/i386/Makefile.com +1,
+    lib/libc/sparc/Makefile.com +1, uts/intel/Makefile.intel +1
+  64 more tickets (+161): OS-6795, OS-3110, OS-2834, OS-8361, OS-978,
+  untagged:265c2123633, 13258, OS-1119, OS-7870, OS-5591, OS-7828,
+  OS-147, 12217, OS-1799, OS-3524, OS-4206, OS-7014, OS-8324, OS-8433,
+  untagged:5e100881386, OS-201, OS-2952, OS-3463, OS-5549, OS-6410,
+  OS-6920, OS-7503, OS-7667, OS-8581, OS-8638, OS-8709, OS-8756,
+  untagged:160e9fdbf38, 12665, 14666, 5468, OS-1512, OS-1802, OS-1836,
+  OS-19, OS-2115, OS-2336, OS-2592, OS-2677, OS-2893, OS-3280, OS-3561,
+  OS-3748, OS-3884, OS-3954, OS-421, OS-4256, OS-4360, OS-4470, OS-4509,
+  OS-4665, OS-4967, OS-507, OS-6041, OS-6282, OS-7669, OS-8113, OS-8459,
+  untagged:cafbe6d2d97
 
   Written during merge conflict resolution (+33):
     lib/Makefile +8, Makefile.testarchive +7, Makefile.master +2,
@@ -4502,18 +4504,18 @@ Co-authored-by: Dan McDonald <danmcd@edgecast.io>
 Co-authored-by: John Levon <john.levon@joyent.com>
 Co-authored-by: Tim Foster <tim.foster@joyent.com>
 Co-authored-by: Jason King <jasonbking@users.noreply.github.com>
-Co-authored-by: Richard Lowe <richlowe@richlowe.net>
 Co-authored-by: Bill Pijewski <wdp@joyent.com>
+Co-authored-by: Richard Lowe <richlowe@richlowe.net>
 Co-authored-by: Ulyssa Mello <cody.mello@joyent.com>
 Co-authored-by: John Sonnenschein <johns@joyent.com>
 Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
 Co-authored-by: Hans Rosenfeld <hans.rosenfeld@joyent.com>
 Co-authored-by: Rob Johnston <rob.johnston@joyent.com>
-Co-authored-by: Keith M Wesolowski <wesolows@foobazco.org>
 Co-authored-by: Joshua M. Clulow <jmc@joyent.com>
+Co-authored-by: Keith M Wesolowski <wesolows@foobazco.org>
+Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 Co-authored-by: Josh Wilsdon <jwilsdon@joyent.com>
 Co-authored-by: Lexi Wilson <lexi@cooperi.net>
-Co-authored-by: Bryan Cantrill <bryan@joyent.com>
 
  usr/src/Makefile                                  | 13 +++++----
  usr/src/Makefile.master                           | 21 +++++++++----
@@ -4670,11 +4672,11 @@ Tickets that span many commits (sweeps) or have no other home:
     cmd/.gitignore +3
   OS-7297 libresolv2_joy needs fixes for newer GCC (+2)
     exception_lists/wscheck +2
-  OS-8274 smartos jenkins labels should select new build machines (#353)
-  (+1)
-    Jenkinsfile +1
-  5 more tickets (+5): TRITON-2254, TOOLS-2542, OS-6180, OS-7528,
-  OS-7125
+  OS-6180 NIC Transceivers should show up in hc topo OS-6181 Want
+  library to parse (+1)
+    exception_lists/copyright +1
+  5 more tickets (+5): OS-7125, OS-7528, OS-8274, TOOLS-2542,
+  TRITON-2254
 
   Written during merge conflict resolution (+4):
     Jenkinsfile +2, exception_lists/wscheck +2
@@ -4687,8 +4689,8 @@ Co-authored-by: Tim Foster <tim.foster@joyent.com>
 Co-authored-by: Joshua M. Clulow <jmc@joyent.com>
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
 Co-authored-by: Brianna Bennett <bahamat@digitalelf.net>
-Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
 Co-authored-by: Andy Fiddaman <illumos@fiddaman.net>
+Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
 
  .gitignore                |  3 +++
  Jenkinsfile               | 64 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -4912,38 +4914,38 @@ Tickets that span many commits (sweeps) or have no other home:
     manifest +57
   OS-1595 locale support missing reviewed by Robert Mustacchi (+52)
     manifest +52
-  224 more tickets (+1028): OS-2809, OS-5910, untagged:395420a06c8,
-  OS-6079, OS-2800, OS-7033, OS-696, OS-1367, OS-1081, OS-1151, OS-932,
-  OS-3000, OS-3954, OS-1141, OS-7014, untagged:fc716b10604, OS-2834,
-  OS-905, OS-5525, untagged:08b0a9d2321, OS-929, 8685, OS-6553, OS-1274,
-  14727, 14741, OS-7200, OS-8448, OS-7196, OS-8447, OS-6022, OS-6443,
-  OS-7146, OS-6669, OS-1096, OS-6412, 9701, 6559, OS-3625, OS-8459,
-  OS-2893, OS-7794, OS-7329, OS-3074, OS-978, OS-3872,
-  untagged:3e650466de8, 17241, 14186, OS-6513, OS-4169, 3600, OS-4168,
-  OS-7115, OS-4406, OS-3851, OS-1131, OS-3294, OS-5224, 13864, OS-2115,
-  OS-1897, untagged:eb7e560a400, OS-6092, OS-3505, OS-8633, OS-5403,
-  OS-101, OS-1542, OS-969, OS-6496, OS-1355, OS-1381, OS-6760, OS-6326,
-  OS-2677, OS-7669, OS-1725, OS-6180, OS-6870, OS-1119, OS-1683,
-  OS-2693, OS-7979, 13500, OS-6726, OS-1802, OS-8199, OS-1292, 3590,
-  OS-8128, OS-2383, OS-3894, 13111, OS-954, OS-3886, OS-7260, OS-5568,
-  14124, OS-5070, 12689, OS-1008, OS-7045, OS-6089, OS-2001, OS-5564,
-  OS-4744, OS-3884, OS-7142, OS-1087, OS-5969, OS-2052, OS-6233,
-  OS-2799, OS-8113, OS-3524, OS-7769, OS-5543, OS-1238, OS-7870,
-  OS-8622, OS-6527, OS-1454, OS-7127, OS-1507, OS-4548, OS-8172,
-  OS-3792, untagged:ad4f2873e61, 8924, OS-2469, OS-1698, OS-8156,
-  OS-8712, OS-8066, OS-1085, OS-5873, OS-3795, 13305, OS-3362, OS-8350,
-  14058, OS-2160, OS-4629, OS-8635, OS-2149, OS-1289, OS-1965, OS-2952,
-  OS-2336, OS-2882, OS-6920, OS-7771, OS-3110, OS-7491, OS-2128,
-  OS-1350, 14139, OS-2249, OS-3099, OS-5322, OS-4665, OS-3382,
-  untagged:dba958b4b9c, 13728, OS-1336, OS-8243, OS-5684, OS-4256, 7834,
-  OS-4495, OS-6886, OS-6882, OS-4323, OS-1997, OS-8617, OS-7066,
-  OS-2844, OS-3606, OS-2868, OS-7921, OS-4840, OS-3752, 7619, OS-8638,
-  OS-1276, OS-8355, OS-8683, 12258, OS-3608, OS-37, OS-699, OS-4206,
-  OS-2257, OS-1207, untagged:7d4764a8704, OS-5912, OS-1466, OS-4583,
-  OS-2629, 5294, 6402, OS-7408, OS-1441, OS-6675, 7092, OS-6045,
-  OS-2837, OS-4869, OS-1749, OS-3751, OS-7667, OS-7165, 8007, OS-3763,
-  7029, OS-1815, OS-4051, OS-8494, OS-5737, OS-2366, OS-4077, OS-8667,
-  12721
+  224 more tickets (+1028): OS-2809, OS-5910, OS-6079,
+  untagged:395420a06c8, OS-2800, OS-7033, OS-696, OS-1367, OS-1081,
+  OS-1151, OS-932, OS-3000, OS-3954, OS-1141, OS-7014,
+  untagged:fc716b10604, OS-2834, OS-905, OS-5525, untagged:08b0a9d2321,
+  8685, OS-929, 14727, OS-1274, OS-6553, 14741, OS-7200, OS-6022,
+  OS-7196, OS-8447, OS-8448, 6559, 9701, OS-1096, OS-6412, OS-6443,
+  OS-6669, OS-7146, OS-2893, OS-3074, OS-3625, OS-3872, OS-7329,
+  OS-7794, OS-8459, OS-978, untagged:3e650466de8, 14186, 17241, 3600,
+  OS-4168, OS-4169, OS-6513, OS-7115, 13864, OS-1131, OS-1897, OS-2115,
+  OS-3294, OS-3851, OS-4406, OS-5224, untagged:eb7e560a400, OS-101,
+  OS-1119, OS-1355, OS-1381, OS-1542, OS-1683, OS-1725, OS-2677,
+  OS-3505, OS-5403, OS-6092, OS-6180, OS-6326, OS-6496, OS-6760,
+  OS-6870, OS-7669, OS-8633, OS-969, 12689, 13111, 13500, 14124, 3590,
+  8924, OS-1008, OS-1087, OS-1238, OS-1292, OS-1454, OS-1507, OS-1698,
+  OS-1802, OS-2001, OS-2052, OS-2383, OS-2469, OS-2693, OS-2799,
+  OS-3524, OS-3792, OS-3884, OS-3886, OS-3894, OS-4548, OS-4744,
+  OS-5070, OS-5543, OS-5564, OS-5568, OS-5969, OS-6089, OS-6233,
+  OS-6527, OS-6726, OS-7045, OS-7127, OS-7142, OS-7260, OS-7769,
+  OS-7870, OS-7979, OS-8113, OS-8128, OS-8156, OS-8172, OS-8199,
+  OS-8622, OS-8712, OS-954, untagged:ad4f2873e61, 12258, 12721, 13305,
+  13728, 14058, 14139, 5294, 6402, 7029, 7092, 7619, 7834, 8007,
+  OS-1085, OS-1207, OS-1276, OS-1289, OS-1336, OS-1350, OS-1441,
+  OS-1466, OS-1749, OS-1815, OS-1965, OS-1997, OS-2128, OS-2149,
+  OS-2160, OS-2249, OS-2257, OS-2336, OS-2366, OS-2629, OS-2837,
+  OS-2844, OS-2868, OS-2882, OS-2952, OS-3099, OS-3110, OS-3362,
+  OS-3382, OS-3606, OS-3608, OS-37, OS-3751, OS-3752, OS-3763, OS-3795,
+  OS-4051, OS-4077, OS-4206, OS-4256, OS-4323, OS-4495, OS-4583,
+  OS-4629, OS-4665, OS-4840, OS-4869, OS-5322, OS-5684, OS-5737,
+  OS-5873, OS-5912, OS-6045, OS-6675, OS-6882, OS-6886, OS-6920, OS-699,
+  OS-7066, OS-7165, OS-7408, OS-7491, OS-7667, OS-7771, OS-7921,
+  OS-8066, OS-8243, OS-8350, OS-8355, OS-8494, OS-8617, OS-8635,
+  OS-8638, OS-8667, OS-8683, untagged:7d4764a8704, untagged:dba958b4b9c
 
   Written during merge conflict resolution (+4272):
     manifest +4272
@@ -4966,19 +4968,19 @@ Co-authored-by: Joshua M. Clulow <jmc@joyent.com>
 Co-authored-by: Jason King <jasonbking@users.noreply.github.com>
 Co-authored-by: Hans Rosenfeld <hans.rosenfeld@joyent.com>
 Co-authored-by: Mike Gerdts <mike.gerdts@joyent.com>
-Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
 Co-authored-by: Nahum Shalman <nshalman@edgecast.io>
+Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
 Co-authored-by: Sebastien Roy <seb@delphix.com>
 Co-authored-by: Toomas Soome <tsoome@me.com>
 Co-authored-by: Daniel Plominski <dpl@ass.de>
 Co-authored-by: Dave Eddy <dave@daveeddy.com>
-Co-authored-by: Vaishali Kulkarni <Vaishali.Kulkarni@cavium.com>
-Co-authored-by: Rob Gulewich <robert.gulewich@joyent.com>
-Co-authored-by: Jonathan Perkin <jonathan@perkin.org.uk>
 Co-authored-by: John Sonnenschein <johns@joyent.com>
+Co-authored-by: Jonathan Perkin <jonathan@perkin.org.uk>
+Co-authored-by: Rob Gulewich <robert.gulewich@joyent.com>
+Co-authored-by: Vaishali Kulkarni <Vaishali.Kulkarni@cavium.com>
 Co-authored-by: Brendan Gregg <brendan.gregg@joyent.com>
-Co-authored-by: Ryan Zezeski <rpz@joyent.com>
 Co-authored-by: Jordan Paige Hendricks <jordan.hendricks@joyent.com>
+Co-authored-by: Ryan Zezeski <rpz@joyent.com>
 Co-authored-by: Ulyssa Mello <cody.mello@joyent.com>
 
  manifest | 22237 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
