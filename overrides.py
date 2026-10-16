@@ -326,6 +326,9 @@ HUNK_OVERRIDES = [
     ('usr/src/uts/common/fs/tmpfs/tmp_vnops.c', r'.', 'tmpfs'),
     ('usr/src/uts/common/fs/tmpfs/tmp_tnode.c', r'.', 'tmpfs'),
     ('usr/src/uts/common/sys/fs/tmp.h', r'.', 'tmpfs'),
+    # ... except tmpfs's calls to inotify's new vnevent functions
+    ('usr/src/uts/common/fs/tmpfs/tmp_vnops.c', r'vnevent_(resize|rename_dest_dir)',
+     'inotify'),
     # OS-4092's build-time man: tools/Makefile's new subdirectory goes
     # with tools/man and cmd/man/Makefile.com (the hunk also realigns
     # mandoc's line)

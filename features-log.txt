@@ -1512,7 +1512,7 @@ OS-5148, OS-5291, OS-5592, OS-5605, OS-5714, OS-5882, OS-5884, OS-5894,
 OS-6076, OS-6187, OS-7598, OS-7621, OS-7960, OS-8054, OS-8187, OS-8278,
 OS-8361, OS-8741, 11679.
 
-44 files (0 removed). This commit applies to illumos-gate on its own;
+45 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Bryan Cantrill <bryan@joyent.com>
@@ -1555,6 +1555,7 @@ Co-authored-by: Spencer Evans-Cole <spencer.ec09@gmail.com>
  usr/src/uts/common/fs/pcfs/pc_dir.c                             |    5 +-
  usr/src/uts/common/fs/pcfs/pc_vnops.c                           |    5 +-
  usr/src/uts/common/fs/portfs/port_fop.c                         |   83 +-
+ usr/src/uts/common/fs/tmpfs/tmp_vnops.c                         |   23 +-
  usr/src/uts/common/fs/udfs/udf_dir.c                            |    6 +-
  usr/src/uts/common/fs/udfs/udf_vnops.c                          |   14 +-
  usr/src/uts/common/fs/ufs/ufs_vnops.c                           |   25 +-
@@ -1573,7 +1574,7 @@ Co-authored-by: Spencer Evans-Cole <spencer.ec09@gmail.com>
  usr/src/uts/intel/inotify/Makefile                              |   60 +
  usr/src/uts/intel/ml/swtch.S                                    |   38 +
  usr/src/uts/sparc/inotify/Makefile                              |   61 +
- 44 files changed, 4227 insertions(+), 179 deletions(-)
+ 45 files changed, 4243 insertions(+), 186 deletions(-)
 
 ========================================================================
 [28/80] features/hyprlofs
@@ -1636,16 +1637,15 @@ tmpfs size and accounting improvements.
 
 Features:
   OS-1728 add force unmount support to tmpfs reviewed by Robert Mustacchi
-  OS-3294 add support for inotify
   OS-4043 tmpfs should support gigabyte sizes
   OS-4044 tmpfs should support "mode" option
   OS-7014 Add libtopo support for Upgradable Firmware Modules
   OS-7026 Add DDI support for Upgradable Firmware Modules
   7753 tmpfs should support mode option [fix mismerge]
 
-Also includes the final state of fixes from 13 tickets: OS-1833,
-OS-1861, OS-1882, OS-1976, OS-1977, OS-1983, OS-5148, OS-5291, OS-5539,
-OS-5577, OS-5578, OS-5581, OS-8359.
+Also includes the final state of fixes from 12 tickets: OS-1833,
+OS-1861, OS-1882, OS-1976, OS-1977, OS-1983, OS-5291, OS-5539, OS-5577,
+OS-5578, OS-5581, OS-8359.
 
 11 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
@@ -1667,9 +1667,9 @@ Co-authored-by: Rob Johnston <rob.johnston@joyent.com>
  usr/src/uts/common/fs/tmpfs/tmp_subr.c               | 136 +++++++++++++------
  usr/src/uts/common/fs/tmpfs/tmp_tnode.c              |  70 ++++++++--
  usr/src/uts/common/fs/tmpfs/tmp_vfsops.c             | 278 +++++++++++++++++++++++++++++++--------
- usr/src/uts/common/fs/tmpfs/tmp_vnops.c              |  99 +++++++++++---
+ usr/src/uts/common/fs/tmpfs/tmp_vnops.c              |  78 +++++++++--
  usr/src/uts/common/sys/fs/tmp.h                      |  54 ++++----
- 11 files changed, 859 insertions(+), 172 deletions(-)
+ 11 files changed, 844 insertions(+), 166 deletions(-)
 
 ========================================================================
 [30/80] features/sdev
