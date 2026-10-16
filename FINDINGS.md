@@ -83,25 +83,34 @@ illumos-joyent's headers, cannot hide a missing dependency.
   `-L`, so every build prints `-L: unknown option` (harmless).
 - With postfix disabled, nightly's `-m` leaves a hung sendmail/postdrop
   pair per build; the experiment builds drop `-m`.
-- **Each feature alone on the gate baseline:** 37 of 80 branches build
+- **Each feature alone on the gate baseline:** 38 of 80 branches build
   cleanly (`buildcheck-results.txt`).  `buildfail.py` names the feature
   defining what each failure was missing.
-  - The first sweep passed 35.  Fixing misplaced hunks (include lines,
-    Makefile list entries, corenote.msg's brand names, tmpfs's own
-    changes sitting in hyprlofs, tools/man) changed 31 branches.
-    hyprlofs and resolver now pass.  Several others now get further
-    and reach real dependencies (brand-exec, vnd, zfs-arc, tmpfs), so
-    their error counts rose.
-  - Most remaining failures are the dependency cycle above.
-  - Known cross-feature references:
-    - bunyan and vnd include `lib/Makefile.usdt`, which sits in
-      integration.
-    - vnd's ipf hooks use `hook4_vnd_*` declarations that were grouped
-      into ipf-cfw's hunk of ip_fil_solaris.c.
-    - overlay-svp's mdb `refhash.c` is not in the genunix module's
-      file list on that branch.
+  - The first sweep passed 35.  Fixing misplaced hunks raised that to
+    38 (hyprlofs, resolver, bunyan).  The misplacements were include
+    lines, Makefile list entries, corenote.msg's brand names, tmpfs's
+    own changes, vnd's ipf hook names, and the split-up USDT and
+    build-time man support.  Several other branches now get further
+    and stop on real dependencies: zfs-arc needs only zfs-zone-io's
+    `sys/zfs_zone.h`, and vnd needs only datalink.
+  - Most remaining failures are the dependency cycle above
+    (`stackplan.py --cycles`: 19 features, plus boot/dboot and
+    datalink/vnd).
+  - Dependencies the identifier analysis cannot see:
+    - lib/brand/Makefile names several brands' directories on one line
+      (`i386_SUBDIRS= bhyve kvm lx`), so platform-config needs those
+      brands.  bhyve installs into a directory platform-config makes.
+    - integration holds the shared hub lines (e.g. libc's
+      `mapfile-vers` exports of `zone_get_nroot`, test-directory
+      lists), so it builds only with everything else.  Moving such
+      lines to the feature that defines the symbol is a stage-2
+      cleanup.
     - The smartos-test and zfs-tests runfiles list other features'
       tests.
+- **Stacked builds (step A)**, in progress: `stackcheck.sh` builds the
+  small cycles, then the core cycle with everything it needs as one
+  build, then each feature needing the core on top of it
+  (`stack-plan-*.txt`).
 
 ## Bugs
 
