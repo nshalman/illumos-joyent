@@ -34,7 +34,8 @@
 # shared proto holds illumos-joyent headers and libraries that would hide
 # missing dependencies.  The toolchain (proto.strap) is shared.  It also
 # drops nightly's -m: with postfix disabled, every mailed report leaves a
-# sendmail/postdrop pair hanging.
+# sendmail/postdrop pair hanging.  Like smartos-live, build writes the
+# proto area's buildstamp.
 #
 set -o pipefail
 
@@ -90,6 +91,11 @@ build() {
 	export BANNER_YEAR=$(TZ=UTC date +%Y)
 	unset CC CXX
 	mkdir -p log
+	# smartos-live's Makefile writes $(ROOT)/buildstamp before building
+	# illumos, and SmartOS's cmd/Adm reads it
+	mkdir -p "$WS"/proto/root_i386
+	[[ -f $WS/proto/root_i386/buildstamp ]] ||
+	    TZ=UTC date +%Y%m%dT%H%M%SZ > "$WS"/proto/root_i386/buildstamp
 	start=$(date +%s)
 	export MAKE=/opt/local/bin/dmake
 	./usr/src/tools/scripts/bldenv illumos.sh \
