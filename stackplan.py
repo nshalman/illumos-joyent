@@ -8,7 +8,8 @@ stacked build merges the feature with all of them; if it passes, the
 edges are sufficient, and if it fails, some dependency is not known yet.
 
 Prints one line per failing feature, "NAME PROVIDER...", smallest stack
-first, for buildcheck.sh stacks.
+first, for buildcheck.sh stacks.  With --cycles, prints instead each set
+of features that need each other (a cycle), largest first.
 """
 import json
 import os
@@ -17,8 +18,19 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
+def closure(n, edges):
+    need, todo = set(), [n]
+    while todo:
+        for g in edges.get(todo.pop(), ()):
+            if g != n and g not in need:
+                need.add(g)
+                todo.append(g)
+    return need
+
+
 def main():
-    res = sys.argv[1]
+    cycles = '--cycles' in sys.argv
+    res = [a for a in sys.argv[1:] if a != '--cycles'][0]
     deps = json.load(open(os.path.join(HERE, 'data', 'deps.json')))
     fails = json.load(open(os.path.join(res, 'buildfail.json')))
     edges = {}
@@ -26,14 +38,22 @@ def main():
         edges.setdefault(n, set()).update(d)
     for n, d in fails.items():
         edges.setdefault(n, set()).update(d['providers'])
+    if cycles:
+        need = dict((n, closure(n, edges)) for n in edges)
+        seen, out = set(), []
+        for n in sorted(edges):
+            if n in seen:
+                continue
+            scc = set([n]) | set(g for g in need[n] if n in need.get(g, ()))
+            seen |= scc
+            if len(scc) > 1:
+                out.append(sorted(scc))
+        for scc in sorted(out, key=lambda c: (-len(c), c)):
+            print(' '.join(scc))
+        return
     plan = []
     for n in fails:
-        need, todo = set(), [n]
-        while todo:
-            for g in edges.get(todo.pop(), ()):
-                if g != n and g not in need:
-                    need.add(g)
-                    todo.append(g)
+        need = closure(n, edges)
         plan.append((len(need), n, sorted(need)))
     for _, n, need in sorted(plan):
         print(' '.join([n] + need))
