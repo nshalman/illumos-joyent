@@ -41,6 +41,10 @@ tooling itself.
   not fork child process", invalidating the build.  The limit is now
   20000, but keep builds' timings comparable.
 - Use the scratchpad, not `/tmp`, for temporary files.
+- File placement (`OVERRIDES`, `RULES`) shapes the linear branch only.
+  In the feature split each line follows its ticket's home, and the
+  file's bucket is just the fallback, so moving a file's lines needs a
+  matching `HUNK_OVERRIDES` entry.
 - In build-host logs, smatch's "using '/workspace/smartos-live/...'"
   after "unable to open" is its include-guessing fallback wandering
   into the sibling tree; gcc has already failed on the missing header,
