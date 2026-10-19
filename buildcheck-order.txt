@@ -66,8 +66,6 @@ zones-admin 4
 zfs-arc 4
 brand-process 5
 ipf-cfw 5
-brand-exec 6
-brand-x86 6
 ptools 7
 brand-native 8
 inotify 8

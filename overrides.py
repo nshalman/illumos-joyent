@@ -22,7 +22,7 @@ uts/common/syscall/brandsys.c
 uts/common/brand/sn1/sn1_brand.c uts/common/brand/sn1/sn1_brand.h
 uts/common/brand/solaris10/s10_brand.c uts/common/brand/solaris10/s10_brand.h
 '''),
-('brand-exec', '''
+('brand-ops', '''
 uts/common/exec/elf/elf.c uts/common/exec/elf/elf_notes.c uts/common/exec/intp/intp.c
 uts/common/exec/java/java.c uts/common/exec/shbin/shbin.c uts/common/os/exec.c
 uts/common/sys/exec.h uts/common/sys/auxv.h uts/common/os/mmapobj.c
@@ -69,7 +69,7 @@ uts/common/klm/nlm_impl.h uts/common/klm/mapfile-mod uts/common/nfs/nfssys.h
 uts/common/fs/nfs/nfs_sys.c cmd/fs.d/nfs/lib/nfs_sec.c cmd/fs.d/nfs/lockd/lockd.c
 cmd/fs.d/mount.c lib/libnsl/netselect/netselect.c
 '''),
-('brand-x86', '''
+('brand-ops', '''
 uts/intel/syscall/getcontext.c uts/sparc/syscall/getcontext.c uts/intel/os/sendsig.c
 uts/intel/os/archdep.c uts/i86pc/ml/offsets.in uts/intel/genassym/offsets.in
 uts/intel/genassym/Makefile uts/i86pc/ml/syscall_asm_amd64.S uts/i86pc/os/trap.c
@@ -320,7 +320,7 @@ HUNK_OVERRIDES = [
     ('usr/src/lib/libc/i386/Makefile.com', r'genassym|assym\.h|OFFSETS|LDFLAGS\.native',
      'integration'),
     # corenote.c's new brand auxv names are defined in corenote.msg
-    ('usr/src/cmd/sgs/libconv/common/corenote.msg', r'BRAND', 'brand-exec'),
+    ('usr/src/cmd/sgs/libconv/common/corenote.msg', r'BRAND', 'brand-ops'),
     # tmpfs's own sources: the accounting rework and tdirinit's new
     # prototype were grouped with hyprlofs, which builds on tmpfs
     ('usr/src/uts/common/fs/tmpfs/tmp_subr.c', r'.', 'tmpfs'),
@@ -371,8 +371,8 @@ HUNK_OVERRIDES = [
     ('usr/src/uts/common/sys/auxv.h', r'define\s+AT_SUN_BRAND_(AUX4|NROOT)\s',
      'brand-process'),
     ('usr/src/uts/common/sys/exec.h', r'\b(stk_prot_override|argstrlen|envstrlen);',
-     'brand-exec'),
-    ('usr/src/uts/intel/sys/machbrand.h', r'BRAND_CB_INT80', 'brand-x86'),
+     'brand-ops'),
+    ('usr/src/uts/intel/sys/machbrand.h', r'BRAND_CB_INT80', 'brand-ops'),
     # ... or a stray use moves up to the feature owning the concept:
     # truss decodes brand-net's socket option, and __FLXPATH is lx's
     # private O_PATH interface (vnode.c's hook says so)

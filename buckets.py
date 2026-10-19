@@ -3,15 +3,19 @@
 #
 # (bucket, subject, body)
 BUCKETS = [
-    ('brand-ops', 'brand framework: new and changed brand operations',
+    ('brand-ops', 'brand framework: brand operations, exec hooks and x86 entry',
      'The brand operations vector and its plumbing as extended for lx '
-     '(sys/brand.h, os/brand.c, machbrand.h, brandsys), plus the sn1 and '
-     'solaris10 brands updated to fill in the new operations.'),
-    ('brand-exec', 'exec and ELF loading hooks for branded processes',
-     'Interpreter (.interp) handling and native-root lookup for branded '
-     'binaries, auxv additions (AT_RANDOM, AT_SECURE, brand aux entries), '
-     'PT_GNU_STACK, prelinked binaries, shebang and nested interpreter '
-     'behavior, and core-file changes.'),
+     '(sys/brand.h, os/brand.c, machbrand.h, brandsys), with the sn1 and '
+     'solaris10 brands updated to fill in the new operations.  Exec and '
+     'ELF loading for branded binaries: interpreter (.interp) handling and '
+     'native-root lookup, auxv additions (AT_RANDOM, AT_SECURE, brand aux '
+     'entries), PT_GNU_STACK, prelinked binaries, shebang and nested '
+     'interpreter behavior, and core-file changes.  x86 entry for lx: '
+     'system call entry points (int80 and fast paths), signal frames on '
+     'an alternate stack, ucontext brand data, comm page/vdso support, '
+     'CPUID limits for glibc, and descriptor table entries.  These are one '
+     'change to the brand interface: every new or changed operation has '
+     'to land together with all of its callers and implementations.'),
     ('brand-process', 'process, LWP and signal hooks for branded processes',
      'Brand hooks in fork, exit, lwp creation and signal delivery; more '
      'real-time signals; ptrace support (OS-3820); Linux accounting; '
@@ -30,10 +34,6 @@ BUCKETS = [
     ('brand-nfs', 'NFS locking and mounting for lx zones',
      'lockd/statd interaction with Linux clients, NFS mount without a '
      'native nfssec.conf, netconfig lookup in the native root.'),
-    ('brand-x86', 'x86 context, trap and syscall entry for lx',
-     'lx system call entry points (int80 and fast paths), signal frames on '
-     'an alternate stack, ucontext brand data, comm page/vdso support, '
-     'CPUID limits for glibc, and descriptor table entries.'),
     ('brand-native', 'native userland inside branded zones',
      'Native-root aware libc, libcurses and system(3C); truss decoding of '
      'lx-related calls; prstat changes.'),
