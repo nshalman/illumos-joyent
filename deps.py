@@ -4,9 +4,9 @@
 For each features/<name> branch, take the lines it adds in C, header,
 assembly, yacc and lex files, and collect the identifiers those lines
 define (#define, function definitions with the name at column 0,
-struct/union/enum tags, typedef names, struct members and enum
-constants) and use (every identifier token outside comments and string
-literals).  An identifier is *new* if BASE does not contain it as a word
+struct/union/enum tags, typedef names, struct members including function
+pointers, and enum constants) and use (every identifier token outside
+comments and string literals).  An identifier is *new* if BASE does not contain it as a word
 anywhere.  Feature F depends on feature G if F uses a new identifier
 that G defines and F does not.
 
@@ -47,6 +47,7 @@ DEFS = [
     re.compile(r'^\s+[A-Za-z_][\w\s\*]*?\b([A-Za-z_]\w*)\s*(?:\[[^]]*\])?'
                r'\s*(?::\s*\d+)?\s*;'),                       # member
     re.compile(r'^\s+([A-Z_][A-Z0-9_]{2,})\s*(?:=[^,]*)?,?\s*(?:/\*.*)?$'),
+    re.compile(r'^\s+[A-Za-z_][\w\s\*]*\(\s*\*\s*([A-Za-z_]\w*)\s*\)\s*\('),  # fn ptr member
 ]
 
 
