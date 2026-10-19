@@ -384,4 +384,24 @@ HUNK_OVERRIDES = [
     # OS-6834 (zfd logging made generic) wrote zoneadmd's logstream
     ('usr/src/cmd/zoneadmd/log.c', r'.', 'zfd'),
     ('usr/src/cmd/zoneadmd/zoneadmd.h', r'logstream', 'zfd'),
+    # zone-kernel's fixed-hipri code uses the FX and RT constants that
+    # moved from fx.c and rt.c into their headers
+    ('usr/src/uts/common/disp/fx.c', r'.', 'zone-kernel'),
+    ('usr/src/uts/common/disp/rt.c', r'.', 'zone-kernel'),
+    ('usr/src/uts/common/sys/fx.h', r'.', 'zone-kernel'),
+    ('usr/src/uts/common/sys/rt.h', r'.', 'zone-kernel'),
+    # zone-cpu's rctls are registered with zone-cpu
+    ('usr/src/uts/common/os/zone.c', r'rc_zone_cpu_baseline = rctl_register',
+     'zone-cpu'),
+    # the call matching brand-ops' new b_init_brand_data signature
+    ('usr/src/uts/common/os/zone.c',
+     r'b_init_brand_data\(zone, &zone_status_lock\)', 'brand-ops'),
+    # retiring ZONE_ATTR_PHYS_MCAP goes with the highest feature that
+    # removes a use of it (zone-memory, brand-native, zones-tools,
+    # zones-admin and zone-kernel all do)
+    ('usr/src/uts/common/sys/zone.h', r'ZONE_ATTR_PHYS_MCAP', 'zones-admin'),
+    # zone_create()'s new req_zoneid argument: the userland API change
+    # goes up to its only caller, zoneadmd's vplat.c
+    ('usr/src/head/zone.h', r'bslabel_t \*, int, zoneid_t\)', 'zones-admin'),
+    ('usr/src/lib/libc/port/sys/zone.c', r'req_zoneid', 'zones-admin'),
 ]

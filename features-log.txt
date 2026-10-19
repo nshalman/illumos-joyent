@@ -27,7 +27,7 @@ OS-4119, OS-4129, OS-4151, OS-4188, OS-4303, OS-4437, OS-4460, OS-4825,
 OS-4937, OS-5189, OS-5354, OS-5462, OS-5805, OS-6018, OS-6158, OS-8747,
 OS-8748.
 
-8 files (0 removed). This commit applies to illumos-gate on its own;
+9 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
@@ -44,9 +44,10 @@ Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
  usr/src/uts/common/brand/solaris10/s10_brand.h |   6 +-
  usr/src/uts/common/os/brand.c                  | 209 ++++++++++++++++++++++++++++-----------------
  usr/src/uts/common/os/fork.c                   |  28 ++++--
+ usr/src/uts/common/os/zone.c                   |   4 +-
  usr/src/uts/common/sys/brand.h                 |  90 +++++++++++++++++--
  usr/src/uts/common/syscall/brandsys.c          |   8 +-
- 8 files changed, 263 insertions(+), 125 deletions(-)
+ 9 files changed, 265 insertions(+), 127 deletions(-)
 
 ========================================================================
 [2/80] features/brand-exec
@@ -370,8 +371,8 @@ files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
 Co-authored-by: Dan McDonald <danmcd@edgecast.io>
-Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
 Co-authored-by: Ryan Zezeski <rpz@joyent.com>
+Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
 Co-authored-by: Michael Zeller <mike@mikezeller.net>
 
  usr/src/cmd/prstat/prstat.c              | 40 ++++++++++++++++++++++++++++++++++++----
@@ -381,10 +382,10 @@ Co-authored-by: Michael Zeller <mike@mikezeller.net>
  usr/src/lib/libc/inc/thr_uberdata.h      |  2 ++
  usr/src/lib/libc/port/mapfile-vers       |  1 +
  usr/src/lib/libc/port/stdio/system.c     | 11 ++++++++++-
- usr/src/lib/libc/port/sys/zone.c         | 13 ++++++++++++-
+ usr/src/lib/libc/port/sys/zone.c         |  9 +++++++++
  usr/src/lib/libcurses/screen/setupterm.c |  5 ++++-
  usr/src/man/man8/prstat.8                | 10 ++++++----
- 10 files changed, 88 insertions(+), 12 deletions(-)
+ 10 files changed, 85 insertions(+), 11 deletions(-)
 
 ========================================================================
 [10/80] features/zone-kernel
@@ -402,24 +403,22 @@ Features:
   OS-149 New kstats to support vfsstat
   OS-329 Want zone-based counters for I/O throttling events and total time throttled
   OS-446 want zonename field in zone_vfs/zone_zfs kstats
-  OS-800 need a metric (kstat) to track when we're bursting
   OS-1234 add new rctls to resource_controls(5) man page
   OS-1704 add a time field with ISO time or unix timestamp to zoneevent output
   OS-3429 Expose zone's init exit status
-  OS-4017 would like zfs-io-priority values > 1024
   OS-4781 would like to be able to add CT_PR_EV_EXIT to fatal event set of current contract
   OS-4915 want FX high priority zone configuration option
 
-Also includes the final state of fixes from 43 tickets: OS-11, OS-19,
-OS-100, OS-147, OS-148, OS-163, OS-164, OS-165, OS-172, OS-180, OS-192,
-OS-208, OS-338, OS-339, OS-355, OS-369, OS-399, OS-803, OS-1024,
-OS-1043, OS-1047, OS-3776, OS-4109, OS-4818, OS-4925, OS-5187, OS-5189,
-OS-5483, OS-5642, OS-5682, OS-5696, OS-5697, OS-6285, OS-6306, OS-6355,
-OS-6540, OS-7263, OS-7335, OS-7339, OS-7389, OS-7509, OS-8361, OS-8373.
+Also includes the final state of fixes from 42 tickets: OS-11, OS-19,
+OS-100, OS-147, OS-148, OS-163, OS-165, OS-172, OS-180, OS-192, OS-208,
+OS-338, OS-339, OS-355, OS-369, OS-399, OS-803, OS-1024, OS-1043,
+OS-1047, OS-3776, OS-4109, OS-4818, OS-4925, OS-5187, OS-5189, OS-5483,
+OS-5642, OS-5682, OS-5696, OS-5697, OS-6285, OS-6306, OS-6355, OS-6540,
+OS-7263, OS-7335, OS-7339, OS-7389, OS-7509, OS-8361, OS-8373.
 
 Plus 1 commits without a ticket ID.
 
-20 files (0 removed). This commit applies to illumos-gate on its own;
+24 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
@@ -433,26 +432,30 @@ Co-authored-by: Michael Zeller <mike@mikezeller.net>
 Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
 
  usr/src/cmd/mdb/common/modules/genunix/zone.c |   5 +-
- usr/src/head/zone.h                           |   8 +-
+ usr/src/head/zone.h                           |   6 +-
  usr/src/man/man5/process.5                    |   1 +
  usr/src/man/man7/resource_controls.7          |  74 +++-
  usr/src/uts/common/contract/process.c         |  23 ++
+ usr/src/uts/common/disp/fx.c                  |  12 +-
+ usr/src/uts/common/disp/rt.c                  |   9 +-
  usr/src/uts/common/dtrace/dtrace.c            |   4 +-
  usr/src/uts/common/fs/vnode.c                 | 111 +++++-
  usr/src/uts/common/os/cred.c                  |   8 +
  usr/src/uts/common/os/exit.c                  |  23 +-
- usr/src/uts/common/os/zone.c                  | 987 +++++++++++++++++++++++++++++++++++++++++++---
+ usr/src/uts/common/os/zone.c                  | 970 +++++++++++++++++++++++++++++++++++++++++++---
  usr/src/uts/common/sys/contract/process.h     |   4 +-
  usr/src/uts/common/sys/cred.h                 |   1 +
+ usr/src/uts/common/sys/fx.h                   |   8 +
+ usr/src/uts/common/sys/rt.h                   |  11 +
  usr/src/uts/common/sys/uadmin.h               |   3 +-
- usr/src/uts/common/sys/zone.h                 | 190 ++++++++-
+ usr/src/uts/common/sys/zone.h                 | 188 ++++++++-
  usr/src/uts/common/syscall/sysconfig.c        |  49 +--
  usr/src/uts/common/syscall/uadmin.c           |   8 +-
  usr/src/uts/common/vm/page.h                  |   7 +-
  usr/src/uts/i86pc/os/startup.c                |   1 +
  usr/src/uts/i86pc/vm/hment.c                  |   7 +
  usr/src/uts/sfmmu/vm/hat_sfmmu.c              |   5 +
- 20 files changed, 1391 insertions(+), 128 deletions(-)
+ 24 files changed, 1394 insertions(+), 144 deletions(-)
 
 ========================================================================
 [11/80] features/zone-memory
@@ -524,12 +527,13 @@ high-priority zone configuration.
 
 Features:
   OS-800 need a metric (kstat) to track when we're bursting
+  OS-4017 would like zfs-io-priority values > 1024
   OS-4915 want FX high priority zone configuration option
 
 Also includes the final state of fixes from 8 tickets: OS-19, OS-100,
 OS-164, OS-399, OS-1405, OS-2596, OS-4925, OS-6540.
 
-10 files (0 removed). This commit applies to illumos-gate on its own;
+6 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
@@ -537,15 +541,11 @@ Co-authored-by: Bill Pijewski <wdp@joyent.com>
 
  usr/src/cmd/prtconf/prtconf.c         |   5 +-
  usr/src/uts/common/disp/cpucaps.c     | 285 ++++++++++++++++++++++++++++++++++++++++++++++++++----
- usr/src/uts/common/disp/fx.c          |  12 +--
- usr/src/uts/common/disp/rt.c          |   9 +-
  usr/src/uts/common/disp/rt_dptbl.c    |   2 -
- usr/src/uts/common/os/zone.c          | 127 +++++++++++++++++++++++-
+ usr/src/uts/common/os/zone.c          | 142 ++++++++++++++++++++++++++-
  usr/src/uts/common/sys/cpucaps.h      |   5 +
  usr/src/uts/common/sys/cpucaps_impl.h |   6 ++
- usr/src/uts/common/sys/fx.h           |   8 ++
- usr/src/uts/common/sys/rt.h           |  11 +++
- 10 files changed, 429 insertions(+), 41 deletions(-)
+ 6 files changed, 423 insertions(+), 22 deletions(-)
 
 ========================================================================
 [13/80] features/zone-security
@@ -606,7 +606,7 @@ Features:
   7029 want per-process exploit mitigation features (secflags) [missing manpage]
   14019 Allow more control over zone init exit actions (fix mismerge)
 
-Also includes the final state of fixes from 73 tickets: OS-11, OS-180,
+Also includes the final state of fixes from 74 tickets: OS-11, OS-180,
 OS-192, OS-223, OS-249, OS-259, OS-280, OS-287, OS-327, OS-399, OS-477,
 OS-478, OS-511, OS-592, OS-746, OS-809, OS-837, OS-1019, OS-1179,
 OS-1571, OS-1576, OS-1697, OS-1763, OS-1795, OS-1969, OS-2018, OS-2328,
@@ -615,9 +615,9 @@ OS-3741, OS-3764, OS-3776, OS-3777, OS-3831, OS-3869, OS-4109, OS-4253,
 OS-4569, OS-4792, OS-4863, OS-4925, OS-4932, OS-5185, OS-5198, OS-5292,
 OS-5330, OS-5363, OS-5388, OS-5919, OS-6355, OS-6594, OS-6669, OS-6760,
 OS-6802, OS-6831, OS-6834, OS-6845, OS-6867, OS-6868, OS-6977, OS-7543,
-OS-7768, OS-7779, OS-8083, OS-8361, OS-8451, OS-8667.
+OS-7768, OS-7779, OS-8083, OS-8361, OS-8373, OS-8451, OS-8667.
 
-13 files (0 removed). This commit applies to illumos-gate on its own;
+15 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
@@ -641,13 +641,15 @@ Co-authored-by: Ulyssa Mello <cody.mello@joyent.com>
  usr/src/cmd/zoneadmd/zcons.c               | 175 +++++++---
  usr/src/cmd/zoneadmd/zoneadmd.c            | 928 ++++++++++++++++++++++++++++++++++++++++---------
  usr/src/cmd/zoneadmd/zoneadmd.h            |  25 +-
+ usr/src/head/zone.h                        |   3 +-
  usr/src/lib/libbrand/common/libbrand.c     |   8 +
+ usr/src/lib/libc/port/sys/zone.c           |   5 +-
  usr/src/lib/libppt/common/llib-lppt        |  19 +
  usr/src/lib/libzonecfg/common/libzonecfg.c |  12 +-
  usr/src/man/man1/zlogin.1                  |  68 ++--
  usr/src/uts/common/os/zone.c               |   8 +-
- usr/src/uts/common/sys/zone.h              |   6 +-
- 13 files changed, 1686 insertions(+), 638 deletions(-)
+ usr/src/uts/common/sys/zone.h              |   8 +-
+ 15 files changed, 1693 insertions(+), 641 deletions(-)
 
 ========================================================================
 [15/80] features/zones-tools
