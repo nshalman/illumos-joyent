@@ -58,8 +58,8 @@ Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
 Co-authored-by: Ulyssa Mello <cody.mello@joyent.com>
 Co-authored-by: Dan McDonald <danmcd@edgecast.io>
 Co-authored-by: Lexi Wilson <lexi@cooperi.net>
-Co-authored-by: John Levon <john.levon@joyent.com>
 Co-authored-by: DJ Hoffman <dj.hoffman@joyent.com>
+Co-authored-by: John Levon <john.levon@joyent.com>
 
  usr/src/cmd/ptools/pargs/pargs.c               |   1 +
  usr/src/cmd/sgs/libconv/common/corenote.c      |  14 +-
@@ -78,14 +78,14 @@ Co-authored-by: DJ Hoffman <dj.hoffman@joyent.com>
  usr/src/uts/common/fs/vfs.c                    |   2 +
  usr/src/uts/common/os/brand.c                  | 209 ++++++++++++--------
  usr/src/uts/common/os/core.c                   |   2 +
- usr/src/uts/common/os/exec.c                   | 111 +++++++++--
+ usr/src/uts/common/os/exec.c                   | 105 ++++++++--
  usr/src/uts/common/os/fork.c                   |  28 ++-
  usr/src/uts/common/os/lwp.c                    |  78 +++++---
  usr/src/uts/common/os/mmapobj.c                |  13 +-
  usr/src/uts/common/os/zone.c                   |   4 +-
  usr/src/uts/common/sys/auxv.h                  |  28 ++-
  usr/src/uts/common/sys/brand.h                 | 102 ++++++++--
- usr/src/uts/common/sys/exec.h                  |  20 +-
+ usr/src/uts/common/sys/exec.h                  |  17 +-
  usr/src/uts/common/syscall/brandsys.c          |   8 +-
  usr/src/uts/i86pc/ml/kpti_trampolines.S        |   2 +
  usr/src/uts/i86pc/ml/syscall_asm_amd64.S       | 102 ++++++++--
@@ -97,7 +97,7 @@ Co-authored-by: DJ Hoffman <dj.hoffman@joyent.com>
  usr/src/uts/intel/sys/machbrand.h              |   8 +-
  usr/src/uts/intel/sys/segments.h               |   2 +
  usr/src/uts/intel/sys/ucontext.h               |  12 +-
- 36 files changed, 1151 insertions(+), 412 deletions(-)
+ 36 files changed, 1144 insertions(+), 410 deletions(-)
 
 ========================================================================
 [2/78] features/brand-process
@@ -2515,7 +2515,7 @@ OS-3207, OS-3383, OS-3513, OS-3870, OS-3897, OS-4277, OS-4408, OS-4506,
 OS-6365, OS-7931, OS-7932, OS-7934, OS-7960, OS-8278, OS-8361, OS-8389,
 OS-8497, 13102.
 
-30 files (0 removed). This commit applies to illumos-gate on its own;
+31 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: John Levon <john.levon@joyent.com>
@@ -2554,11 +2554,12 @@ Co-authored-by: Michael Zeller <mike@mikezeller.net>
  usr/src/uts/common/fs/proc/prcontrol.c    |  14 +-
  usr/src/uts/common/fs/proc/prdata.h       |   7 +-
  usr/src/uts/common/fs/proc/prvnops.c      | 203 ++++++++++++++++++-
- usr/src/uts/common/os/exec.c              |  44 +++--
+ usr/src/uts/common/os/exec.c              |  52 +++--
  usr/src/uts/common/os/zone.c              |   6 +-
+ usr/src/uts/common/sys/exec.h             |   3 +-
  usr/src/uts/common/sys/procfs.h           |   6 +-
  usr/src/uts/common/sys/user.h             |   6 +-
- 30 files changed, 1312 insertions(+), 390 deletions(-)
+ 31 files changed, 1320 insertions(+), 393 deletions(-)
 
 ========================================================================
 [51/78] features/resolver
@@ -3993,7 +3994,7 @@ Co-authored-by: Toomas Soome <tsoome@me.com>
  usr/src/uts/common/os/brand.c                          |    7 +-
  usr/src/uts/common/os/contract.c                       |    6 +-
  usr/src/uts/common/os/cpu.c                            |    2 +-
- usr/src/uts/common/os/exec.c                           |    8 +-
+ usr/src/uts/common/os/exec.c                           |    6 +-
  usr/src/uts/common/os/exit.c                           |   55 +-
  usr/src/uts/common/os/fio.c                            |    5 +-
  usr/src/uts/common/os/fork.c                           |   22 +-
@@ -4059,7 +4060,7 @@ Co-authored-by: Toomas Soome <tsoome@me.com>
  usr/src/uts/intel/sys/segments.h                       |    2 +
  usr/src/uts/intel/syscall/getcontext.c                 |   72 +-
  usr/src/uts/sparc/syscall/getcontext.c                 |   31 +-
- 329 files changed, 102230 insertions(+), 464 deletions(-)
+ 329 files changed, 102229 insertions(+), 463 deletions(-)
 
 ========================================================================
 [66/78] features/sed

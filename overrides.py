@@ -416,4 +416,8 @@ HUNK_OVERRIDES = [
     ('usr/src/uts/common/brand/solaris10/s10_brand.c', r'.', 'brand-ops'),
     ('usr/src/uts/common/os/lwp.c', r'b_lwpdata|b_initlwp|BROP|brand_data', 'brand-ops'),
     ('usr/src/uts/common/os/exec.c', r'brand_setbrand\(p, B_FALSE\)', 'brand-ops'),
+    # uarg's arglen split into argstrlen and envstrlen for ptools'
+    # u_argvstrsize/u_envstrsize: the rename and all its uses go to ptools
+    ('usr/src/uts/common/sys/exec.h', r'\b(argstrlen|envstrlen);', 'ptools'),
+    ('usr/src/uts/common/os/exec.c', r'argstrlen|envstrlen', 'ptools'),
 ]
