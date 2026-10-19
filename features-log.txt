@@ -46,7 +46,7 @@ OS-5462, OS-5761, OS-5805, OS-5991, OS-5992, OS-6018, OS-6158, OS-6993,
 OS-6994, OS-6995, OS-6996, OS-7931, OS-7932, OS-7934, OS-7960, OS-8258,
 OS-8747, OS-8748, 12349, 13925, 14823.
 
-36 files (0 removed). This commit applies to illumos-gate on its own;
+37 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
@@ -78,17 +78,18 @@ Co-authored-by: John Levon <john.levon@joyent.com>
  usr/src/uts/common/fs/vfs.c                    |   2 +
  usr/src/uts/common/os/brand.c                  | 209 ++++++++++++--------
  usr/src/uts/common/os/core.c                   |   2 +
- usr/src/uts/common/os/exec.c                   | 105 ++++++++--
+ usr/src/uts/common/os/exec.c                   | 103 ++++++++--
  usr/src/uts/common/os/fork.c                   |  28 ++-
  usr/src/uts/common/os/lwp.c                    |  78 +++++---
  usr/src/uts/common/os/mmapobj.c                |  13 +-
  usr/src/uts/common/os/zone.c                   |   4 +-
- usr/src/uts/common/sys/auxv.h                  |  28 ++-
+ usr/src/uts/common/sys/auxv.h                  |  30 ++-
  usr/src/uts/common/sys/brand.h                 | 102 ++++++++--
  usr/src/uts/common/sys/exec.h                  |  17 +-
  usr/src/uts/common/syscall/brandsys.c          |   8 +-
  usr/src/uts/i86pc/ml/kpti_trampolines.S        |   2 +
  usr/src/uts/i86pc/ml/syscall_asm_amd64.S       | 102 ++++++++--
+ usr/src/uts/i86pc/sys/comm_page.h              |   2 +
  usr/src/uts/intel/ml/modstubs.S                |  10 +-
  usr/src/uts/intel/os/archdep.c                 |   2 +-
  usr/src/uts/intel/os/comm_page_util.c          |   4 +-
@@ -97,7 +98,7 @@ Co-authored-by: John Levon <john.levon@joyent.com>
  usr/src/uts/intel/sys/machbrand.h              |   8 +-
  usr/src/uts/intel/sys/segments.h               |   2 +
  usr/src/uts/intel/sys/ucontext.h               |  12 +-
- 36 files changed, 1144 insertions(+), 410 deletions(-)
+ 37 files changed, 1147 insertions(+), 409 deletions(-)
 
 ========================================================================
 [2/78] features/brand-process
@@ -123,14 +124,14 @@ Features:
   6342 want signalfd support [fix mapfile]
   14019 Allow more control over zone init exit actions (fix mismerge)
 
-Also includes the final state of fixes from 38 tickets: OS-3140,
-OS-3149, OS-3209, OS-3382, OS-3545, OS-3561, OS-3600, OS-3642, OS-3868,
-OS-3901, OS-4129, OS-4144, OS-4300, OS-4303, OS-4437, OS-4818, OS-4825,
-OS-5097, OS-5192, OS-5209, OS-5311, OS-5322, OS-5510, OS-5642, OS-5845,
-OS-5991, OS-5992, OS-6355, OS-6612, OS-6626, OS-6917, OS-7003, OS-7389,
-OS-7625, OS-7644, OS-7753, OS-8748, 11909.
+Also includes the final state of fixes from 36 tickets: OS-3140,
+OS-3149, OS-3209, OS-3545, OS-3561, OS-3600, OS-3642, OS-3868, OS-3901,
+OS-4129, OS-4144, OS-4300, OS-4303, OS-4437, OS-4818, OS-4825, OS-5097,
+OS-5192, OS-5209, OS-5311, OS-5510, OS-5642, OS-5845, OS-5991, OS-5992,
+OS-6355, OS-6612, OS-6626, OS-6917, OS-7003, OS-7389, OS-7625, OS-7644,
+OS-7753, OS-8748, 11909.
 
-39 files (0 removed). This commit applies to illumos-gate on its own;
+38 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
@@ -159,6 +160,7 @@ Co-authored-by: John Levon <john.levon@joyent.com>
  usr/src/lib/libproc/common/Pcontrol.c     |   6 +++
  usr/src/man/man5/process.5                |  16 ++++++
  usr/src/man/man7/resource_controls.7      |   1 +
+ usr/src/uts/common/os/exec.c              |   5 +-
  usr/src/uts/common/os/exit.c              | 138 +++++++++++++++++++++++++++++++++++++++-----------
  usr/src/uts/common/os/fork.c              |   5 +-
  usr/src/uts/common/os/grow.c              |  32 +++++++-----
@@ -169,7 +171,6 @@ Co-authored-by: John Levon <john.levon@joyent.com>
  usr/src/uts/common/os/rctl_proc.c         |  28 ++++++++++
  usr/src/uts/common/os/sig.c               |  29 +++++++++--
  usr/src/uts/common/os/sysent.c            |  30 +++++++----
- usr/src/uts/common/sys/auxv.h             |   2 +
  usr/src/uts/common/sys/contract/process.h |   1 +
  usr/src/uts/common/sys/cpuvar.h           |   2 +
  usr/src/uts/common/sys/fss.h              |   1 +
@@ -182,9 +183,8 @@ Co-authored-by: John Levon <john.levon@joyent.com>
  usr/src/uts/common/sys/ts.h               |   2 +
  usr/src/uts/common/sys/user.h             |   6 +--
  usr/src/uts/common/sys/vmsystm.h          |   5 ++
- usr/src/uts/i86pc/sys/comm_page.h         |   2 +
  usr/src/uts/i86pc/vm/vm_machdep.c         |   6 +--
- 39 files changed, 408 insertions(+), 112 deletions(-)
+ 38 files changed, 407 insertions(+), 114 deletions(-)
 
 ========================================================================
 [3/78] features/brand-events

@@ -1,5 +1,0 @@
-# Pass 2: the core cycle and everything it needs, built together as
-# stack-core and snapshotted as core-built if it passes.
-# hyprlofs added by hand: uts/intel/Makefile.intel lists it on one
-# FS_KMODS line with lx's modules (identifier analysis cannot see this).
-brand-exec brand-events brand-native brand-net brand-nfs brand-ops brand-process brand-x86 bunyan inotify lx net-misc ptools zfd zfs-zio zfs-zone-io zone-brands zone-cpu zone-kernel zone-memory zones-admin zones-tools hyprlofs

@@ -1,0 +1,36 @@
+# Stacked builds: each feature that fails alone, merged with every feature
+# it may need (stackplan.py: static deps plus measured providers,
+# transitively), built from gate-built.  platform-config is added by hand:
+# lib/brand/Makefile names the bhyve and lx brand directories.
+boot dboot
+brand-native zone-kernel
+dboot boot
+overlay-svp bunyan
+zfs-zone-io zone-kernel
+zfs-zvol zone-kernel
+zone-cpu zone-kernel
+zone-memory zone-kernel
+brand-net brand-native zone-kernel
+brand-nfs brand-native zone-kernel
+ctf brand-native zone-kernel
+net-misc brand-native zone-kernel
+rtld-sgs brand-native zone-kernel
+zfs-arc zfs-zone-io zone-kernel
+zfs-props zfs-zone-io zone-kernel
+zfs-zio zfs-zone-io zone-kernel
+brand-ops brand-native brand-process zone-kernel
+brand-process brand-native brand-ops zone-kernel
+zfs-cli zfs-props zfs-zone-io zone-kernel
+zones-tools brand-native zone-kernel zone-memory
+brand-events brand-native brand-ops brand-process zone-kernel
+datalink brand-native link-protection vnd zone-kernel
+ipf-cfw brand-native zone-kernel zone-memory zones-tools
+mdb brand-native zone-kernel zone-memory zones-tools
+ptools brand-native brand-ops brand-process zone-kernel
+vnd brand-native datalink link-protection zone-kernel
+lx brand-events brand-native brand-net brand-nfs brand-ops brand-process bunyan inotify ptools zone-kernel zone-memory zones-tools
+brand-fs brand-events brand-native brand-net brand-nfs brand-ops brand-process bunyan inotify lx ptools zone-kernel zone-memory zones-tools
+dtrace brand-events brand-native brand-net brand-nfs brand-ops brand-process bunyan inotify lx ptools zone-kernel zone-memory zones-tools
+zfd brand-events brand-native brand-net brand-nfs brand-ops brand-process bunyan inotify lx net-misc ptools zone-brands zone-kernel zone-memory zones-admin zones-tools
+zones-admin brand-events brand-native brand-net brand-nfs brand-ops brand-process bunyan inotify lx net-misc ptools zfd zone-brands zone-kernel zone-memory zones-tools
+platform-config bhyve lx brand-events brand-native brand-net brand-nfs brand-ops brand-process bunyan inotify ptools zone-kernel zone-memory zones-tools

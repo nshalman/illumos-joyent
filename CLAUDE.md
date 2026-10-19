@@ -74,7 +74,7 @@ tooling itself.
 | `baseline.py`, `baseline.txt` | The plumbing plain illumos-gate needs to build in smartos-live, each entry with its reason |
 | `buildfail.py` | Maps a sweep's build failures to the features defining what was missing; writes `buildfail.json` |
 | `stackplan.py` | Plans stacked builds (each failing feature with its transitive needs); `--cycles` lists dependency cycles |
-| `stackcheck.sh`, `stack-plan-*.txt` | Step A: small cycles, the core cycle as one build, then the rest on top of it |
+| `stack-plan.txt` | Stacked builds (`buildcheck.sh stacks stack-plan.txt`): each failing feature with everything it needs |
 | `buildcheck-results.txt` | Per-feature and stacked results, and the provider analysis |
 
 ## How files are placed

@@ -369,7 +369,8 @@ HUNK_OVERRIDES = [
     ('usr/src/uts/common/sys/brand.h', r'\b(b_data_size|b_intp_parse_arg);',
      'brand-ops'),
     ('usr/src/uts/common/sys/auxv.h', r'define\s+AT_SUN_BRAND_(AUX4|NROOT)\s',
-     'brand-process'),
+     'brand-ops'),
+    ('usr/src/uts/i86pc/sys/comm_page.h', r'COMM_PAGE_ALIGN', 'brand-ops'),
     ('usr/src/uts/common/sys/exec.h', r'\b(stk_prot_override|argstrlen|envstrlen);',
      'brand-ops'),
     ('usr/src/uts/intel/sys/machbrand.h', r'BRAND_CB_INT80', 'brand-ops'),
@@ -420,4 +421,7 @@ HUNK_OVERRIDES = [
     # u_argvstrsize/u_envstrsize: the rename and all its uses go to ptools
     ('usr/src/uts/common/sys/exec.h', r'\b(argstrlen|envstrlen);', 'ptools'),
     ('usr/src/uts/common/os/exec.c', r'argstrlen|envstrlen', 'ptools'),
+    # brand-process gave lwp_ctmpl_clear() its is_exec argument; exec.c's
+    # call goes with the rest of that change
+    ('usr/src/uts/common/os/exec.c', r'lwp_ctmpl_clear\(lwp, B_TRUE\)', 'brand-process'),
 ]
