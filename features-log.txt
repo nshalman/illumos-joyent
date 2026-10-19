@@ -47,11 +47,11 @@ Co-authored-by: Robert Mustacchi <rm@fingolfin.org>
  usr/src/uts/common/os/brand.c                  | 209 ++++++++++++++++++++++++++++-----------------
  usr/src/uts/common/os/exec.c                   |  36 +++++++-
  usr/src/uts/common/os/fork.c                   |  28 ++++--
- usr/src/uts/common/os/lwp.c                    |  76 ++++++++++++-----
+ usr/src/uts/common/os/lwp.c                    |  78 ++++++++++++-----
  usr/src/uts/common/os/zone.c                   |   4 +-
  usr/src/uts/common/sys/brand.h                 | 102 +++++++++++++++++++---
  usr/src/uts/common/syscall/brandsys.c          |   8 +-
- 11 files changed, 475 insertions(+), 207 deletions(-)
+ 11 files changed, 476 insertions(+), 208 deletions(-)
 
 ========================================================================
 [2/80] features/brand-exec
@@ -4050,7 +4050,7 @@ Co-authored-by: Toomas Soome <tsoome@me.com>
  usr/src/uts/common/os/fio.c                            |    5 +-
  usr/src/uts/common/os/fork.c                           |   22 +-
  usr/src/uts/common/os/grow.c                           |    4 +-
- usr/src/uts/common/os/lwp.c                            |    6 +-
+ usr/src/uts/common/os/lwp.c                            |    4 +-
  usr/src/uts/common/os/pid.c                            |   12 +
  usr/src/uts/common/os/policy.c                         |   17 +
  usr/src/uts/common/os/sig.c                            |   73 +-
@@ -4111,7 +4111,7 @@ Co-authored-by: Toomas Soome <tsoome@me.com>
  usr/src/uts/intel/sys/segments.h                       |    2 +
  usr/src/uts/intel/syscall/getcontext.c                 |   72 +-
  usr/src/uts/sparc/syscall/getcontext.c                 |   31 +-
- 329 files changed, 102231 insertions(+), 465 deletions(-)
+ 329 files changed, 102230 insertions(+), 464 deletions(-)
 
 ========================================================================
 [68/80] features/sed

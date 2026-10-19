@@ -414,6 +414,6 @@ HUNK_OVERRIDES = [
     ('usr/src/uts/common/sys/brand.h', r'.', 'brand-ops'),
     ('usr/src/uts/common/brand/sn1/sn1_brand.c', r'.', 'brand-ops'),
     ('usr/src/uts/common/brand/solaris10/s10_brand.c', r'.', 'brand-ops'),
-    ('usr/src/uts/common/os/lwp.c', r'b_lwpdata|b_initlwp|BROP', 'brand-ops'),
+    ('usr/src/uts/common/os/lwp.c', r'b_lwpdata|b_initlwp|BROP|brand_data', 'brand-ops'),
     ('usr/src/uts/common/os/exec.c', r'brand_setbrand\(p, B_FALSE\)', 'brand-ops'),
 ]
