@@ -404,4 +404,16 @@ HUNK_OVERRIDES = [
     # goes up to its only caller, zoneadmd's vplat.c
     ('usr/src/head/zone.h', r'bslabel_t \*, int, zoneid_t\)', 'zones-admin'),
     ('usr/src/lib/libc/port/sys/zone.c', r'req_zoneid', 'zones-admin'),
+    ('usr/src/uts/common/os/zone.c', r'^rctl_hndl_t rc_zone_phys_mem;', 'zone-kernel'),
+    # uberdata initializers follow their fields
+    ('usr/src/lib/libc/port/threads/thr.c', r'/\* ub_broot \*/', 'brand-native'),
+    ('usr/src/lib/libc/port/threads/thr.c', r'/\* setctxt \*/', 'brand-process'),
+    ('usr/src/lib/libc/inc/thr_uberdata.h', r'\(\*setctxt\)', 'brand-process'),
+    # the brand framework: brand_ops and its users outside lx (the sn1 and
+    # solaris10 brands, lwp.c's and exec.c's brand hooks) go to brand-ops
+    ('usr/src/uts/common/sys/brand.h', r'.', 'brand-ops'),
+    ('usr/src/uts/common/brand/sn1/sn1_brand.c', r'.', 'brand-ops'),
+    ('usr/src/uts/common/brand/solaris10/s10_brand.c', r'.', 'brand-ops'),
+    ('usr/src/uts/common/os/lwp.c', r'b_lwpdata|b_initlwp|BROP', 'brand-ops'),
+    ('usr/src/uts/common/os/exec.c', r'brand_setbrand\(p, B_FALSE\)', 'brand-ops'),
 ]
