@@ -424,4 +424,14 @@ HUNK_OVERRIDES = [
     # brand-process gave lwp_ctmpl_clear() its is_exec argument; exec.c's
     # call goes with the rest of that change
     ('usr/src/uts/common/os/exec.c', r'lwp_ctmpl_clear\(lwp, B_TRUE\)', 'brand-process'),
+    ('usr/src/uts/common/os/brand.c', r'.', 'brand-ops'),
+    ('usr/src/uts/intel/sys/machbrand.h', r'.', 'brand-ops'),
+    ('usr/src/uts/intel/sys/segments.h', r'int80', 'brand-ops'),
+    # retiring zonecfg_getmcapent() and struct zone_mcaptab goes with the
+    # highest feature removing a use (zoneadmd's vplat.c)
+    ('usr/src/head/libzonecfg.h', r'zonecfg_getmcapent|zone_mcaptab', 'zones-admin'),
+    ('usr/src/lib/libzonecfg/common/libzonecfg.c', r'zonecfg_getmcapent', 'zones-admin'),
+    ('usr/src/lib/libzonecfg/common/mapfile-vers', r'zonecfg_getmcapent', 'zones-admin'),
+    # rcapstat stops needing libzonecfg with zone-memory's rcap changes
+    ('usr/src/cmd/rcap/rcapstat/Makefile', r'-lzonecfg', 'zone-memory'),
 ]

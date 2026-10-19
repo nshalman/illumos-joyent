@@ -3,9 +3,10 @@
 
 For each feature that failed alone (RESULTS/buildfail.json, from
 buildfail.py), take every feature it may need, transitively: the static
-edges in data/deps.json plus the providers buildfail.py measured.  A
-stacked build merges the feature with all of them; if it passes, the
-edges are sufficient, and if it fails, some dependency is not known yet.
+edges in data/deps.json, the providers buildfail.py measured, and the
+Makefile dependencies in EXTRA.  A stacked build merges the feature with
+all of them; if it passes, the edges are sufficient, and if it fails,
+some dependency is not known yet.
 
 Prints one line per failing feature, "NAME PROVIDER...", smallest stack
 first, for buildcheck.sh stacks.  With --cycles, prints instead each set
@@ -16,6 +17,15 @@ import os
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+# Dependencies through Makefile lines that name several features'
+# directories at once, which neither analysis sees (FINDINGS, "Compile
+# checks").
+EXTRA = [
+    ('lx', 'hyprlofs'),             # uts/intel/Makefile.intel FS_KMODS
+    ('platform-config', 'bhyve'),   # lib/brand/Makefile i386_SUBDIRS
+    ('platform-config', 'lx'),
+]
 
 
 def closure(n, edges):
@@ -38,6 +48,8 @@ def main():
         edges.setdefault(n, set()).update(d)
     for n, d in fails.items():
         edges.setdefault(n, set()).update(d['providers'])
+    for n, g in EXTRA:
+        edges.setdefault(n, set()).add(g)
     if cycles:
         need = dict((n, closure(n, edges)) for n in edges)
         seen, out = set(), []
