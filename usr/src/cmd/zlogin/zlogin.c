@@ -23,12 +23,12 @@
  * Copyright 2013 DEY Storage Systems, Inc.
  * Copyright (c) 2014 Gary Mills
  * Copyright 2015 Nexenta Systems, Inc. All rights reserved.
- * Copyright 2019 Joyent, Inc.
+ * Copyright 2020 Joyent, Inc.
  * Copyright 2020 OmniOS Community Edition (OmniOSce) Association.
  */
 
 /*
- * zlogin provides three types of login which allow users in the global
+ * zlogin provides five types of login which allow users in the global
  * zone to access non-global zones.
  *
  * - "interactive login" is similar to rlogin(1); for example, the user could
@@ -50,6 +50,9 @@
  *   socket.  If zoneadmd is not running, it starts it.  This allows the
  *   console to be available anytime the zone is installed, regardless of
  *   whether it is running.
+ *
+ * - "standalone-processs interactive" is specified with -I and connects to
+ *   the zone's stdin, stdout and stderr zfd(7D) devices.
  */
 
 #include <sys/socket.h>
@@ -94,7 +97,8 @@
 #include <auth_attr.h>
 #include <secdb.h>
 
-static int masterfd;
+static int masterfd = -1;
+static int ctlfd = -1;
 static struct termios save_termios;
 static struct termios effective_termios;
 static int save_fd;
@@ -250,57 +254,60 @@ postfork_dropprivs()
 	}
 }
 
-/*
- * Create the unix domain socket and call the zoneadmd server; handshake
- * with it to determine whether it will allow us to connect.
- */
 static int
-get_console_master(const char *zname)
+connect_zone_sock(const char *zname, const char *suffix, boolean_t verbose)
 {
 	int sockfd = -1;
 	struct sockaddr_un servaddr;
-	char clientid[MAXPATHLEN];
-	char handshake[MAXPATHLEN], c;
-	int msglen;
-	int i = 0, err = 0;
 
 	if ((sockfd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-		zperror(gettext("could not create socket"));
+		if (verbose)
+			zperror(gettext("could not create socket"));
 		return (-1);
 	}
 
 	bzero(&servaddr, sizeof (servaddr));
 	servaddr.sun_family = AF_UNIX;
 	(void) snprintf(servaddr.sun_path, sizeof (servaddr.sun_path),
-	    "%s/%s.console_sock", ZONES_TMPDIR, zname);
-
+	    "%s/%s.%s", ZONES_TMPDIR, zname, suffix);
 	if (connect(sockfd, (struct sockaddr *)&servaddr,
 	    sizeof (servaddr)) == -1) {
-		zperror(gettext("Could not connect to zone console"));
-		goto bad;
+		if (verbose)
+			zperror(gettext("Could not connect to zone"));
+		close(sockfd);
+		return (-1);
 	}
-	masterfd = sockfd;
+	return (sockfd);
+}
 
-	msglen = snprintf(clientid, sizeof (clientid), "IDENT %lu %s %d\n",
-	    getpid(), setlocale(LC_MESSAGES, NULL), disconnect);
+
+static int
+handshake_zone_sock(int sockfd, unsigned int flags)
+{
+	char clientid[MAXPATHLEN];
+	char handshake[MAXPATHLEN], c;
+	int msglen;
+	int i = 0, err = 0;
+
+	msglen = snprintf(clientid, sizeof (clientid), "IDENT %s %u\n",
+	    setlocale(LC_MESSAGES, NULL), flags);
 
 	if (msglen >= sizeof (clientid) || msglen < 0) {
 		zerror("protocol error");
-		goto bad;
+		return (-1);
 	}
 
-	if (write(masterfd, clientid, msglen) != msglen) {
+	if (write(sockfd, clientid, msglen) != msglen) {
 		zerror("protocol error");
-		goto bad;
+		return (-1);
 	}
-
-	bzero(handshake, sizeof (handshake));
 
 	/*
 	 * Take care not to accumulate more than our fill, and leave room for
 	 * the NUL at the end.
 	 */
-	while ((err = read(masterfd, &c, 1)) == 1) {
+	bzero(handshake, sizeof (handshake));
+	while ((err = read(sockfd, &c, 1)) == 1) {
 		if (i >= (sizeof (handshake) - 1))
 			break;
 		if (c == '\n')
@@ -310,26 +317,48 @@ get_console_master(const char *zname)
 	}
 
 	/*
-	 * If something went wrong during the handshake we bail; perhaps
-	 * the server died off.
+	 * If something went wrong during the handshake we bail.
+	 * Perhaps the server died off.
 	 */
 	if (err == -1) {
-		zperror(gettext("Could not connect to zone console"));
-		goto bad;
+		zperror(gettext("Could not connect to zone"));
+		return (-1);
 	}
 
-	if (strncmp(handshake, "OK", sizeof (handshake)) == 0)
-		return (0);
+	if (strncmp(handshake, "OK", sizeof (handshake)) != 0) {
+		zerror(gettext("Zone is already in use by process ID %s."),
+		    handshake);
+		return (-1);
+	}
 
-	zerror(gettext("Console is already in use by process ID %s."),
-	    handshake);
-bad:
-	(void) close(sockfd);
-	masterfd = -1;
-	return (-1);
+	return (0);
 }
 
-
+static int
+send_ctl_sock(const char *buf, size_t len)
+{
+	char rbuf[BUFSIZ];
+	int i;
+	if (ctlfd == -1) {
+		return (-1);
+	}
+	if (write(ctlfd, buf, len) != len) {
+		return (-1);
+	}
+	/* read the response */
+	for (i = 0; i < (BUFSIZ - 1); i++) {
+		char c;
+		if (read(ctlfd, &c, 1) != 1 || c == '\n' || c == '\0') {
+			break;
+		}
+		rbuf[i] = c;
+	}
+	rbuf[i+1] = '\0';
+	if (strncmp("OK", rbuf, BUFSIZ) != 0) {
+		return (-1);
+	}
+	return (0);
+}
 /*
  * Routines to handle pty creation upon zone entry and to shuttle I/O back
  * and forth between the two terminals.  We also compute and store the

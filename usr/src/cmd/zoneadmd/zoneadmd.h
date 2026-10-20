@@ -22,6 +22,7 @@
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2014 Nexenta Systems, Inc. All rights reserved.
+ * Copyright 2019 Joyent, Inc.
  */
 
 #ifndef	_ZONEADMD_H
@@ -90,6 +91,8 @@ extern mutex_t msglock;
 extern boolean_t in_death_throes;
 extern boolean_t bringup_failure_recovery;
 extern char *zone_name;
+extern char zonepath[MAXNAMELEN];
+extern zone_dochandle_t snap_hndl;
 extern char pool_name[MAXNAMELEN];
 extern char brand_name[MAXNAMELEN];
 extern char default_brand[MAXNAMELEN];
@@ -154,6 +157,23 @@ extern void resolve_lofs(zlog_t *zlogp, char *path, size_t pathlen);
  */
 extern int init_console(zlog_t *);
 extern void serve_console(zlog_t *);
+extern void zcons_statechanged();
+
+/*
+ * Logging routines
+ */
+typedef enum {
+	LS_LINE_BUFFERED = 0x1		/* Write when \n found or full buffer */
+} logstream_flags_t;
+
+extern boolean_t logging_poisoned;
+
+extern void create_log_thread(zlog_t *);
+extern void destroy_log_thread(zlog_t *);
+extern void logstream_init(zlog_t *);
+extern int logstream_open(const char *, const char *, logstream_flags_t);
+extern void logstream_write(int, char *, int);
+extern void logstream_close(int, boolean_t);
 
 /*
  * Contract handling.

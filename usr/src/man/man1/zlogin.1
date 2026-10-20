@@ -13,6 +13,7 @@
 .\" Portions Copyright [yyyy] [name of copyright owner]
 .\" Copyright 2013 DEY Storage Systems, Inc.
 .\" Copyright (c) 2014 Gary Mills
+.\" Copyright (c) 2015, Joyent, Inc. All Rights Reserved
 .\" Copyright 2015 Nexenta Systems, Inc. All rights reserved.
 .TH ZLOGIN 1 "Mar 17, 2015"
 .SH NAME
@@ -37,7 +38,7 @@ system zone. Only a superuser operating in the global system zone can use this
 utility.
 .sp
 .LP
-\fBzlogin\fR operates in one of three modes:
+\fBzlogin\fR operates in one of four modes:
 .sp
 .ne 2
 .na
@@ -80,8 +81,17 @@ available once the zone is in the installed  state. Connections to the console
 are persistent across reboot of the zone.
 .RE
 
-.SH OPTIONS
 .sp
+.ne 2
+.na
+\fBStandalone-processs Interactive Mode\fR
+.ad
+.RS 24n
+If the \fB-I\fR option is specified the user is connected to the zone's stdin,
+stdout and stderr \fBzfd(7D)\fR devices.
+.RE
+
+.SH OPTIONS
 .LP
 The following options are supported:
 .sp

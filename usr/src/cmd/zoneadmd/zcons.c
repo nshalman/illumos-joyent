@@ -22,7 +22,7 @@
 /*
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
- * Copyright 2012 Joyent, Inc.  All rights reserved.
+ * Copyright 2019 Joyent, Inc.
  * Copyright 2015 Nexenta Systems, Inc. All rights reserved.
  */
 
@@ -521,6 +521,7 @@ get_client_ident(int clifd, pid_t *pid, char *locale, size_t locale_len,
 	size_t buflen = sizeof (buf);
 	char c = '\0';
 	int i = 0, r;
+	ucred_t *cred = NULL;
 
 	/* "eat up the ident string" case, for simplicity */
 	if (pid == NULL) {
@@ -554,18 +555,22 @@ get_client_ident(int clifd, pid_t *pid, char *locale, size_t locale_len,
 				break;
 	}
 
+	if (getpeerucred(clifd, &cred) == 0) {
+		*pid = ucred_getpid((const ucred_t *)cred);
+		ucred_free(cred);
+	} else {
+		return (-1);
+	}
+
 	/*
 	 * Parse buffer for message of the form:
-	 * IDENT <pid> <locale> <disconnect flag>
+	 * IDENT <locale> <disconnect flag>
 	 */
 	bufp = buf;
 	if (strncmp(bufp, "IDENT ", 6) != 0)
 		return (-1);
 	bufp += 6;
 	errno = 0;
-	*pid = strtoll(bufp, &bufp, 10);
-	if (errno != 0)
-		return (-1);
 
 	while (*bufp != '\0' && isspace(*bufp))
 		bufp++;
@@ -882,7 +887,6 @@ init_console(zlog_t *zlogp)
 	if (init_console_dev(zlogp) == -1) {
 		zerror(zlogp, B_FALSE,
 		    "console setup: device initialization failed");
-		return (-1);
 	}
 
 	if ((serverfd = init_console_sock(zlogp)) == -1) {

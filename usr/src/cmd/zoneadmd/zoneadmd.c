@@ -22,6 +22,7 @@
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2014 Nexenta Systems, Inc. All rights reserved.
+ * Copyright 2021 Joyent, Inc.
  * Copyright (c) 2016 by Delphix. All rights reserved.
  */
 
@@ -109,6 +110,8 @@
 
 static char *progname;
 char *zone_name;	/* zone which we are managing */
+zone_dochandle_t snap_hndl;	/* handle for snapshot created when ready */
+char zonepath[MAXNAMELEN];
 char pool_name[MAXNAMELEN];
 char default_brand[MAXNAMELEN];
 char brand_name[MAXNAMELEN];
@@ -255,6 +258,31 @@ zerror(zlog_t *zlogp, boolean_t use_strerror, const char *fmt, ...)
 		zlogp->log += copylen;
 		zlogp->loglen -= copylen;
 	}
+}
+
+/*
+ * Append src to dest, modifying dest in the process. Prefix src with
+ * a space character if dest is a non-empty string. Assumes dest is already
+ * properly \0-terminated OR overruns destsize.
+ */
+static void
+strnappend(char *dest, size_t destsize, const char *src)
+{
+	size_t startpoint = strnlen(dest, destsize);
+
+	if (startpoint >= destsize - 1) {
+		/* We've run out of room.  Record something?! */
+		return;
+	}
+
+	if (startpoint > 0) {
+		/* Add the space per the function's intro comment. */
+		dest[startpoint] = ' ';
+		startpoint++;
+	}
+
+	/* Arguably we should check here too... */
+	(void) strlcpy(dest + startpoint, src, destsize - startpoint);
 }
 
 /*
@@ -1028,7 +1056,6 @@ zone_graceful_shutdown(zlog_t *zlogp)
 	pid_t child;
 	char cmdbuf[MAXPATHLEN];
 	brand_handle_t bh = NULL;
-	char zpath[MAXPATHLEN];
 	ctid_t ct;
 	int tmpl_fd;
 	int child_status;
@@ -1049,18 +1076,12 @@ zone_graceful_shutdown(zlog_t *zlogp)
 		return (-1);
 	}
 
-	if (zone_get_zonepath(zone_name, zpath, sizeof (zpath)) != Z_OK) {
-		zerror(zlogp, B_FALSE, "unable to determine zone path");
-		brand_close(bh);
-		return (-1);
-	}
-
 	/*
 	 * If there is a brand 'shutdown' callback, execute it now to give the
 	 * brand a chance to cleanup any custom configuration.
 	 */
 	(void) strcpy(cmdbuf, EXEC_PREFIX);
-	if (brand_get_shutdown(bh, zone_name, zpath, cmdbuf + EXEC_LEN,
+	if (brand_get_shutdown(bh, zone_name, zonepath, cmdbuf + EXEC_LEN,
 	    sizeof (cmdbuf) - EXEC_LEN) != 0 || strlen(cmdbuf) <= EXEC_LEN) {
 		(void) strcat(cmdbuf, SHUTDOWN_DEFAULT);
 	}

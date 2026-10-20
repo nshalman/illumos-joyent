@@ -25,7 +25,7 @@
 # Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
 # Copyright 2018 Nexenta Systems, Inc.
 # Copyright 2022 Garrett D'Amore
-# Copyright 2020 Joyent, Inc.
+# Copyright 2021 Joyent, Inc.
 # Copyright 2016 OmniTI Computer Consulting, Inc.  All rights reserved.
 # Copyright 2016 Hans Rosenfeld <rosenfeld@grumpf.hope-2000.org>
 # Copyright 2026 Oxide Computer Company
@@ -1034,6 +1034,8 @@ QLC_FW_8301FC_OBJS += ql_fw_8301fc.o
 QLGE_OBJS += qlge.o qlge_dbg.o qlge_flash.o qlge_fm.o qlge_gld.o qlge_mpi.o
 
 ZCONS_OBJS += zcons.o
+
+ZFD_OBJS += zfd.o
 
 NV_SATA_OBJS += nv_sata.o
 

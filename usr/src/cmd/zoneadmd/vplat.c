@@ -3819,16 +3819,10 @@ validate_rootds_label(zlog_t *zlogp, char *rootpath, m_label_t *zone_sl)
 	zfs_handle_t	*zhp;
 	libzfs_handle_t	*hdl;
 	m_label_t	ds_sl;
-	char		zonepath[MAXPATHLEN];
 	char		ds_hexsl[MAXNAMELEN];
 
 	if (!is_system_labeled())
 		return (0);
-
-	if (zone_get_zonepath(zone_name, zonepath, sizeof (zonepath)) != Z_OK) {
-		zerror(zlogp, B_TRUE, "unable to determine zone path");
-		return (-1);
-	}
 
 	if (!is_zonepath_zfs(zonepath))
 		return (0);
@@ -5228,7 +5222,7 @@ write_index_file(zoneid_t zoneid)
 int
 vplat_bringup(zlog_t *zlogp, zone_mnt_t mount_cmd, zoneid_t zoneid)
 {
-	char zonepath[MAXPATHLEN];
+	char zpath[MAXPATHLEN];
 
 	if (mount_cmd == Z_MNT_BOOT && validate_datasets(zlogp) != 0) {
 		lofs_discard_mnttab();
@@ -5239,15 +5233,11 @@ vplat_bringup(zlog_t *zlogp, zone_mnt_t mount_cmd, zoneid_t zoneid)
 	 * Before we try to mount filesystems we need to create the
 	 * attribute backing store for /dev
 	 */
-	if (zone_get_zonepath(zone_name, zonepath, sizeof (zonepath)) != Z_OK) {
-		lofs_discard_mnttab();
-		return (-1);
-	}
-	resolve_lofs(zlogp, zonepath, sizeof (zonepath));
+	(void) strlcpy(zpath, zonepath, sizeof (zpath));
+	resolve_lofs(zlogp, zpath, sizeof (zpath));
 
 	/* Make /dev directory owned by root, grouped sys */
-	if (make_one_dir(zlogp, zonepath, "/dev", DEFAULT_DIR_MODE,
-	    0, 3) != 0) {
+	if (make_one_dir(zlogp, zpath, "/dev", DEFAULT_DIR_MODE, 0, 3) != 0) {
 		lofs_discard_mnttab();
 		return (-1);
 	}
@@ -5282,6 +5272,8 @@ vplat_bringup(zlog_t *zlogp, zone_mnt_t mount_cmd, zoneid_t zoneid)
 				return (-1);
 			}
 			break;
+		default:
+			abort();
 		}
 	}
 
