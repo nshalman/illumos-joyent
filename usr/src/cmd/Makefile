@@ -30,6 +30,8 @@
 # Copyright 2018 Gary Mills
 # Copyright 2019 Peter Tribble
 # Copyright 2021 OmniOS Community Edition (OmniOSce) Association.
+# Copyright 2024 MNX Cloud, Inc.
+# Copyright 2025 Edgecast Cloud LLC.
 # Copyright 2026 Oxide Computer Company
 #
 
@@ -65,6 +67,7 @@ COMMON_SUBDIRS=		\
 	adbgen		\
 	acct		\
 	acctadm		\
+	altexec		\
 	arch		\
 	asa		\
 	ast		\
@@ -108,7 +111,6 @@ COMMON_SUBDIRS=		\
 	cpc		\
 	cron		\
 	crypt		\
-	csh		\
 	csplit		\
 	ctfconvert	\
 	ctfdiff		\
