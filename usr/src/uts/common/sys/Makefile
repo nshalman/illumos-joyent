@@ -862,6 +862,8 @@ FSHDRS=				\
 	hsfs_rrip.h		\
 	hsfs_spec.h		\
 	hsfs_susp.h		\
+	hyprlofs.h		\
+	hyprlofs_info.h		\
 	lofs_info.h		\
 	lofs_node.h		\
 	mntdata.h		\
