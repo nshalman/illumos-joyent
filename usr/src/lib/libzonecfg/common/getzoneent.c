@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2015 Joyent, Inc.
  */
 
 
@@ -127,6 +128,8 @@ getzoneent_private(FILE *cookie)
 			/* skip comment lines */
 			continue;
 		}
+
+		/* zonename */
 		p = gettok(&cp);
 		if (*p == '\0' || strlen(p) >= ZONENAME_MAX) {
 			/*
@@ -136,6 +139,7 @@ getzoneent_private(FILE *cookie)
 		}
 		(void) strlcpy(ze->zone_name, p, ZONENAME_MAX);
 
+		/* state */
 		p = gettok(&cp);
 		if (*p == '\0') {
 			/* state field should not be empty */
@@ -152,6 +156,7 @@ getzoneent_private(FILE *cookie)
 			continue;
 		}
 
+		/* zonepath */
 		p = gettok(&cp);
 		if (strlen(p) >= MAXPATHLEN) {
 			/* very long paths are not allowed */
@@ -159,9 +164,34 @@ getzoneent_private(FILE *cookie)
 		}
 		(void) strlcpy(ze->zone_path, p, MAXPATHLEN);
 
+		/* uuid */
 		p = gettok(&cp);
 		if (uuid_parse(p, ze->zone_uuid) == -1)
 			uuid_clear(ze->zone_uuid);
+
+		/* brand [optional] */
+		p = gettok(&cp);
+		if (strlen(p) >= MAXNAMELEN) {
+			/* very long names are not allowed */
+			continue;
+		}
+		(void) strlcpy(ze->zone_brand, p, MAXNAMELEN);
+
+		/* IP type [optional] */
+		p = gettok(&cp);
+		if (strlen(p) >= MAXNAMELEN) {
+			/* very long names are not allowed */
+			continue;
+		}
+		ze->zone_iptype = ZS_SHARED;
+		if (*p == 'e') {
+			ze->zone_iptype = ZS_EXCLUSIVE;
+		}
+
+		/* debug ID [optional] */
+		p = gettok(&cp);
+		if (*p != '\0')
+			ze->zone_did = atoi(p);
 
 		break;
 	}
@@ -170,10 +200,32 @@ getzoneent_private(FILE *cookie)
 }
 
 static boolean_t
-get_index_path(char *path)
+path_common(char *path, size_t path_size, const char *stem)
 {
-	return (snprintf(path, MAXPATHLEN, "%s%s", zonecfg_root,
-	    ZONE_INDEX_FILE) < MAXPATHLEN);
+	const char *native_root = zone_get_nroot();
+
+	if (native_root == NULL || zonecfg_in_alt_root()) {
+		/*
+		 * Do not prepend the native system root (e.g. "/native") if an
+		 * alternative configuration root has been selected.
+		 */
+		native_root = "";
+	}
+
+	return (snprintf(path, path_size, "%s%s%s", native_root, zonecfg_root,
+	    stem) < path_size);
+}
+
+static boolean_t
+get_index_path(char *path, size_t path_size)
+{
+	return (path_common(path, path_size, ZONE_INDEX_FILE));
+}
+
+static boolean_t
+get_temp_path(char *path, size_t path_size)
+{
+	return (path_common(path, path_size, _PATH_TMPFILE));
 }
 
 FILE *
@@ -181,7 +233,7 @@ setzoneent(void)
 {
 	char path[MAXPATHLEN];
 
-	if (!get_index_path(path)) {
+	if (!get_index_path(path, sizeof (path))) {
 		errno = EINVAL;
 		return (NULL);
 	}
@@ -202,8 +254,7 @@ lock_index_file(void)
 	struct flock lock;
 	char path[MAXPATHLEN];
 
-	if (snprintf(path, sizeof (path), "%s%s", zonecfg_root,
-	    ZONE_INDEX_LOCK_DIR) >= sizeof (path))
+	if (!path_common(path, sizeof (path), ZONE_INDEX_LOCK_DIR))
 		return (-1);
 	if ((mkdir(path, S_IRWXU) == -1) && errno != EEXIST)
 		return (-1);
@@ -269,14 +320,17 @@ int
 putzoneent(struct zoneent *ze, zoneent_op_t operation)
 {
 	FILE *index_file, *tmp_file;
-	char *tmp_file_name, buf[MAX_INDEX_LEN];
+	char buf[MAX_INDEX_LEN];
 	int tmp_file_desc, lock_fd, err;
 	boolean_t exist, need_quotes;
-	char *cp;
+	char *cp, *tmpp;
+	char tmp_path[MAXPATHLEN];
 	char path[MAXPATHLEN];
 	char uuidstr[UUID_PRINTABLE_STRING_LENGTH];
-	size_t tlen, namelen;
-	const char *zone_name, *zone_state, *zone_path, *zone_uuid;
+	size_t namelen;
+	const char *zone_name, *zone_state, *zone_path, *zone_uuid,
+	    *zone_brand = "", *zone_iptype;
+	zoneid_t zone_did;
 
 	assert(ze != NULL);
 
@@ -299,20 +353,14 @@ putzoneent(struct zoneent *ze, zoneent_op_t operation)
 	if ((lock_fd = lock_index_file()) == -1)
 		return (Z_LOCKING_FILE);
 
-	/* using sizeof gives us room for the terminating NUL byte as well */
-	tlen = sizeof (_PATH_TMPFILE) + strlen(zonecfg_root);
-	tmp_file_name = malloc(tlen);
-	if (tmp_file_name == NULL) {
+	if (!get_temp_path(tmp_path, sizeof (tmp_path))) {
 		(void) unlock_index_file(lock_fd);
 		return (Z_NOMEM);
 	}
-	(void) snprintf(tmp_file_name, tlen, "%s%s", zonecfg_root,
-	    _PATH_TMPFILE);
 
-	tmp_file_desc = mkstemp(tmp_file_name);
+	tmp_file_desc = mkstemp(tmp_path);
 	if (tmp_file_desc == -1) {
-		(void) unlink(tmp_file_name);
-		free(tmp_file_name);
+		(void) unlink(tmp_path);
 		(void) unlock_index_file(lock_fd);
 		return (Z_TEMP_FILE);
 	}
@@ -323,7 +371,7 @@ putzoneent(struct zoneent *ze, zoneent_op_t operation)
 		err = Z_MISC_FS;
 		goto error;
 	}
-	if (!get_index_path(path)) {
+	if (!get_index_path(path, sizeof (path))) {
 		err = Z_MISC_FS;
 		goto error;
 	}
@@ -335,6 +383,9 @@ putzoneent(struct zoneent *ze, zoneent_op_t operation)
 	exist = B_FALSE;
 	zone_name = ze->zone_name;
 	namelen = strlen(zone_name);
+	zone_brand = ze->zone_brand;
+	zone_iptype = (ze->zone_iptype == ZS_SHARED ? "sh" : "ex");
+	zone_did = ze->zone_did;
 	for (;;) {
 		if (fgets(buf, sizeof (buf), index_file) == NULL) {
 			if (operation == PZE_ADD && !exist) {
@@ -389,6 +440,11 @@ putzoneent(struct zoneent *ze, zoneent_op_t operation)
 		}
 		zone_path = gettok(&cp);
 		zone_uuid = gettok(&cp);
+		zone_brand = gettok(&cp);
+		zone_iptype = gettok(&cp);
+		tmpp = gettok(&cp);
+		if (*tmpp != '\0')
+			zone_did = atoi(tmpp);
 
 		switch (operation) {
 		case PZE_ADD:
@@ -403,14 +459,6 @@ putzoneent(struct zoneent *ze, zoneent_op_t operation)
 			 */
 			if (ze->zone_state >= 0) {
 				zone_state = zone_state_str(ze->zone_state);
-
-				/*
-				 * If the caller is uninstalling this zone,
-				 * then wipe out the uuid.  The zone's contents
-				 * are no longer known.
-				 */
-				if (ze->zone_state < ZONE_STATE_INSTALLED)
-					zone_uuid = "";
 			}
 
 			/* If a new name is supplied, use it. */
@@ -419,6 +467,27 @@ putzoneent(struct zoneent *ze, zoneent_op_t operation)
 
 			if (ze->zone_path[0] != '\0')
 				zone_path = ze->zone_path;
+
+			/* If new UUID provided, replace it */
+			if (!uuid_is_null(ze->zone_uuid)) {
+				uuid_unparse(ze->zone_uuid, uuidstr);
+				zone_uuid = uuidstr;
+			}
+
+			/* If a brand is supplied, use it. */
+			if (ze->zone_brand[0] != '\0') {
+				zone_brand = ze->zone_brand;
+
+				/*
+				 * Since the brand, iptype and did are optional,
+				 * we we only reset the iptype and did if the
+				 * brand is provided.
+				 */
+				zone_iptype = (ze->zone_iptype == ZS_SHARED ?
+				    "sh" : "ex");
+				zone_did = ze->zone_did;
+			}
+
 			break;
 
 		case PZE_REMOVE:
@@ -450,9 +519,17 @@ putzoneent(struct zoneent *ze, zoneent_op_t operation)
 		 * method for escaping them.
 		 */
 		need_quotes = (strchr(zone_path, ':') != NULL);
-		(void) fprintf(tmp_file, "%s:%s:%s%s%s:%s\n", zone_name,
-		    zone_state, need_quotes ? "\"" : "", zone_path,
-		    need_quotes ? "\"" : "", zone_uuid);
+
+		if (*zone_brand != '\0') {
+			(void) fprintf(tmp_file, "%s:%s:%s%s%s:%s:%s:%s:%d\n",
+			    zone_name, zone_state, need_quotes ? "\"" : "",
+			    zone_path, need_quotes ? "\"" : "", zone_uuid,
+			    zone_brand, zone_iptype, zone_did);
+		} else {
+			(void) fprintf(tmp_file, "%s:%s:%s%s%s:%s\n", zone_name,
+			    zone_state, need_quotes ? "\"" : "", zone_path,
+			    need_quotes ? "\"" : "", zone_uuid);
+		}
 		exist = B_TRUE;
 	}
 
@@ -464,11 +541,10 @@ putzoneent(struct zoneent *ze, zoneent_op_t operation)
 		goto error;
 	}
 	tmp_file = NULL;
-	if (rename(tmp_file_name, path) == -1) {
+	if (rename(tmp_path, path) == -1) {
 		err = errno == EACCES ? Z_ACCES : Z_MISC_FS;
 		goto error;
 	}
-	free(tmp_file_name);
 	if (unlock_index_file(lock_fd) != Z_OK)
 		return (Z_UNLOCKING_FILE);
 	return (Z_OK);
@@ -478,8 +554,7 @@ error:
 		(void) fclose(index_file);
 	if (tmp_file != NULL)
 		(void) fclose(tmp_file);
-	(void) unlink(tmp_file_name);
-	free(tmp_file_name);
+	(void) unlink(tmp_path);
 	(void) unlock_index_file(lock_fd);
 	return (err);
 }

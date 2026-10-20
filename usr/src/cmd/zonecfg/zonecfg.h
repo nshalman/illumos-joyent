@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, Joyent Inc. All rights reserved.
  */
 
 #ifndef _ZONECFG_H
@@ -90,7 +91,9 @@ extern "C" {
 #define	RT_ADMIN	26
 #define	RT_FS_ALLOWED	27
 #define	RT_MAXPROCS	28	/* really a rctl alias property, but for info */
-#define	RT_SECFLAGS	29
+#define	RT_ZFSPRI	29	/* really a rctl alias property, but for info */
+#define	RT_UUID		30	/* really a property, but for info */
+#define	RT_SECFLAGS	31
 
 #define	RT_MIN		RT_UNKNOWN
 #define	RT_MAX		RT_SECFLAGS
@@ -138,9 +141,15 @@ extern "C" {
 #define	PT_FS_ALLOWED	39
 #define	PT_MAXPROCS	40
 #define	PT_ALLOWED_ADDRESS	41
-#define	PT_DEFAULT	42
-#define	PT_LOWER	43
-#define	PT_UPPER	44
+#define	PT_ZFSPRI	42
+#define	PT_MAC		43
+#define	PT_VLANID	44
+#define	PT_GNIC		45
+#define	PT_NPROP	46
+#define	PT_UUID		47
+#define	PT_DEFAULT	48
+#define	PT_LOWER	49
+#define	PT_UPPER	50
 
 #define	PT_MIN		PT_UNKNOWN
 #define	PT_MAX		PT_UPPER

@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2015, Joyent, Inc.
  */
 
 #ifndef _LIBZONECFG_H
@@ -42,6 +43,7 @@ extern "C" {
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <net/if.h>
+#include <sys/mac.h>
 #include <stdio.h>
 #include <rctl.h>
 #include <zone.h>
@@ -118,6 +120,8 @@ extern "C" {
 
 #define	ZONE_STATE_MAXSTRLEN	14
 
+#define	ZONE_PROP_MAXSTRLEN	1024
+
 #define	LIBZONECFG_PATH		"libzonecfg.so.1"
 
 #define	ZONE_CONFIG_ROOT	"/etc/zones"
@@ -126,6 +130,8 @@ extern "C" {
 #define	MAXUSERNAME		(sizeof (((struct utmpx *)0)->ut_name))
 #define	MAXAUTHS		4096
 #define	ZONE_MGMT_PROF		"Zone Management"
+
+#define	ZONE_INT32SZ		11		/* string to hold 32bit int. */
 
 /* Owner, group, and mode (defined by packaging) for the config directory */
 #define	ZONE_CONFIG_UID		0		/* root */
@@ -150,9 +156,11 @@ extern "C" {
 #define	ALIAS_MAXSEMIDS		"max-sem-ids"
 #define	ALIAS_MAXLOCKEDMEM	"locked"
 #define	ALIAS_MAXSWAP		"swap"
+#define	ALIAS_MAXPHYSMEM	"physical"
 #define	ALIAS_SHARES		"cpu-shares"
 #define	ALIAS_CPUCAP		"cpu-cap"
 #define	ALIAS_MAXPROCS		"max-processes"
+#define	ALIAS_ZFSPRI		"zfs-io-priority"
 
 /* Default name for zone detached manifest */
 #define	ZONE_DETACHED	"SUNWdetached.xml"
@@ -161,6 +169,11 @@ extern "C" {
  * Bit flag definitions for passing into libzonecfg functions.
  */
 #define	ZONE_DRY_RUN		0x01
+
+typedef enum zone_iptype {
+	ZS_SHARED,
+	ZS_EXCLUSIVE
+} zone_iptype_t;
 
 /*
  * The integer field expresses the current values on a get.
@@ -172,6 +185,9 @@ struct zoneent {
 	char	zone_path[MAXPATHLEN];		/* path to zone storage */
 	uuid_t	zone_uuid;			/* unique ID for zone */
 	char	zone_newname[ZONENAME_MAX];	/* for doing renames */
+	char	zone_brand[MAXNAMELEN];		/* zone's brand */
+	zone_iptype_t zone_iptype;		/* zone's IP type */
+	zoneid_t zone_did;			/* persistent debug ID */
 };
 
 typedef struct zone_dochandle *zone_dochandle_t;	/* opaque handle */
@@ -191,15 +207,30 @@ struct zone_fstab {
 	char		zone_fs_raw[MAXPATHLEN];	/* device to fsck */
 };
 
+/*
+ * Generic resource attribute list.
+ * Key/value resource that can be attached to net or device.
+ */
+struct zone_res_attrtab {
+	char	zone_res_attr_name[MAXNAMELEN];
+	char	zone_res_attr_value[ZONE_PROP_MAXSTRLEN];
+	struct zone_res_attrtab *zone_res_attr_next;
+};
+
 struct zone_nwiftab {
 	char	zone_nwif_address[INET6_ADDRSTRLEN]; /* shared-ip only */
 	char	zone_nwif_allowed_address[INET6_ADDRSTRLEN]; /* excl-ip only */
 	char	zone_nwif_physical[LIFNAMSIZ];
+	char	zone_nwif_mac[MAXMACADDRLEN];		/* excl-ip only */
+	char	zone_nwif_vlan_id[ZONE_INT32SZ];	/* excl-ip only */
+	char	zone_nwif_gnic[LIFNAMSIZ];		/* excl-ip only */
 	char	zone_nwif_defrouter[INET6_ADDRSTRLEN];
+	struct zone_res_attrtab *zone_nwif_attrp;
 };
 
 struct zone_devtab {
 	char	zone_dev_match[MAXPATHLEN];
+	struct zone_res_attrtab *zone_dev_attrp;
 };
 
 struct zone_rctlvaltab {
@@ -271,11 +302,6 @@ typedef struct {
 	char		*zpe_vers;
 } zone_pkg_entry_t;
 
-typedef enum zone_iptype {
-	ZS_SHARED,
-	ZS_EXCLUSIVE
-} zone_iptype_t;
-
 /*
  * Basic configuration management routines.
  */
@@ -303,6 +329,7 @@ extern	boolean_t zonecfg_valid_importance(char *);
 extern	int	zonecfg_str_to_bytes(char *, uint64_t *);
 extern	boolean_t zonecfg_valid_memlimit(char *, uint64_t *);
 extern	boolean_t zonecfg_valid_alias_limit(char *, char *, uint64_t *);
+extern	void	zonecfg_notify_create(zone_dochandle_t);
 
 /*
  * Zone name, path to zone directory, autoboot setting, pool, boot
@@ -324,6 +351,8 @@ extern	int	zonecfg_set_bootargs(zone_dochandle_t, char *);
 extern	int	zonecfg_get_sched_class(zone_dochandle_t, char *, size_t);
 extern	int	zonecfg_set_sched(zone_dochandle_t, char *);
 extern	int	zonecfg_get_dflt_sched_class(zone_dochandle_t, char *, int);
+extern	zoneid_t zonecfg_get_did(zone_dochandle_t);
+extern	void	zonecfg_set_did(zone_dochandle_t);
 
 /*
  * Set/retrieve the brand for the zone
@@ -346,6 +375,15 @@ extern	int	zonecfg_remove_fs_option(struct zone_fstab *, char *);
 extern	void	zonecfg_free_fs_option_list(zone_fsopt_t *);
 extern	int	zonecfg_find_mounts(char *, int(*)(const struct mnttab *,
     void *), void *);
+
+/*
+ * Resource key/value attributes (properties).
+ */
+extern	int	zonecfg_add_res_attr(struct zone_res_attrtab **,
+    struct zone_res_attrtab *);
+extern	void	zonecfg_free_res_attr_list(struct zone_res_attrtab *);
+extern	int	zonecfg_remove_res_attr(struct zone_res_attrtab **,
+    struct zone_res_attrtab *);
 
 /*
  * Network interface configuration.
@@ -528,6 +566,7 @@ extern	int	zonecfg_set_limitpriv(zone_dochandle_t, char *);
  * Higher-level routines.
  */
 extern  int	zone_get_brand(char *, char *, size_t);
+extern  zoneid_t zone_get_did(char *);
 extern	int	zone_get_rootpath(char *, char *, size_t);
 extern	int	zone_get_devroot(char *, char *, size_t);
 extern	int	zone_get_zonepath(char *, char *, size_t);
@@ -536,7 +575,9 @@ extern	int	zone_set_state(char *, zone_state_t);
 extern	char	*zone_state_str(zone_state_t);
 extern	int	zonecfg_get_name_by_uuid(const uuid_t, char *, size_t);
 extern	int	zonecfg_get_uuid(const char *, uuid_t);
+extern	int	zonecfg_set_uuid(const char *, const char *, const char *);
 extern	int	zonecfg_default_brand(char *, size_t);
+extern	int	zonecfg_fix_obsolete(zone_dochandle_t);
 
 /*
  * Iterator for configured zones.

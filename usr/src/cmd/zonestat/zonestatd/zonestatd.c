@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, Joyent, Inc. All rights reserved.
  * Copyright 2026 Oxide Computer Company
  */
 #include <alloca.h>
@@ -2189,7 +2190,7 @@ zsd_get_zone_rctl_usage(char *name)
 	return (rctlblk_get_value(rblk));
 }
 
-#define	ZSD_NUM_RCTL_VALS 19
+#define	ZSD_NUM_RCTL_VALS 20
 
 /*
  * Fetch the limit information for a zone.  This uses zone_enter() as the
@@ -2235,12 +2236,6 @@ zsd_get_zone_caps(zsd_ctl_t *ctl, zsd_zone_t *zone, uint64_t *cpu_shares,
 	*semids = 0;
 	*msgids = 0;
 	*lofi = 0;
-
-	/* Get the ram cap first since it is a zone attr */
-	ret = zone_getattr(zone->zsz_id, ZONE_ATTR_PHYS_MCAP,
-	    ram_cap, sizeof (*ram_cap));
-	if (ret < 0 || *ram_cap == 0)
-		*ram_cap = ZS_LIMIT_NONE;
 
 	/* Get the zone's default scheduling class */
 	ret = zone_getattr(zone->zsz_id, ZONE_ATTR_SCHED_CLASS,
@@ -2297,6 +2292,7 @@ zsd_get_zone_caps(zsd_ctl_t *ctl, zsd_zone_t *zone, uint64_t *cpu_shares,
 		vals[i++] = zsd_get_zone_rctl_usage("zone.max-msg-ids");
 		vals[i++] = zsd_get_zone_rctl_limit("zone.max-lofi");
 		vals[i++] = zsd_get_zone_rctl_usage("zone.max-lofi");
+		vals[i++] = zsd_get_zone_rctl_usage("zone.max-physical-memory");
 
 		if (write(p[1], vals, ZSD_NUM_RCTL_VALS * sizeof (uint64_t)) !=
 		    ZSD_NUM_RCTL_VALS * sizeof (uint64_t)) {
@@ -2341,6 +2337,7 @@ zsd_get_zone_caps(zsd_ctl_t *ctl, zsd_zone_t *zone, uint64_t *cpu_shares,
 	*msgids = vals[i++];
 	*lofi_cap = vals[i++];
 	*lofi = vals[i++];
+	*ram_cap = vals[i++];
 
 	/* Interpret maximum values as no cap */
 	if (*cpu_cap == UINT32_MAX || *cpu_cap == 0)

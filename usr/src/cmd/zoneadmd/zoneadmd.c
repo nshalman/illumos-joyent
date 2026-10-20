@@ -22,6 +22,7 @@
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2014 Nexenta Systems, Inc. All rights reserved.
+ * Copyright 2021 Joyent, Inc.
  * Copyright (c) 2016 by Delphix. All rights reserved.
  */
 
@@ -141,6 +142,9 @@ boolean_t bringup_failure_recovery = B_FALSE; /* ignore certain failures */
 #endif
 
 #define	DEFAULT_LOCALE	"C"
+
+#define	RSRC_NET	"net"
+#define	RSRC_DEV	"device"
 
 static const char *
 z_cmd_name(zone_cmd_t zcmd)
