@@ -141,7 +141,7 @@ pics/dt_lex.o := CERRWARN += -_gcc=-Wno-unused-label
 SMATCH=off
 
 YYCFLAGS =
-LDLIBS += -lgen -lproc -lrtld_db -lnsl -lsocket -lctf -lelf -lc
+LDLIBS += -lgen -lproc -lrtld_db -lnsl -lsocket -lctf -lelf -lc -lzonecfg
 DRTILDLIBS = $(LDLIBS.lib) -lc
 LIBDAUDITLIBS = $(LDLIBS.lib) -lmapmalloc -lc -lproc $(LDSTACKPROTECT)
 

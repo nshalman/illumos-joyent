@@ -113,6 +113,6 @@ scripts: FRC
 	@cd ../cmd/scripts; pwd; $(MAKE) install
 
 dstyle: FRC
-	@if [ -n "$(DSRCS)" ]; then $(DSTYLE) $(DSRCS); fi
+	@if [ -n "$(DSRCS)" ]; then $(PERL) $(DSTYLE) $(DSRCS); fi
 
 FRC:
