@@ -22,6 +22,7 @@
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2014 Nexenta Systems, Inc. All rights reserved.
+ * Copyright 2021 Joyent, Inc.
  * Copyright (c) 2016 by Delphix. All rights reserved.
  */
 
@@ -102,6 +103,8 @@
 #include <libdladm.h>
 #include <sys/dls_mgmt.h>
 #include <libscf.h>
+#include <uuid/uuid.h>
+#include <libppt.h>
 
 #include <libzonecfg.h>
 #include <zonestat_impl.h>

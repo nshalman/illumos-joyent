@@ -22,7 +22,9 @@
 # Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #
+# Copyright 2018 Joyent, Inc.
 # Copyright 2024 Oxide Computer Company
+#
 
 PROG = smbios
 OBJS = smbios.o bitext.o $(HEXDUMP_OBJS)
@@ -37,6 +39,8 @@ LDLIBS += -lsmbios -ljedec
 
 FILEMODE = 0555
 STRIPFLAG =
+
+LINTFLAGS += -erroff=E_BAD_PTR_CAST_ALIGN
 
 .KEEP_STATE:
 

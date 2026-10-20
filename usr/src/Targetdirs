@@ -30,6 +30,7 @@
 # Copyright 2017 RackTop Systems.
 # Copyright 2022 OmniOS Community Edition (OmniOSce) Association.
 # Copyright 2020 Joyent, Inc.
+# Copyright 2025 MNX Cloud, Inc.
 #
 
 #
@@ -46,15 +47,20 @@ $(BUILD64)	TARGETDIRS += $(DIRS64)
 
 TARGETDIRS	+= $(FILELINKS) $(DIRLINKS)
 
-i386_DIRS=			\
-	/boot/acpi		\
-	/boot/acpi/tables	\
-	/boot/grub		\
-	/boot/grub/bin		\
-	/platform/i86pc		\
-	/lib/libmvec		\
-	/usr/lib/xen		\
-	/usr/lib/xen/bin	\
+i386_DIRS= \
+	/boot/acpi \
+	/boot/acpi/tables \
+	/boot/grub \
+	/boot/grub/bin \
+	/lib/libmvec \
+	/platform/i86pc \
+	/usr/lib/brand/bhyve \
+	/usr/lib/brand/kvm \
+	/usr/lib/brand/lx \
+	/usr/lib/brand/lx/amd64 \
+	/usr/lib/brand/lx/distros \
+	/usr/lib/xen \
+	/usr/lib/xen/bin \
 	/usr/share/bhyve
 
 sparc_DIRS=			\
