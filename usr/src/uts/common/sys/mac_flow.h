@@ -22,7 +22,7 @@
 /*
  * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
- * Copyright 2013 Joyent, Inc.  All rights reserved.
+ * Copyright 2017 Joyent, Inc.  All rights reserved.
  * Copyright 2020 RackTop Systems, Inc.
  */
 
@@ -156,6 +156,14 @@ typedef enum {
 #define	MPT_MAXIPADDR		MPT_MAXCNT
 #define	MPT_MAXCID		MPT_MAXCNT
 #define	MPT_MAXCIDLEN		256
+#define	MPT_FALSE		0x00000000
+#define	MPT_TRUE		0x00000001
+
+/* Dynamic address detection types */
+#define	MPT_DYN_DHCPV4		0x00000001
+#define	MPT_DYN_DHCPV6		0x00000002
+#define	MPT_DYN_SLAAC		0x00000004
+#define	MPT_DYN_ALL		0x00000007
 
 typedef struct mac_ipaddr_s {
 	uint32_t	ip_version;
@@ -176,11 +184,13 @@ typedef struct mac_dhcpcid_s {
 } mac_dhcpcid_t;
 
 typedef struct mac_protect_s {
-	uint32_t	mp_types;
-	uint32_t	mp_ipaddrcnt;
-	mac_ipaddr_t	mp_ipaddrs[MPT_MAXIPADDR];
-	uint32_t	mp_cidcnt;
-	mac_dhcpcid_t	mp_cids[MPT_MAXCID];
+	uint32_t	mp_types;	/* Enabled protection types */
+	uint32_t	mp_ipaddrcnt;	/* Count of allowed IPs */
+	mac_ipaddr_t	mp_ipaddrs[MPT_MAXIPADDR]; /* Allowed IPs */
+	uint32_t	mp_cidcnt;	/* Count of allowed DHCP CIDs */
+	mac_dhcpcid_t	mp_cids[MPT_MAXCID]; /* Allowed DHCP CIDs */
+	uint32_t	mp_allcids;	/* Whether to allow all CIDs through */
+	uint32_t	mp_dynamic;	/* Enabled dynamic address methods */
 } mac_protect_t;
 
 /* The default priority for links */

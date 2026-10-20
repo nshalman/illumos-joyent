@@ -157,9 +157,9 @@ static pd_getf_t	get_zone, get_autopush, get_rate_mod, get_rate,
 			get_tagmode, get_range, get_stp, get_bridge_forward,
 			get_bridge_pvid, get_protection, get_rxrings,
 			get_txrings, get_cntavail, get_secondary_macs,
-			get_allowedips, get_allowedcids, get_pool,
-			get_rings_range, get_linkmode_prop, get_bits,
-			get_promisc_filtered, get_media;
+			get_allowallcids, get_allowedips, get_allowedcids,
+			get_pool, get_rings_range, get_linkmode_prop, get_bits,
+			get_promisc_filtered, get_media, get_dynamic_methods;
 
 static pd_setf_t	set_zone, set_rate, set_powermode, set_radio,
 			set_public_prop, set_resource, set_stp_prop,
@@ -471,6 +471,18 @@ static  val_desc_t	link_protect_vals[] = {
 	{ "restricted",		MPT_RESTRICTED	},
 	{ "ip-nospoof",		MPT_IPNOSPOOF	},
 	{ "dhcp-nospoof",	MPT_DHCPNOSPOOF	},
+};
+
+static val_desc_t	link_dynamic_method_vals[] = {
+	{ "dhcpv4",	MPT_DYN_DHCPV4	},
+	{ "dhcpv6",	MPT_DYN_DHCPV6	},
+	{ "slaac",	MPT_DYN_SLAAC	},
+	{ "addrconf",	(MPT_DYN_SLAAC | MPT_DYN_DHCPV6)	},
+};
+
+static val_desc_t	dladm_bool_vals[] = {
+	{ "false",	MPT_FALSE },
+	{ "true",	MPT_TRUE },
 };
 
 static  val_desc_t	link_promisc_filtered_vals[] = {
@@ -962,6 +974,11 @@ static prop_desc_t	prop_table[] = {
 	    set_resource, NULL, get_protection, check_prop, 0,
 	    DATALINK_CLASS_ALL, DATALINK_ANY_MEDIATYPE },
 
+	{ "dynamic-methods", { "--", RESET_VAL },
+	    link_dynamic_method_vals, VALCNT(link_dynamic_method_vals),
+	    set_resource, NULL, get_dynamic_methods, check_prop, 0,
+	    DATALINK_CLASS_ALL, DATALINK_ANY_MEDIATYPE },
+
 	{ "promisc-filtered", { "on", 1 },
 	    link_promisc_filtered_vals, VALCNT(link_promisc_filtered_vals),
 	    set_promisc_filtered, NULL, get_promisc_filtered, check_prop, 0,
@@ -976,6 +993,11 @@ static prop_desc_t	prop_table[] = {
 	{ "allowed-dhcp-cids", { "--", 0 },
 	    NULL, 0, set_resource, NULL,
 	    get_allowedcids, check_allowedcids, PD_CHECK_ALLOC,
+	    DATALINK_CLASS_ALL, DATALINK_ANY_MEDIATYPE },
+
+	{ "allow-all-dhcp-cids", { "false", RESET_VAL },
+	    dladm_bool_vals, VALCNT(dladm_bool_vals), set_resource, NULL,
+	    get_allowallcids, check_prop, 0,
 	    DATALINK_CLASS_ALL, DATALINK_ANY_MEDIATYPE },
 
 	{ "rxrings", { "--", RESET_VAL }, NULL, 0,
@@ -1026,8 +1048,10 @@ static resource_prop_t rsrc_prop_table[] = {
 	{"pool",		extract_pool},
 	{"pool-effective",	extract_pool},
 	{"protection",		extract_protection},
+	{"dynamic-methods",	extract_dynamic_methods},
 	{"allowed-ips",		extract_allowedips},
 	{"allowed-dhcp-cids",	extract_allowedcids},
+	{"allow-all-dhcp-cids",	extract_allowallcids},
 	{"rxrings",		extract_rxrings},
 	{"rxrings-effective",	extract_rxrings},
 	{"txrings",		extract_txrings},
@@ -3078,6 +3102,88 @@ dladm_str2cid(char *buf, mac_dhcpcid_t *cid)
 		cid->dc_form = CIDFORM_STR;
 	}
 	cid->dc_len = cidlen;
+	return (DLADM_STATUS_OK);
+}
+
+static dladm_status_t
+get_dynamic_methods(dladm_handle_t handle, prop_desc_t *pdp __unused,
+    datalink_id_t linkid, char **prop_val, uint_t *val_cnt,
+    datalink_media_t media __unused, uint_t flags, uint_t *perm_flags)
+{
+	mac_resource_props_t	mrp;
+	mac_protect_t		*p;
+	dladm_status_t		status;
+	uint32_t		i, cnt = 0, setbits[32];
+
+	status = i_dladm_get_public_prop(handle, linkid, "resource", flags,
+	    perm_flags, &mrp, sizeof (mrp));
+	if (status != DLADM_STATUS_OK)
+		return (status);
+
+	p = &mrp.mrp_protect;
+	dladm_find_setbits32(p->mp_dynamic, setbits, &cnt);
+	if (cnt > *val_cnt)
+		return (DLADM_STATUS_BADVALCNT);
+
+	for (i = 0; i < cnt; i++)
+		(void) dladm_dynamic2str(
+		    setbits[i], prop_val[i], DLADM_STRSIZE);
+
+	*val_cnt = cnt;
+	return (DLADM_STATUS_OK);
+}
+
+dladm_status_t
+extract_dynamic_methods(val_desc_t *vdp, uint_t cnt, void *arg)
+{
+	mac_resource_props_t	*mrp = arg;
+	uint32_t		methods = 0;
+	int			i;
+
+	for (i = 0; i < cnt; i++)
+		methods |= (uint32_t)vdp[i].vd_val;
+
+	mrp->mrp_protect.mp_dynamic = methods;
+	mrp->mrp_mask |= MRP_PROTECT;
+	return (DLADM_STATUS_OK);
+}
+
+static dladm_status_t
+get_allowallcids(dladm_handle_t handle, prop_desc_t *pdp __unused,
+    datalink_id_t linkid, char **prop_val, uint_t *val_cnt,
+    datalink_media_t media __unused, uint_t flags, uint_t *perm_flags)
+{
+	mac_resource_props_t	mrp;
+	mac_protect_t		*p;
+	dladm_status_t		status;
+
+	if (*val_cnt < 1)
+		return (DLADM_STATUS_BADVALCNT);
+
+	status = i_dladm_get_public_prop(handle, linkid, "resource", flags,
+	    perm_flags, &mrp, sizeof (mrp));
+	if (status != DLADM_STATUS_OK)
+		return (status);
+
+	p = &mrp.mrp_protect;
+	(void) snprintf(*prop_val, DLADM_STRSIZE,
+	    p->mp_allcids ? "true" : "false");
+	*val_cnt = 1;
+	return (DLADM_STATUS_OK);
+}
+
+dladm_status_t
+extract_allowallcids(val_desc_t *vdp, uint_t cnt __unused, void *arg)
+{
+	mac_resource_props_t	*mrp = arg;
+	mac_protect_t		*p = &mrp->mrp_protect;
+
+	if (vdp->vd_val == RESET_VAL || vdp->vd_val == MPT_FALSE) {
+		p->mp_allcids = (boolean_t)RESET_VAL;
+	} else {
+		p->mp_allcids = (boolean_t)vdp->vd_val;
+	}
+	mrp->mrp_mask |= MRP_PROTECT;
 	return (DLADM_STATUS_OK);
 }
 

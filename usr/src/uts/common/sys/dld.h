@@ -365,6 +365,7 @@ typedef struct dld_ioc_led {
 #define	DLD_CAPAB_POLL		0x00000002
 #define	DLD_CAPAB_PERIM		0x00000003
 #define	DLD_CAPAB_LSO		0x00000004
+#define	DLD_CAPAB_IPCHECK	0x00000005
 
 #define	DLD_ENABLE		0x00000001
 #define	DLD_DISABLE		0x00000002
@@ -415,7 +416,15 @@ typedef struct dld_capab_direct_s {
 	/* flow control "can I put on a ring" callback */
 	uintptr_t	di_tx_fctl_df; /* canput-like callback */
 	void		*di_tx_fctl_dh;
+
+	/* flags that control our behavior */
+	uint_t		di_flags;
 } dld_capab_direct_t;
+
+typedef struct dld_capab_ipcheck_s {
+	uintptr_t	ipc_allowed_df;
+	void		*ipc_allowed_dh;
+} dld_capab_ipcheck_t;
 
 /*
  * Polling/softring capability.

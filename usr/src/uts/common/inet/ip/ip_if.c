@@ -22,7 +22,7 @@
  * Copyright (c) 1991, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 1990 Mentat Inc.
  * Copyright (c) 2013 by Delphix. All rights reserved.
- * Copyright (c) 2016, Joyent, Inc. All rights reserved.
+ * Copyright 2019 Joyent, Inc.
  * Copyright (c) 2014, OmniTI Computer Consulting, Inc. All rights reserved.
  * Copyright 2025 Oxide Computer Company
  */
@@ -175,7 +175,7 @@ static ipif_t	*ipif_lookup_on_name_async(char *name, size_t namelen,
 
 static int	ill_alloc_ppa(ill_if_t *, ill_t *);
 static void	ill_delete_interface_type(ill_if_t *);
-static int	ill_dl_up(ill_t *ill, ipif_t *ipif, mblk_t *mp, queue_t *q);
+static int	ill_dl_up(ill_t *ill, ipif_t *ipif);
 static void	ill_dl_down(ill_t *ill);
 static void	ill_down(ill_t *ill);
 static void	ill_down_ipifs(ill_t *, boolean_t);
@@ -1381,6 +1381,36 @@ ill_capability_probe(ill_t *ill)
 	ill->ill_dlpi_capab_state = IDCS_PROBE_SENT;
 }
 
+static boolean_t
+ill_capability_wait(ill_t *ill)
+{
+	/*
+	 * I'm in this ill's squeue, aka a writer.  The ILL_CONDEMNED flag can
+	 * only be set by someone who is the writer.  Since we
+	 * drop-and-reacquire the squeue in this loop, we need to check for
+	 * ILL_CONDEMNED, which if set means nothing can signal our capability
+	 * condition variable.
+	 */
+	ASSERT(IAM_WRITER_ILL(ill));
+
+	while (ill->ill_capab_pending_cnt != 0 &&
+	    (ill->ill_state_flags & ILL_CONDEMNED) == 0) {
+		/* This may enable blocked callers of ill_capability_done(). */
+		ipsq_exit(ill->ill_phyint->phyint_ipsq);
+		/* Pause a bit (1msec) before we re-enter the squeue. */
+		delay(drv_usectohz(1000000));
+
+		/*
+		 * If ipsq_enter() fails, someone set ILL_CONDEMNED
+		 * while we dropped the squeue. Indicate such to the caller.
+		 */
+		if (!ipsq_enter(ill, B_FALSE, CUR_OP))
+			return (B_FALSE);
+	}
+
+	return ((ill->ill_state_flags & ILL_CONDEMNED) == 0);
+}
+
 void
 ill_capability_reset(ill_t *ill, boolean_t reneg)
 {
@@ -1390,6 +1420,8 @@ ill_capability_reset(ill_t *ill, boolean_t reneg)
 		return;
 
 	ill->ill_dlpi_capab_state = reneg ? IDCS_RENEG : IDCS_RESET_SENT;
+
+	ASSERT(ill->ill_capab_reset_mp != NULL);
 
 	ill_capability_send(ill, ill->ill_capab_reset_mp);
 	ill->ill_capab_reset_mp = NULL;
@@ -2114,6 +2146,49 @@ ill_capability_lso_enable(ill_t *ill)
 	}
 }
 
+/*
+ * Check whether or not mac will prevent us from sending with a given IP
+ * address. This requires having the IPCHECK capability, which we should
+ * always be able to successfully negotiate, but if it's somehow missing
+ * then we just permit the caller to use the address, since mac does the
+ * actual enforcement and ip is just performing a courtesy check to help
+ * prevent users from unwittingly setting and attempting to use blocked
+ * addresses.
+ */
+static boolean_t
+ill_ipcheck_addr(ill_t *ill, in6_addr_t *v6addr)
+{
+	if ((ill->ill_capabilities & ILL_CAPAB_DLD_IPCHECK) == 0)
+		return (B_TRUE);
+
+	ill_dld_ipcheck_t *idi = &ill->ill_dld_capab->idc_ipcheck;
+	ip_mac_ipcheck_t ipcheck = idi->idi_allowed_df;
+	return (ipcheck(idi->idi_allowed_dh, ill->ill_isv6, v6addr));
+}
+
+static void
+ill_capability_ipcheck_enable(ill_t *ill)
+{
+	ill_dld_capab_t		*idc = ill->ill_dld_capab;
+	ill_dld_ipcheck_t	*idi = &idc->idc_ipcheck;
+	dld_capab_ipcheck_t	spoof;
+	int rc;
+
+	ASSERT(IAM_WRITER_ILL(ill));
+
+	bzero(&spoof, sizeof (spoof));
+	if ((rc = idc->idc_capab_df(idc->idc_capab_dh, DLD_CAPAB_IPCHECK,
+	    &spoof, DLD_ENABLE)) == 0) {
+		idi->idi_allowed_df = (ip_mac_ipcheck_t)spoof.ipc_allowed_df;
+		idi->idi_allowed_dh = spoof.ipc_allowed_dh;
+		ill->ill_capabilities |= ILL_CAPAB_DLD_IPCHECK;
+	} else {
+		cmn_err(CE_WARN, "warning: could not enable IPCHECK "
+		    "capability, rc = %d\n", rc);
+		DTRACE_PROBE2(ipcheck__off, (ill_t *), ill, (int), rc);
+	}
+}
+
 static void
 ill_capability_dld_enable(ill_t *ill)
 {
@@ -2124,6 +2199,7 @@ ill_capability_dld_enable(ill_t *ill)
 	ill_mac_perim_enter(ill, &mph);
 	ill_capability_direct_enable(ill);
 	ill_capability_poll_enable(ill);
+	ill_capability_ipcheck_enable(ill);
 	ill_capability_lso_enable(ill);
 	ill->ill_capabilities |= ILL_CAPAB_DLD;
 	ill_mac_perim_exit(ill, mph);
@@ -2186,6 +2262,15 @@ ill_capability_dld_disable(ill_t *ill)
 
 		ill->ill_capabilities &= ~ILL_CAPAB_LSO;
 		(void) idc->idc_capab_df(idc->idc_capab_dh, DLD_CAPAB_LSO,
+		    NULL, DLD_DISABLE);
+	}
+
+	if ((ill->ill_capabilities & ILL_CAPAB_DLD_IPCHECK) != 0) {
+		ASSERT(ill->ill_dld_capab->idc_ipcheck.idi_allowed_df != NULL);
+		ASSERT(ill->ill_dld_capab->idc_ipcheck.idi_allowed_dh != NULL);
+
+		ill->ill_capabilities &= ~ILL_CAPAB_DLD_IPCHECK;
+		(void) idc->idc_capab_df(idc->idc_capab_dh, DLD_CAPAB_IPCHECK,
 		    NULL, DLD_DISABLE);
 	}
 
@@ -9683,7 +9768,6 @@ ip_sioctl_addr(ipif_t *ipif, sin_t *sin, queue_t *q, mblk_t *mp,
 	in6_addr_t v6addr;
 	boolean_t need_up = B_FALSE;
 	ill_t *ill;
-	int i;
 
 	ip1dbg(("ip_sioctl_addr(%s:%u %p)\n",
 	    ipif->ipif_ill->ill_name, ipif->ipif_id, (void *)ipif));
@@ -9758,20 +9842,9 @@ ip_sioctl_addr(ipif_t *ipif, sin_t *sin, queue_t *q, mblk_t *mp,
 
 		IN6_IPADDR_TO_V4MAPPED(addr, &v6addr);
 	}
-	/*
-	 * verify that the address being configured is permitted by the
-	 * ill_allowed_ips[] for the interface.
-	 */
-	if (ill->ill_allowed_ips_cnt > 0) {
-		for (i = 0; i < ill->ill_allowed_ips_cnt; i++) {
-			if (IN6_ARE_ADDR_EQUAL(&ill->ill_allowed_ips[i],
-			    &v6addr))
-				break;
-		}
-		if (i == ill->ill_allowed_ips_cnt) {
-			pr_addr_dbg("!allowed addr %s\n", AF_INET6, &v6addr);
-			return (EPERM);
-		}
+	/* verify that the address being configured is permitted by mac */
+	if (!ill_ipcheck_addr(ill, &v6addr)) {
+		return (EPERM);
 	}
 	/*
 	 * Even if there is no change we redo things just to rerun
@@ -12711,6 +12784,12 @@ ill_dl_down(ill_t *ill)
 	}
 
 	ill->ill_unbind_mp = NULL;
+
+	mutex_enter(&ill->ill_lock);
+	ill->ill_dl_up = 0;
+	ill_nic_event_dispatch(ill, 0, NE_DOWN, NULL, 0);
+	mutex_exit(&ill->ill_lock);
+
 	if (mp != NULL) {
 		ip1dbg(("ill_dl_down: %s (%u) for %s\n",
 		    dl_primstr(*(int *)mp->b_rptr), *(int *)mp->b_rptr,
@@ -12733,11 +12812,13 @@ ill_dl_down(ill_t *ill)
 			ill_capability_dld_disable(ill);
 		ill_capability_reset(ill, B_FALSE);
 		ill_dlpi_send(ill, mp);
+
+		/*
+		 * Wait for the capability reset to finish.
+		 * In this case, it doesn't matter WHY or HOW it finished.
+		 */
+		(void) ill_capability_wait(ill);
 	}
-	mutex_enter(&ill->ill_lock);
-	ill->ill_dl_up = 0;
-	ill_nic_event_dispatch(ill, 0, NE_DOWN, NULL, 0);
-	mutex_exit(&ill->ill_lock);
 }
 
 void
@@ -12859,6 +12940,7 @@ void
 ill_capability_done(ill_t *ill)
 {
 	ASSERT(ill->ill_capab_pending_cnt != 0);
+	ASSERT(IAM_WRITER_ILL(ill));
 
 	ill_dlpi_done(ill, DL_CAPABILITY_REQ);
 
@@ -14486,7 +14568,14 @@ ipif_up(ipif_t *ipif, queue_t *q, mblk_t *mp)
 			 * address/netmask etc cause a down/up dance, but
 			 * does not cause an unbind (DL_UNBIND) with the driver
 			 */
-			return (ill_dl_up(ill, ipif, mp, q));
+			if ((err = ill_dl_up(ill, ipif)) != 0) {
+				return (err);
+			}
+		}
+
+		/* Reject bringing up interfaces with unusable IP addresses */
+		if (!ill_ipcheck_addr(ill, &ipif->ipif_v6lcl_addr)) {
+			return (EPERM);
 		}
 
 		/*
@@ -14599,24 +14688,22 @@ ill_delete_ires(ill_t *ill)
 
 /*
  * Perform a bind for the physical device.
- * When the routine returns EINPROGRESS then mp has been consumed and
- * the ioctl will be acked from ip_rput_dlpi.
- * Allocate an unbind message and save it until ipif_down.
+ *
+ * When the routine returns successfully then dlpi has been bound and
+ * capabilities negotiated. An unbind message will have been allocated
+ * for later use in ipif_down.
  */
 static int
-ill_dl_up(ill_t *ill, ipif_t *ipif, mblk_t *mp, queue_t *q)
+ill_dl_up(ill_t *ill, ipif_t *ipif)
 {
 	mblk_t	*bind_mp = NULL;
 	mblk_t	*unbind_mp = NULL;
-	conn_t	*connp;
-	boolean_t success;
 	int	err;
 
 	DTRACE_PROBE2(ill__downup, char *, "ill_dl_up", ill_t *, ill);
 
 	ip1dbg(("ill_dl_up(%s)\n", ill->ill_name));
 	ASSERT(IAM_WRITER_ILL(ill));
-	ASSERT(mp != NULL);
 
 	/*
 	 * Make sure we have an IRE_MULTICAST in case we immediately
@@ -14651,19 +14738,6 @@ ill_dl_up(ill_t *ill, ipif_t *ipif, mblk_t *mp, queue_t *q)
 		if (unbind_mp == NULL)
 			goto bad;
 	}
-	/*
-	 * Record state needed to complete this operation when the
-	 * DL_BIND_ACK shows up.  Also remember the pre-allocated mblks.
-	 */
-	connp = CONN_Q(q) ? Q_TO_CONN(q) : NULL;
-	ASSERT(connp != NULL || !CONN_Q(q));
-	GRAB_CONN_LOCK(q);
-	mutex_enter(&ipif->ipif_ill->ill_lock);
-	success = ipsq_pending_mp_add(connp, ipif, q, mp, 0);
-	mutex_exit(&ipif->ipif_ill->ill_lock);
-	RELEASE_CONN_LOCK(q);
-	if (!success)
-		goto bad;
 
 	/*
 	 * Save the unbind message for ill_dl_down(); it will be consumed when
@@ -14675,6 +14749,18 @@ ill_dl_up(ill_t *ill, ipif_t *ipif, mblk_t *mp, queue_t *q)
 	ill_dlpi_send(ill, bind_mp);
 	/* Send down link-layer capabilities probe if not already done. */
 	ill_capability_probe(ill);
+	/*
+	 * Wait for DLPI to be bound and the capability probe to finish.
+	 * The call drops-and-reacquires the squeue. If it couldn't because
+	 * ILL_CONDEMNED got set, bail.
+	 */
+	if (!ill_capability_wait(ill))
+		return (ENXIO);
+
+	/* DLPI failed to bind. Return the saved error */
+	if (!ill->ill_dl_up) {
+		return (ill->ill_dl_bind_err);
+	}
 
 	/*
 	 * Sysid used to rely on the fact that netboots set domainname
@@ -14692,11 +14778,7 @@ ill_dl_up(ill_t *ill, ipif_t *ipif, mblk_t *mp, queue_t *q)
 			cmn_err(CE_WARN, "no cached dhcp response");
 	}
 
-	/*
-	 * This operation will complete in ip_rput_dlpi with either
-	 * a DL_BIND_ACK or DL_ERROR_ACK.
-	 */
-	return (EINPROGRESS);
+	return (0);
 bad:
 	ip1dbg(("ill_dl_up(%s) FAILED\n", ill->ill_name));
 
