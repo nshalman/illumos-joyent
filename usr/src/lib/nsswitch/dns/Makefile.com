@@ -52,5 +52,5 @@ $(ROOT)/usr/lib/$(MACH64)/$(DYNLIB1):= \
 CPPFLAGS +=	-DNSS_DNS_LIBRESOLV=\"libresolv.so.2\"
 
 
-LDLIBS +=	-lnsl -lsocket
-
+LDLIBS +=	-lnsl -lresolv_joy -lsocket
+DYNLIB1 =	nss_dns.so$(VERS)

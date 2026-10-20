@@ -197,6 +197,7 @@ SUBDIRS +=				\
 	libreparse	\
 	libresolv	\
 	libresolv2	\
+	libresolv2_joy	\
 	librestart	\
 	librpcsvc	\
 	librsm		\

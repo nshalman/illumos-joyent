@@ -25,6 +25,7 @@
 # Copyright 2013 Garrett D'Amore <garrett@damore.org>
 # Copyright 2015 Igor Kozhukhov <ikozhukhov@gmail.com>
 # Copyright 2017 Nexenta Systems, Inc.
+# Copyright 2017 Joyent, Inc.
 #
 
 # include global definitions
@@ -156,6 +157,7 @@ HDRS=   $($(MACH)_HDRS)	\
 	regex.h		\
 	regexp.h	\
 	resolv.h	\
+	resolv_joy.h	\
 	rje.h		\
 	rtld_db.h	\
 	sac.h		\
