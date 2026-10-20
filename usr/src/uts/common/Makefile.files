@@ -25,7 +25,7 @@
 # Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
 # Copyright 2018 Nexenta Systems, Inc.
 # Copyright 2022 Garrett D'Amore
-# Copyright 2020 Joyent, Inc.
+# Copyright 2021 Joyent, Inc.
 # Copyright 2016 OmniTI Computer Consulting, Inc.  All rights reserved.
 # Copyright 2016 Hans Rosenfeld <rosenfeld@grumpf.hope-2000.org>
 # Copyright 2026 Oxide Computer Company
@@ -2250,6 +2250,11 @@ AXF_OBJS = axf_usbgem.o
 UDMF_OBJS = udmf_usbgem.o
 URF_OBJS = urf_usbgem.o
 UPF_OBJS = upf_usbgem.o
+
+#
+#	NFP objects
+#
+NFP_OBJS = hostif.o osif.o drvlist.o i21555.o i21285.o i21555d.o
 
 #
 #	BNXE objects
