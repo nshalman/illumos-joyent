@@ -14,8 +14,10 @@
 #
 # Copyright (c) 2012, 2016 by Delphix. All rights reserved.
 # Copyright 2014, OmniTI Computer Consulting, Inc. All rights reserved.
+# Copyright 2019 Joyent, Inc.
 # Copyright 2021 Tintri by DDN, Inc. All rights reserved.
 # Copyright 2020 OmniOS Community Edition (OmniOSce) Association.
+# Copyright 2024 MNX Cloud, Inc.
 # Copyright 2026 Gordon W. Ross
 #
 
@@ -179,6 +181,18 @@ function constrain_path
 
 	# Special case links
 	ln -s /usr/gnu/bin/dd $PATHDIR/gnu_dd
+
+	# SmartOS does not ship some required commands by default.
+	# Link to them in the package manager's namespace.
+	pkgsrc_bin=/opt/tools/bin
+	pkgsrc_packages="fio uuidgen md5sum sudo truncate python base64 shuf sha256sum"
+	for pkg in $pkgsrc_packages; do
+		if [[ ! -x $PATHDIR/$pkg ]]; then
+			rm -f $PATHDIR/$pkg &&
+			    ln -s $pkgsrc_bin/$pkg $PATHDIR/$pkg ||
+			    fail "Couldn't link $pkg"
+		fi
+	done
 }
 
 constrain_path
