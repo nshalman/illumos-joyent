@@ -62,9 +62,9 @@ extern sock_downcalls_t sock_tcp_downcalls;
  * by setting it to 0.
  */
 #define	TCP_XMIT_LOWATER	4096
-#define	TCP_XMIT_HIWATER	49152
+#define	TCP_XMIT_HIWATER	128000
 #define	TCP_RECV_LOWATER	2048
-#define	TCP_RECV_HIWATER	128000
+#define	TCP_RECV_HIWATER	1048576
 
 /*
  * Bind hash list size and has function.  It has to be a power of 2 for
@@ -400,6 +400,22 @@ typedef struct tcp_listen_cnt_s {
 	uint32_t	tlc_drop;
 } tcp_listen_cnt_t;
 
+/*
+ * Track tcp_t entities bound to the same port/address tuple via SO_REUSEPORT.
+ * - tcprg_lock:	Protects the other fields
+ * - tcprg_size:	Allocated size (in entries) of tcprg_members array
+ * - tcprg_count:	Count of occupied tcprg_members slots
+ * - tcprg_active:	Count of members which still have SO_REUSEPORT set
+ * - tcprg_members:	Connections associated with address/port group
+ */
+typedef struct tcp_rg_s {
+	kmutex_t	tcprg_lock;
+	unsigned int	tcprg_size;
+	unsigned int	tcprg_count;
+	unsigned int	tcprg_active;
+	tcp_t		**tcprg_members;
+} tcp_rg_t;
+
 #define	TCP_TLC_REPORT_INTERVAL	(30 * MINUTES)
 
 #define	TCP_DECR_LISTEN_CNT(tcp)					\
@@ -683,7 +699,7 @@ extern int	tcp_rwnd_set(tcp_t *, uint32_t);
 extern int	tcp_set_destination(tcp_t *);
 extern void	tcp_set_ws_value(tcp_t *);
 extern void	tcp_stop_lingering(tcp_t *);
-extern void	tcp_update_pmtu(tcp_t *, boolean_t);
+extern boolean_t	tcp_update_pmtu(tcp_t *, boolean_t);
 extern mblk_t	*tcp_zcopy_backoff(tcp_t *, mblk_t *, boolean_t);
 extern boolean_t	tcp_zcopy_check(tcp_t *);
 extern void	tcp_zcopy_notify(tcp_t *);
@@ -700,6 +716,10 @@ extern in_port_t	tcp_bindi(tcp_t *, in_port_t, const in6_addr_t *,
 			    int, boolean_t, boolean_t, boolean_t);
 extern in_port_t	tcp_update_next_port(in_port_t, const tcp_t *,
 			    boolean_t);
+extern tcp_rg_t *tcp_rg_init(tcp_t *);
+extern boolean_t tcp_rg_remove(tcp_rg_t *, tcp_t *);
+extern void tcp_rg_destroy(tcp_rg_t *);
+extern void tcp_rg_setactive(tcp_rg_t *, boolean_t);
 
 /*
  * Fusion related functions in tcp_fusion.c.

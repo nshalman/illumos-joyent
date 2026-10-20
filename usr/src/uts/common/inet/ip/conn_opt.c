@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2016 Joyent, Inc.
  * Copyright 2020 OmniOS Community Edition (OmniOSce) Association.
  * Copyright 2026 Oxide Computer Company
  * Copyright 2026 Bill Sommerfeld <sommerfeld@hamachi.org>
@@ -645,6 +646,9 @@ conn_opt_get(conn_opt_arg_t *coa, t_scalar_t level, t_scalar_t name,
 			break;
 		case SO_REUSEADDR:
 			*i1 = connp->conn_reuseaddr ? SO_REUSEADDR : 0;
+			break;	/* goto sizeof (int) option return */
+		case SO_REUSEPORT:
+			*i1 = connp->conn_reuseport;
 			break;	/* goto sizeof (int) option return */
 		case SO_TYPE:
 			*i1 = connp->conn_so_type;

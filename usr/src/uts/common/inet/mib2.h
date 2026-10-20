@@ -23,6 +23,7 @@
 /*
  * Copyright (c) 1990 Mentat Inc.
  * Copyright (c) 2015, 2016 by Delphix. All rights reserved.
+ * Copyright 2019 Joyent, Inc.
  */
 
 /*
@@ -1399,6 +1400,8 @@ typedef struct tcpConnEntryInfo_s {
 	Gauge		ce_rwnd;
 			/* round-trip time smoothed average (us) */
 	Gauge		ce_rtt_sa;
+			/* current rto (retransmit timeout) */
+	Gauge		ce_rtt_sd;
 			/* current rto (retransmit timeout) */
 	Gauge		ce_rto;
 			/* round-trip time count */
