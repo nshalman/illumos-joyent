@@ -236,9 +236,9 @@ usage(void)
 	(void) fprintf(stderr, gettext("usage: flowadm <subcommand>"
 	    " <args>...\n"
 	    "    add-flow       [-t] -l <link> -a <attr>=<value>[,...]\n"
-	    "\t\t   [-p <prop>=<value>,...] <flow>\n"
-	    "    remove-flow    [-t] {-l <link> | <flow>}\n"
-	    "    show-flow      [-p] [-l <link>] "
+	    "\t\t   [-p <prop>=<value>,...] [-z zonename] <flow>\n"
+	    "    remove-flow    [-t] [-z zonename] {-l <link> | <flow>}\n"
+	    "    show-flow      [-p] [-l <link>] [-z zonename] "
 	    "[<flow>]\n\n"
 	    "    set-flowprop   [-t] -p <prop>=<value>[,...] <flow>\n"
 	    "    reset-flowprop [-t] [-p <prop>,...] <flow>\n"
@@ -336,11 +336,12 @@ do_add_flow(int argc, char *argv[])
 	dladm_arg_list_t	*proplist = NULL;
 	dladm_arg_list_t	*attrlist = NULL;
 	dladm_status_t		status;
+	char			*zonename = NULL;
 
 	bzero(propstr, DLADM_STRSIZE);
 	bzero(attrstr, DLADM_STRSIZE);
 
-	while ((option = getopt_long(argc, argv, "tR:l:a:p:",
+	while ((option = getopt_long(argc, argv, "tR:l:a:p:z:",
 	    prop_longopts, NULL)) != -1) {
 		switch (option) {
 		case 't':
@@ -354,9 +355,6 @@ do_add_flow(int argc, char *argv[])
 			    MAXLINKNAMELEN) >= MAXLINKNAMELEN) {
 				die("link name too long");
 			}
-			if (dladm_name2info(handle, devname, &linkid, NULL,
-			    NULL, NULL) != DLADM_STATUS_OK)
-				die("invalid link '%s'", devname);
 			l_arg = B_TRUE;
 			break;
 		case 'a':
@@ -371,6 +369,9 @@ do_add_flow(int argc, char *argv[])
 			    DLADM_STRSIZE)
 				die("property list too long '%s'", propstr);
 			break;
+		case 'z':
+			zonename = optarg;
+			break;
 		default:
 			die_opterr(optopt, option);
 		}
@@ -378,6 +379,10 @@ do_add_flow(int argc, char *argv[])
 	if (!l_arg) {
 		die("link is required");
 	}
+
+	if (dladm_zname2info(handle, zonename, devname, &linkid, NULL,
+	    NULL, NULL) != DLADM_STATUS_OK)
+		die("invalid link '%s'", devname);
 
 	opterr = 0;
 	index = optind;
@@ -417,11 +422,12 @@ do_remove_flow(int argc, char *argv[])
 	boolean_t		l_arg = B_FALSE;
 	remove_flow_state_t	state;
 	dladm_status_t		status;
+	char			*zonename = NULL;
 
 	bzero(&state, sizeof (state));
 
 	opterr = 0;
-	while ((option = getopt_long(argc, argv, ":tR:l:",
+	while ((option = getopt_long(argc, argv, ":tR:l:z:",
 	    longopts, NULL)) != -1) {
 		switch (option) {
 		case 't':
@@ -435,11 +441,10 @@ do_remove_flow(int argc, char *argv[])
 			    MAXLINKNAMELEN) >= MAXLINKNAMELEN) {
 				die("link name too long");
 			}
-			if (dladm_name2info(handle, linkname, &linkid, NULL,
-			    NULL, NULL) != DLADM_STATUS_OK) {
-				die("invalid link '%s'", linkname);
-			}
 			l_arg = B_TRUE;
+			break;
+		case 'z':
+			zonename = optarg;
 			break;
 		default:
 			die_opterr(optopt, option);
@@ -461,6 +466,12 @@ do_remove_flow(int argc, char *argv[])
 		/* if link is specified then flow name should not be there */
 		if (optind == argc-1)
 			usage();
+
+		if (dladm_zname2info(handle, zonename, linkname, &linkid, NULL,
+		    NULL, NULL) != DLADM_STATUS_OK) {
+			die("invalid link '%s'", linkname);
+		}
+
 		/* walk the link to find flows and remove them */
 		state.fs_tempop = t_arg;
 		state.fs_altroot = altroot;
@@ -600,11 +611,12 @@ do_show_flow(int argc, char *argv[])
 	ofmt_handle_t		ofmt;
 	ofmt_status_t		oferr;
 	uint_t			ofmtflags = 0;
+	char			*zonename = NULL;
 
 	bzero(&state, sizeof (state));
 
 	opterr = 0;
-	while ((option = getopt_long(argc, argv, ":pPl:o:",
+	while ((option = getopt_long(argc, argv, ":pPl:o:z:",
 	    longopts, NULL)) != -1) {
 		switch (option) {
 		case 'p':
@@ -625,15 +637,21 @@ do_show_flow(int argc, char *argv[])
 			if (strlcpy(linkname, optarg, MAXLINKNAMELEN)
 			    >= MAXLINKNAMELEN)
 				die("link name too long\n");
-			if (dladm_name2info(handle, linkname, &linkid, NULL,
-			    NULL, NULL) != DLADM_STATUS_OK)
-				die("invalid link '%s'", linkname);
 			l_arg = B_TRUE;
+			break;
+		case 'z':
+			zonename = optarg;
 			break;
 		default:
 			die_opterr(optopt, option);
 			break;
 		}
+	}
+
+	if (l_arg) {
+		if (dladm_zname2info(handle, zonename, linkname, &linkid, NULL,
+		    NULL, NULL) != DLADM_STATUS_OK)
+			die("invalid link '%s'", linkname);
 	}
 
 	/* get flow name (optional last argument */

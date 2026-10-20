@@ -136,6 +136,7 @@ SYMBOL_VERSION SUNWprivate_1.1 {
 	dladm_remap_datalink_id;
 	dladm_up_datalink_id;
 	dladm_name2info;
+	dladm_zname2info;
 	dladm_datalink_id2info;
 	dladm_walk_datalink_id;
 	dladm_create_conf;

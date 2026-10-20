@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2016 Joyent, Inc.
+ * Copyright 2019 Joyent, Inc.
  * Copyright 2023 Oxide Computer Company
  */
 
@@ -60,6 +60,7 @@
 #include <libsysevent.h>
 #include <libdlmgmt.h>
 #include <librcm.h>
+#include <unistd.h>
 #include "dlmgmt_impl.h"
 
 typedef void dlmgmt_door_handler_t(void *, void *, size_t *, zoneid_t,
@@ -428,6 +429,7 @@ dlmgmt_getname(void *argp, void *retp, size_t *sz, zoneid_t zoneid,
 		retvalp->lr_flags |= linkp->ll_transient ? DLMGMT_TRANSIENT : 0;
 	}
 
+
 	dlmgmt_table_unlock();
 	retvalp->lr_err = err;
 }
@@ -441,6 +443,10 @@ dlmgmt_getlinkid(void *argp, void *retp, size_t *sz, zoneid_t zoneid,
 	dlmgmt_getlinkid_retval_t *retvalp = retp;
 	dlmgmt_link_t		*linkp;
 	int			err = 0;
+
+	/* Enable the global zone to lookup links it has given away. */
+	if (zoneid == GLOBAL_ZONEID && getlinkid->ld_zoneid != -1)
+		zoneid = getlinkid->ld_zoneid;
 
 	/*
 	 * Hold the reader lock to access the link
@@ -652,6 +658,7 @@ dlmgmt_remapid(void *argp, void *retp, size_t *sz, zoneid_t zoneid,
 
 	if ((err = dlmgmt_checkprivs(linkp->ll_class, cred)) != 0)
 		goto done;
+
 
 	if (link_by_name(remapid->ld_link, linkp->ll_zoneid) != NULL) {
 		err = EEXIST;
@@ -1237,8 +1244,7 @@ dlmgmt_setzoneid(void *argp, void *retp, size_t *sz, zoneid_t zoneid,
 	 * Before we remove the link from its current zone, make sure that
 	 * there isn't a link with the same name in the destination zone.
 	 */
-	if (zoneid != GLOBAL_ZONEID &&
-	    link_by_name(linkp->ll_link, newzoneid) != NULL) {
+	if (link_by_name(linkp->ll_link, newzoneid) != NULL) {
 		err = EEXIST;
 		goto done;
 	}
@@ -1250,11 +1256,9 @@ dlmgmt_setzoneid(void *argp, void *retp, size_t *sz, zoneid_t zoneid,
 			    "zone %d: %s", linkid, oldzoneid, strerror(err));
 			goto done;
 		}
-		if (linkp->ll_onloan) {
-			avl_remove(&dlmgmt_loan_avl, linkp);
-			linkp->ll_onloan = B_FALSE;
-		}
+		linkp->ll_onloan = B_FALSE;
 	}
+
 	if (newzoneid != GLOBAL_ZONEID) {
 		if (zone_add_datalink(newzoneid, linkid) != 0) {
 			err = errno;
@@ -1263,10 +1267,7 @@ dlmgmt_setzoneid(void *argp, void *retp, size_t *sz, zoneid_t zoneid,
 			(void) zone_add_datalink(oldzoneid, linkid);
 			goto done;
 		}
-		if (!linkp->ll_transient) {
-			avl_add(&dlmgmt_loan_avl, linkp);
-			linkp->ll_onloan = B_TRUE;
-		}
+		linkp->ll_onloan = B_TRUE;
 	}
 
 	avl_remove(&dlmgmt_name_avl, linkp);
@@ -1318,6 +1319,10 @@ dlmgmt_zonehalt(void *argp, void *retp, size_t *sz, zoneid_t zoneid,
 	int			err = 0;
 	dlmgmt_door_zonehalt_t	*zonehalt = argp;
 	dlmgmt_zonehalt_retval_t *retvalp = retp;
+	static char my_pid[10];
+
+	if (my_pid[0] == '\0')
+		(void) snprintf(my_pid, sizeof (my_pid), "%d\n", getpid());
 
 	if ((err = dlmgmt_checkprivs(0, cred)) == 0) {
 		if (zoneid != GLOBAL_ZONEID) {

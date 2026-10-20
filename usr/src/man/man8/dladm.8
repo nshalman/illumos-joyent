@@ -41,7 +41,7 @@
 .\"
 .\"
 .\" Copyright (c) 2008, Sun Microsystems, Inc. All Rights Reserved
-.\" Copyright 2016 Joyent, Inc.
+.\" Copyright 2017 Joyent, Inc.
 .\" Copyright 2020 RackTop Systems, Inc.
 .\" Copyright 2024 Oxide Computer Company
 .\" Copyright 2024 OmniOS Community Edition (OmniOSce) Association.
@@ -68,6 +68,7 @@
 .Nm
 .Cm rename-link
 .Op Fl R Ar root-dir
+.Op Fl z Ar zonename
 .Ar link new-link
 .\" Phys
 .Pp
@@ -257,17 +258,20 @@
 .Cm set-linkprop
 .Op Fl t
 .Op Fl R Ar root-dir
+.Op Fl z Ar zonename
 .Fl p Ar prop Ns Cm \&= Ns Ar value Ns Op ,...
 .Ar link
 .Nm
 .Cm reset-linkprop
 .Op Fl t
 .Op Fl R Ar root-dir
+.Op Fl z Ar zonename
 .Op Fl p Ar prop Ns Op ,...
 .Ar link
 .Nm
 .Cm show-linkprop
 .Op Fl P
+.Op Fl z Ar zonename
 .Op Oo Fl c Oc Fl o Ar field Ns Op ,...
 .Op Fl p Ar prop Ns Op ,...
 .Op Ar link
@@ -311,6 +315,7 @@
 .Cm delete-vnic
 .Op Fl t
 .Op Fl R Ar root-dir
+.Op Fl z Ar zonename
 .Ar vnic-link
 .Nm
 .Cm show-vnic
@@ -697,6 +702,7 @@ If this option is not specified, statistics will be displayed only once.
 .It Xo
 .Nm Cm rename-link
 .Op Fl R Ar root-dir
+.Op Fl z Ar zonename
 .Ar link new-link
 .Xc
 .Pp
@@ -716,6 +722,11 @@ section for specific examples of how this subcommand is used.
 See
 .Sx Options ,
 above.
+.It Xo
+.Fl z Ar zonename
+.Xc
+A link assigned to a zone can only be renamed while the zone is in the ready
+state.
 .El
 .It Xo
 .Nm Cm delete-phys
@@ -2531,6 +2542,7 @@ and
 .Nm Cm set-linkprop
 .Op Fl t
 .Op Fl R Ar root-dir
+.Op Fl z Ar zonename
 .Fl p Ar prop Ns Cm \&= Ns Ar value Ns Op ,...
 .Ar link
 .Xc
@@ -2552,6 +2564,10 @@ See
 .Sx Options ,
 above.
 .It Xo
+.Fl z Ar zonename
+.Xc
+Operate on a link that has been delegated to the specified zone.
+.It Xo
 .Sm off
 .Fl p\~ Ar prop Cm = Ar value Oo ,... Oc \&,\~
 .Fl \&-prop\~ Ar prop Cm = Ar value Op ,...
@@ -2566,6 +2582,7 @@ same value.
 .Nm Cm reset-linkprop
 .Op Fl t
 .Op Fl R Ar root-dir
+.Op Fl z Ar zonename
 .Op Fl p Ar prop Ns Op ,...
 .Ar link
 .Xc
@@ -2589,6 +2606,10 @@ See
 .Sx Options ,
 above.
 .It Xo
+.Fl z Ar zonename
+.Xc
+Operate on a link that has been delegated to the specified zone.
+.It Xo
 .Fl p Ar prop Ns Oo ,... Oc ,
 .Fl \&-prop Ns Cm = Ns Ar prop Ns Op ,...
 .Xc
@@ -2600,6 +2621,7 @@ the same value.
 .It Xo
 .Nm Cm show-linkprop
 .Op Fl P
+.Op Fl z Ar zonename
 .Op Oo Fl c Oc Fl o Ar field Ns Op ,...
 .Op Fl p Ar prop Ns Op ,...
 .Op Ar link
@@ -2679,6 +2701,10 @@ See
 below.
 .It Fl P , \&-persistent
 Display persistent link property information.
+.It Xo
+.Fl z Ar zonename
+.Xc
+Operate on a link that has been delegated to the specified zone.
 .It Xo
 .Fl p Ar prop Ns Oo ,... Oc ,
 .Fl \&-prop Ns Cm = Ns Ar prop Ns Op ,...
@@ -2925,6 +2951,7 @@ A comma-separated list of properties to set to the specified values.
 .Nm Cm delete-vnic
 .Op Fl t
 .Op Fl R Ar root-dir
+.Op Fl z Ar zonename
 .Ar vnic-link
 .Xc
 .Pp
@@ -2940,6 +2967,10 @@ Temporary deletions last until the next reboot.
 See
 .Sx Options ,
 above.
+.It Xo
+.Fl z Ar zonename
+.Xc
+Operate on a link that has been delegated to the specified zone.
 .El
 .It Xo
 .Nm Cm show-vnic
@@ -2947,6 +2978,7 @@ above.
 .Op Oo Fl p Oc Fl o Ar field Ns Op ,...
 .Op Fl s Op Fl i Ar interval
 .Op Fl l Ar link
+.Op Fl z Ar zonename
 .Op Ar vnic-link
 .Xc
 .Pp
@@ -3019,6 +3051,8 @@ displayed.
 If this option is not specified, statistics will be displayed only once.
 .It Fl l Ar link , Fl \&-link Ns Cm \&= Ns Ar link
 Display information for all VNICs on the named link.
+.It Fl z Ar zonename
+Operate on a link that has been delegated to the specified zone.
 .El
 .It Xo
 .Nm Cm create-etherstub
@@ -3785,6 +3819,33 @@ Note that escaping is not done when you request only a single field.
 .Ss "General Link Properties"
 The following general link properties are supported:
 .Bl -tag -width 4n
+.It Sy allow-all-dhcp-cids
+.Pp
+One of
+.Cm true
+or
+.Cm false ,
+to indicate whether or not all DHCP Client Identifiers should be permitted on
+this interface when DHCP spoofing protection is being used.
+This can be useful in cases where a DHCP client is using RFC 4361-style Client
+Identifiers, which are based on a value that is opaque to the Global Zone,
+but enforcement of MAC addresses in DHCP packets is still desired.
+.It Sy allowed-dhcp-cids
+A comma-separated list of DHCP Client Identifiers that are allowed on the
+interface.
+.Pp
+Client identifiers can be written in three different formats: a string of
+hexadecimal characters prefixed by 0x, indicating the exact bytes used in the
+Client Identifier; an RFC 3315 DUID of the form
+"1.<hardware type>.<time>.<link-layer address>" (DUID-LLT),
+"2.<enterprise number>.<hex string>" (DUID-EN), or
+"3.<hardware type>.<link-layer address>" (DUID-LL); or a string of characters
+whose byte values should be used as the Client Identifier.
+.Pp
+When specifying a string of hexadecimal characters prefixed by
+.Cm 0x
+or as part of a DUID-EN string, an even number of hexadecimal characters must
+be provided in order to fully specify each byte.
 .It Sy allowed-ips
 A comma-separated list of IP addresses that are allowed on the interface.
 .Pp
@@ -3832,6 +3893,26 @@ will be used instead.
 .Pp
 The default is no CPU binding, which is to say that the processing of packets
 is not bound to any specific processor or processor set.
+.It Sy dynamic-methods
+.Pp
+When using IP spoofing protection (see
+.Sx protection
+), addresses can be learned dynamically by monitoring certain network traffic,
+like DHCP transactions or IPv6 Stateless Address Autoconfiguration (SLAAC).
+By default, all learning methods are permitted, but if
+.Cm allowed-ips
+contains any addresses, then all methods are disabled, and any packets sent
+from addresses previously learned will be dropped.
+This property allows selecting which ones are re-enabled, where valid options
+are
+.Cm dhcpv4 ,
+.Cm dhcpv6 ,
+and
+.Cm slaac.
+.Cm addrconf
+is available as an alias for enabling both
+.Cm dhcpv6 and
+.Cm slaac .
 .It Sy learn_limit
 Limits the number of new or changed MAC sources to be learned over a bridge
 link.
@@ -3870,6 +3951,45 @@ or
 .Cm low .
 The default is
 .Cm high .
+.It Sy protection
+This property enabled various forms of link protections, which prevent sending
+applicable traffic out of this link.
+Note that since this enforcement happens late in the networking stack, some
+observability tools like
+.Xr snoop 8
+may still see dropped outbound packets.
+.Pp
+This property should be set to a comma-separated list of protections to enable
+on this link, where available protections are:
+.Bl -tag -width 4n
+.It Sy ip-nospoof
+Prevents sending from IPv4 and IPv6 addresses that have not been permitted
+over the NIC.
+Addresses can be learned dynamically (see
+.Cm dynamic-methods
+) or specified
+explicitly (see
+.Cm allowed-ips
+).
+.It Sy dhcp-nospoof
+Prevents sending DHCP packets whose client hardware address (CHADDR) field
+differs from the link-layer address, or from using a Client Identifier whose
+value cannot be confirmed to be derived from the link-layer address.
+Additional Client Identifiers can be permitted through the
+.Cm allowed-dhcp-cids
+and
+.Cm allow-all-dhcp-cids
+link properties.
+.It Sy mac-nospoof
+Prevents sending packets with a link-layer address that differs from the one
+associated with the NIC.
+Additional addresses to allow can be added using the
+.Cm seconday-macs
+property.
+.It Sy restricted
+Prevents using a VLAN ID not associated with the NIC and sending packets that
+are not IPv4, IPv6 or ARP.
+.El
 .It Sy stp
 Enables or disables Spanning Tree Protocol on a bridge link.
 Setting this value to
@@ -4614,6 +4734,18 @@ is
 .Xr psrset 8 ,
 .Xr wpad 8 ,
 .Xr zonecfg 8
+.Pp
+R. Droms, Ed., J. Bound, B. Volz, T. Lemon, C. Perkins, M. Carney.
+\fIRFC 3315:
+Dynamic Host Configuration Protocol for IPv6 (DHCPv6)\fR.
+The Internet Society.
+July 2003.
+.Pp
+T. Lemon, B. Sommerfeld.
+\fIRFC 4361: Node-specific Client
+Identifiers for Dynamic Host Configuration Protocol Version Four (DHCPv4)\fR\.
+The Internet Society.
+February 2006.
 .Sh NOTES
 The preferred method of referring to an aggregation in the aggregation
 subcommands is by its link name.

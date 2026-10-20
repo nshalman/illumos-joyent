@@ -174,6 +174,7 @@ typedef struct dlmgmt_door_getname {
 typedef struct dlmgmt_door_getlinkid {
 	int			ld_cmd;
 	char			ld_link[MAXLINKNAMELEN];
+	zoneid_t		ld_zoneid;
 } dlmgmt_door_getlinkid_t;
 
 typedef struct dlmgmt_door_getnext_s {

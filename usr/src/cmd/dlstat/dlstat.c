@@ -70,7 +70,7 @@ typedef struct link_chain_s {
 	struct link_chain_s	*lc_next;
 } link_chain_t;
 
-typedef void *	(*stats2str_t)(const char *, void *,
+typedef void *	(*stats2str_t)(const char *, const char *, void *,
 		    char, boolean_t);
 
 typedef struct show_state {
@@ -147,6 +147,7 @@ typedef struct total_fields_buf_s {
 	char t_rbytes[MAXSTATLEN];
 	char t_opackets[MAXSTATLEN];
 	char t_obytes[MAXSTATLEN];
+	char t_zone[ZONENAME_MAX];
 } total_fields_buf_t;
 
 static ofmt_field_t total_s_fields[] = {
@@ -160,6 +161,8 @@ static ofmt_field_t total_s_fields[] = {
     offsetof(total_fields_buf_t, t_opackets),	print_default_cb},
 { "OBYTES",	8,
     offsetof(total_fields_buf_t, t_obytes),	print_default_cb},
+{ "ZONE",	20,
+    offsetof(total_fields_buf_t, t_zone),	print_default_cb},
 { NULL,		0,	0,		NULL}};
 
 /*
@@ -963,8 +966,8 @@ cleanup_removed_links(show_state_t *state)
 }
 
 void *
-print_total_stats(const char *linkname, void *statentry, char unit,
-    boolean_t parsable)
+print_total_stats(const char *linkname, const char *zonename, void *statentry,
+    char unit, boolean_t parsable)
 {
 	total_stat_entry_t	*sentry = statentry;
 	total_stat_t		*link_stats = &sentry->tse_stats;
@@ -976,6 +979,7 @@ print_total_stats(const char *linkname, void *statentry, char unit,
 
 	(void) snprintf(buf->t_linkname, sizeof (buf->t_linkname), "%s",
 	    linkname);
+	(void) snprintf(buf->t_zone, sizeof (buf->t_zone), "%s", zonename);
 
 	map_to_units(buf->t_ipackets, sizeof (buf->t_ipackets),
 	    link_stats->ts_ipackets, unit, parsable);
@@ -994,8 +998,8 @@ done:
 }
 
 void *
-print_rx_generic_ring_stats(const char *linkname, void *statentry, char unit,
-    boolean_t parsable)
+print_rx_generic_ring_stats(const char *linkname, const char *zonename,
+    void *statentry, char unit, boolean_t parsable)
 {
 	ring_stat_entry_t	*sentry = statentry;
 	ring_stat_t		*link_stats = &sentry->re_stats;
@@ -1028,8 +1032,8 @@ done:
 }
 
 void *
-print_tx_generic_ring_stats(const char *linkname, void *statentry, char unit,
-    boolean_t parsable)
+print_tx_generic_ring_stats(const char *linkname, const char *zonename,
+    void *statentry, char unit, boolean_t parsable)
 {
 	ring_stat_entry_t	*sentry = statentry;
 	ring_stat_t		*link_stats = &sentry->re_stats;
@@ -1062,8 +1066,8 @@ done:
 }
 
 void *
-print_rx_ring_stats(const char *linkname, void *statentry, char unit,
-    boolean_t parsable)
+print_rx_ring_stats(const char *linkname, const char *zonename, void *statentry,
+    char unit, boolean_t parsable)
 {
 	ring_stat_entry_t	*sentry = statentry;
 	ring_stat_t		*link_stats = &sentry->re_stats;
@@ -1096,8 +1100,8 @@ done:
 }
 
 void *
-print_tx_ring_stats(const char *linkname, void *statentry, char unit,
-    boolean_t parsable)
+print_tx_ring_stats(const char *linkname, const char *zonename, void *statentry,
+    char unit, boolean_t parsable)
 {
 	ring_stat_entry_t	*sentry = statentry;
 	ring_stat_t		*link_stats = &sentry->re_stats;
@@ -1130,8 +1134,8 @@ done:
 }
 
 void *
-print_rx_generic_lane_stats(const char *linkname, void *statentry, char unit,
-    boolean_t parsable)
+print_rx_generic_lane_stats(const char *linkname, const char *zonename,
+    void *statentry, char unit, boolean_t parsable)
 {
 	rx_lane_stat_entry_t	*sentry = statentry;
 	rx_lane_stat_t		*link_stats = &sentry->rle_stats;
@@ -1178,8 +1182,8 @@ done:
 }
 
 void *
-print_tx_generic_lane_stats(const char *linkname, void *statentry, char unit,
-    boolean_t parsable)
+print_tx_generic_lane_stats(const char *linkname, const char *zonename,
+    void *statentry, char unit, boolean_t parsable)
 {
 	tx_lane_stat_entry_t	*sentry = statentry;
 	tx_lane_stat_t		*link_stats = &sentry->tle_stats;
@@ -1223,8 +1227,8 @@ done:
 }
 
 void *
-print_rx_lane_stats(const char *linkname, void *statentry, char unit,
-    boolean_t parsable)
+print_rx_lane_stats(const char *linkname, const char *zonename, void *statentry,
+    char unit, boolean_t parsable)
 {
 	rx_lane_stat_entry_t	*sentry = statentry;
 	rx_lane_stat_t		*link_stats = &sentry->rle_stats;
@@ -1289,8 +1293,8 @@ done:
 }
 
 void *
-print_tx_lane_stats(const char *linkname, void *statentry, char unit,
-    boolean_t parsable)
+print_tx_lane_stats(const char *linkname, const char *zonename, void *statentry,
+    char unit, boolean_t parsable)
 {
 	tx_lane_stat_entry_t	*sentry = statentry;
 	tx_lane_stat_t		*link_stats = &sentry->tle_stats;
@@ -1344,8 +1348,8 @@ done:
 }
 
 void *
-print_fanout_stats(const char *linkname, void *statentry, char unit,
-    boolean_t parsable)
+print_fanout_stats(const char *linkname, const char *zonename, void *statentry,
+    char unit, boolean_t parsable)
 {
 	fanout_stat_entry_t		*sentry = statentry;
 	fanout_stat_t			*link_stats = &sentry->fe_stats;
@@ -1398,8 +1402,8 @@ done:
 }
 
 void *
-print_aggr_port_stats(const char *linkname, void *statentry, char unit,
-    boolean_t parsable)
+print_aggr_port_stats(const char *linkname, const char *zonename,
+    void *statentry, char unit, boolean_t parsable)
 {
 	aggr_port_stat_entry_t	*sentry = statentry;
 	aggr_port_stat_t	*link_stats = &sentry->ape_stats;
@@ -1476,7 +1480,8 @@ done:
 
 void
 walk_dlstat_stats(show_state_t *state, const char *linkname,
-    dladm_stat_type_t stattype, dladm_stat_chain_t *diff_stat)
+    const char *zonename, dladm_stat_type_t stattype,
+    dladm_stat_chain_t *diff_stat)
 {
 	dladm_stat_chain_t  *curr;
 
@@ -1486,7 +1491,8 @@ walk_dlstat_stats(show_state_t *state, const char *linkname,
 
 		/* Format the raw numbers for printing */
 		fields_buf = state->ls_stats2str[stattype](linkname,
-		    curr->dc_statentry, state->ls_unit, state->ls_parsable);
+		    zonename, curr->dc_statentry, state->ls_unit,
+		    state->ls_parsable);
 		/* Print the stats */
 		if (fields_buf != NULL)
 			ofmt_print(state->ls_ofmt, fields_buf);
@@ -1501,11 +1507,19 @@ show_queried_stats(dladm_handle_t dh, datalink_id_t linkid, void *arg)
 	int			i;
 	dladm_stat_chain_t	*diff_stat;
 	char			linkname[DLPI_LINKNAME_MAX];
+	char			zonename[DLADM_PROP_VAL_MAX + 1];
+	char			*valptr[1];
+	uint_t			valcnt = 1;
 
 	if (dladm_datalink_id2info(dh, linkid, NULL, NULL, NULL, linkname,
 	    DLPI_LINKNAME_MAX) != DLADM_STATUS_OK) {
 		goto done;
 	}
+
+	valptr[0] = zonename;
+	if (dladm_get_linkprop(handle, linkid, DLADM_PROP_VAL_CURRENT, "zone",
+	    (char **)valptr, &valcnt) != 0)
+		zonename[0] = '\0';
 
 	for (i = 0; i < DLADM_STAT_NUM_STATS; i++) {
 		if (state->ls_stattype[i]) {
@@ -1514,7 +1528,8 @@ show_queried_stats(dladm_handle_t dh, datalink_id_t linkid, void *arg)
 			 * Stats are returned as chain of raw numbers
 			 */
 			diff_stat = query_link_stats(handle, linkid, arg, i);
-			walk_dlstat_stats(state, linkname, i, diff_stat);
+			walk_dlstat_stats(state, linkname, zonename, i,
+			    diff_stat);
 			dladm_link_stat_free(diff_stat);
 		}
 	}
@@ -1635,7 +1650,7 @@ do_show(int argc, char *argv[], const char *use)
 	char			*o_fields_str = NULL;
 
 	char			*total_stat_fields =
-	    "link,ipkts,rbytes,opkts,obytes";
+	    "link,ipkts,rbytes,opkts,obytes,zone";
 	char			*rx_total_stat_fields =
 	    "link,ipkts,rbytes,intrs,polls,ch<10,ch10-50,ch>50";
 	char			*tx_total_stat_fields =

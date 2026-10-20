@@ -201,9 +201,9 @@ static char *progname;
 static dladm_handle_t handle = NULL;
 
 const char *usage_ermsg = "flowstat [-r | -t] [-i interval] "
-	    "[-l link] [flow]\n"
+	    "[-l link] [-z zonename] [flow]\n"
 	    "       flowstat [-A] [-i interval] [-p] [ -o field[,...]]\n"
-	    "                [-u R|K|M|G|T|P] [-l link] [flow]\n"
+	    "                [-u R|K|M|G|T|P] [-l link] [-z zonename] [flow]\n"
 	    "       flowstat -h [-a] [-d] [-F format]"
 	    " [-s <DD/MM/YYYY,HH:MM:SS>]\n"
 	    "                [-e <DD/MM/YYYY,HH:MM:SS>] -f <logfile> "
@@ -566,6 +566,7 @@ main(int argc, char *argv[])
 	show_flow_state_t	state;
 	char			*fields_str = NULL;
 	char			*o_fields_str = NULL;
+	char			*zonename = NULL;
 
 	char			*total_stat_fields =
 	    "flow,ipkts,rbytes,ierrs,opkts,obytes,oerrs";
@@ -592,10 +593,11 @@ main(int argc, char *argv[])
 	if ((status = dladm_open(&handle)) != DLADM_STATUS_OK)
 		die_dlerr(status, "could not open /dev/dld");
 
+	linkname[0] = '\0';
 	bzero(&state, sizeof (state));
 
 	opterr = 0;
-	while ((option = getopt_long(argc, argv, ":rtApi:o:u:l:h",
+	while ((option = getopt_long(argc, argv, ":rtApi:o:u:l:hz:",
 	    NULL, NULL)) != -1) {
 		switch (option) {
 		case 'r':
@@ -647,9 +649,6 @@ main(int argc, char *argv[])
 			if (strlcpy(linkname, optarg, MAXLINKNAMELEN)
 			    >= MAXLINKNAMELEN)
 				die("link name too long\n");
-			if (dladm_name2info(handle, linkname, &linkid, NULL,
-			    NULL, NULL) != DLADM_STATUS_OK)
-				die("invalid link '%s'", linkname);
 			break;
 		case 'h':
 			if (r_arg || t_arg || p_arg || o_arg || u_arg ||
@@ -659,6 +658,9 @@ main(int argc, char *argv[])
 			}
 			do_show_history(argc, argv);
 			return (0);
+			break;
+		case 'z':
+			zonename = optarg;
 			break;
 		default:
 			die_opterr(optopt, option, usage_ermsg);
@@ -682,6 +684,12 @@ main(int argc, char *argv[])
 	    (r_arg || t_arg || p_arg || o_arg || u_arg || i_arg))
 		die("the option -A is not compatible with "
 		    "-r, -t, -p, -o, -u, -i");
+
+	if (linkname[0] != '\0') {
+		if (dladm_zname2info(handle, zonename, linkname, &linkid, NULL,
+		    NULL, NULL) != DLADM_STATUS_OK)
+			die("invalid link '%s'", linkname);
+	}
 
 	/* get flow name (optional last argument) */
 	if (optind == (argc-1)) {

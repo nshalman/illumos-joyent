@@ -73,6 +73,7 @@ TYPELIST = \
 	   dlmgmt_door_zoneboot_t \
 	   dlmgmt_remapid_retval_t \
 	   dlmgmt_createid_retval_t \
+	   mac_protect_t \
 	   overlay_ioc_create_t \
 	   overlay_ioc_activate_t \
 	   overlay_ioc_delete_t \

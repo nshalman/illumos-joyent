@@ -4123,12 +4123,32 @@ mac_promisc_dispatch_one(mac_promisc_impl_t *mpip, mblk_t *mp,
 {
 	mblk_t *mp_next;
 
-	if (!mpip->mpi_no_copy || mpip->mpi_strip_vlan_tag) {
+	if (!mpip->mpi_no_copy || mpip->mpi_strip_vlan_tag ||
+	    (mpip->mpi_do_fixups && local)) {
 		mblk_t *mp_copy;
 
 		mp_copy = copymsg(mp);
 		if (mp_copy == NULL)
 			return;
+
+		/*
+		 * The consumer has requested we emulate HW offloads
+		 * for host-local packets.
+		 */
+		if (mpip->mpi_do_fixups && local) {
+			/*
+			 * Remember that copymsg() doesn't copy
+			 * b_next, so we are only passing a single
+			 * packet to mac_hw_emul(). Also keep in mind
+			 * that mp_copy will become an mblk chain if
+			 * the argument is an LSO message.
+			 */
+			mac_hw_emul(&mp_copy, NULL, NULL,
+			    MAC_HWCKSUM_EMUL | MAC_LSO_EMUL);
+
+			if (mp_copy == NULL)
+				return;
+		}
 
 		if (mpip->mpi_strip_vlan_tag) {
 			mp_copy = mac_strip_vlan_tag_chain(mp_copy);
@@ -4351,16 +4371,15 @@ mac_info_get(const char *name, mac_info_t *minfop)
 /*
  * To get the capabilities that MAC layer cares about, such as rings, factory
  * mac address, vnic or not, it should directly invoke this function.  If the
- * link is part of a bridge, then the only "capability" it has is the inability
- * to do zero copy.
+ * link is part of a bridge, then the link is unable to do zero copy.
  */
 boolean_t
 i_mac_capab_get(mac_handle_t mh, mac_capab_t cap, void *cap_data)
 {
 	mac_impl_t *mip = (mac_impl_t *)mh;
 
-	if (mip->mi_bridge_link != NULL) {
-		return (cap == MAC_CAPAB_NO_ZCOPY);
+	if (mip->mi_bridge_link != NULL && cap == MAC_CAPAB_NO_ZCOPY) {
+		return (B_TRUE);
 	} else if (mip->mi_callbacks->mc_callbacks & MC_GETCAPAB) {
 		return (mip->mi_getcapab(mip->mi_driver, cap, cap_data));
 	} else {

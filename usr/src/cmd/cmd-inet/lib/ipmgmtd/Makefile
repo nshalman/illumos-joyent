@@ -21,6 +21,7 @@
 
 #
 # Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright 2015 Joyent, Inc.
 # Copyright 2021 Tintri by DDN, Inc. All rights reserved.
 #
 
@@ -28,7 +29,8 @@
 include		../../../../lib/Makefile.lib
 
 PROG=		ipmgmtd
-OBJS=		ipmgmt_main.o ipmgmt_door.o ipmgmt_persist.o ipmgmt_util.o
+OBJS=		ipmgmt_main.o ipmgmt_door.o ipmgmt_persist.o ipmgmt_util.o \
+		ipmgmt_path.o
 SRCS=		$(OBJS:.o=.c)
 SVCMETHOD=	net-ipmgmt
 MANIFEST=	network-ipmgmt.xml

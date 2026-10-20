@@ -1841,6 +1841,9 @@ set_zone(dladm_handle_t handle, prop_desc_t *pdp, datalink_id_t linkid,
 	if (zid_new == zid_old)
 		return (DLADM_STATUS_OK);
 
+	if (flags & DLADM_OPT_TRANSIENT)
+		dzp->diz_transient = B_TRUE;
+
 	if ((status = set_public_prop(handle, pdp, linkid, vdp, val_cnt,
 	    flags, media)) != DLADM_STATUS_OK)
 		return (status);

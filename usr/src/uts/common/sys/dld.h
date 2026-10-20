@@ -193,6 +193,7 @@ typedef struct dld_ioc_rename {
 	datalink_id_t	dir_linkid1;
 	datalink_id_t	dir_linkid2;
 	char		dir_link[MAXLINKNAMELEN];
+	boolean_t	dir_zoneinit;
 } dld_ioc_rename_t;
 
 /*
@@ -205,6 +206,7 @@ typedef struct dld_ioc_rename {
 typedef struct dld_ioc_zid {
 	zoneid_t	diz_zid;
 	datalink_id_t	diz_linkid;
+	boolean_t	diz_transient;
 } dld_ioc_zid_t;
 
 /*

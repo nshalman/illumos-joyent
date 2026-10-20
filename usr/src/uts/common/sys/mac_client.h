@@ -118,6 +118,7 @@ typedef enum {
 #define	MAC_PROMISC_FLAGS_NO_COPY		0x0008
 #define	MAC_PROMISC_FLAGS_RX_ONLY		0x0010
 #define	MAC_PROMISC_FLAGS_TX_ONLY		0x0020
+#define	MAC_PROMISC_FLAGS_DO_FIXUPS		0x0040
 
 /* flags passed to mac_tx() */
 #define	MAC_DROP_ON_NO_DESC	0x01 /* freemsg() if no tx descs */

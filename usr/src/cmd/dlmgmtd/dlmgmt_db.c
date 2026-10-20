@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2016 Joyent, Inc.
  * Copyright 2023 Oxide Computer Company
  */
 
@@ -44,6 +45,7 @@
 #include <libcontract.h>
 #include <libcontract_priv.h>
 #include <sys/contract/process.h>
+#include <zone.h>
 #include "dlmgmt_impl.h"
 
 typedef enum dlmgmt_db_op {
@@ -563,6 +565,10 @@ dlmgmt_db_update(dlmgmt_db_op_t op, const char *entryname, dlmgmt_link_t *linkp,
 	 * otherwise remain stuck in the zone.
 	 */
 	if (flags == DLMGMT_ACTIVE && linkp->ll_transient)
+		req->ls_zoneid = GLOBAL_ZONEID;
+
+	/* If transient op and onloan, use the global zone cache file. */
+	if (flags == DLMGMT_ACTIVE && linkp->ll_onloan)
 		req->ls_zoneid = GLOBAL_ZONEID;
 
 	/*
@@ -1497,12 +1503,20 @@ dlmgmt_db_init(zoneid_t zoneid, char *zoneroot)
 	dlmgmt_db_req_t	*req;
 	int		err;
 	boolean_t	boot = B_FALSE;
+	char 		tdir[MAXPATHLEN];
+	char		*path = cachefile;
 
 	if ((req = dlmgmt_db_req_alloc(DLMGMT_DB_OP_READ, NULL,
 	    DATALINK_INVALID_LINKID, zoneid, DLMGMT_ACTIVE, &err)) == NULL)
 		return (err);
 
-	if (zone_file_exists(zoneroot, cachefile)) {
+	/* Handle running in a non-native branded zone (i.e. has /native) */
+	if (zone_file_exists(zoneroot, "/native" DLMGMT_TMPFS_DIR)) {
+		(void) snprintf(tdir, sizeof (tdir), "/native%s", cachefile);
+		path = tdir;
+	}
+
+	if (zone_file_exists(zoneroot, path)) {
 		if ((err = dlmgmt_process_db_req(req)) != 0) {
 			/*
 			 * If we get back ENOENT, that means that the active

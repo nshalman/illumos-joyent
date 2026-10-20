@@ -62,6 +62,7 @@ typedef struct dlmgmt_link_s {
 	datalink_class_t	ll_class;
 	uint32_t		ll_media;
 	datalink_id_t		ll_linkid;
+
 	/*
 	 * The zone that owns the link. If this is set to the id of
 	 * an NGZ and ll_onloan is set then the link was created and
@@ -76,7 +77,6 @@ typedef struct dlmgmt_link_s {
 	boolean_t		ll_onloan;
 	avl_node_t		ll_name_node;
 	avl_node_t		ll_id_node;
-	avl_node_t		ll_loan_node;
 	uint32_t		ll_flags;
 	uint32_t		ll_gen;		/* generation number */
 	/*
@@ -110,7 +110,6 @@ extern dladm_handle_t	dld_handle;
 extern datalink_id_t	dlmgmt_nextlinkid;
 extern avl_tree_t	dlmgmt_name_avl;
 extern avl_tree_t	dlmgmt_id_avl;
-extern avl_tree_t	dlmgmt_loan_avl;
 extern avl_tree_t	dlmgmt_dlconf_avl;
 
 boolean_t	linkattr_equal(dlmgmt_linkattr_t **, const char *, void *,
