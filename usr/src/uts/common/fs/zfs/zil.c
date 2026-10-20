@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Joyent, Inc. All rights reserved.
  * Copyright (c) 2011, 2018 by Delphix. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
  * Copyright 2026 Oxide Computer Company
@@ -124,8 +125,23 @@ boolean_t zil_nocacheflush = B_FALSE;
  * Limit SLOG write size per commit executed with synchronous priority.
  * Any writes above that will be executed with lower (asynchronous) priority
  * to limit potential SLOG device abuse by single active ZIL writer.
+ *
+ * The default upstream value for zil_slog_bulk is:
+ *    uint64_t zil_slog_bulk = 768 * 1024;
+ * For SmartOS, we default to using a high value to essentially disable this
+ * behavior.
+ *
+ * Because the default value of this tunable forces some zil_commit writes down
+ * to io_priority ZIO_PRIORITY_ASYNC_WRITE, those zio's would be in the same
+ * zio pipeline queue as all of the async spa_sync zio's. This can lead to
+ * serious latency problems for the user-level application code because it is
+ * blocked on completion of the zil_commit. We see this when a spa_sync zio is
+ * running slow (e.g. when metaslab loading takes a long time in the
+ * zio_dva_allocate pipeline stage), thus delaying all zio's backed up in the
+ * ZIO_PRIORITY_ASYNC_WRITE queue. For SmartOS, we choose to keep all
+ * zil_commmit zio's at ZIO_PRIORITY_SYNC_WRITE.
  */
-uint64_t zil_slog_bulk = 768 * 1024;
+uint64_t zil_slog_bulk = 0x100000000ULL;
 
 static kmem_cache_t *zil_lwb_cache;
 static kmem_cache_t *zil_zcw_cache;
@@ -3136,13 +3152,20 @@ zil_close(zilog_t *zilog)
 		txg = MAX(zilog->zl_dirty_max_txg, lwb->lwb_max_txg);
 	mutex_exit(&zilog->zl_lock);
 
-	/*
-	 * We need to use txg_wait_synced() to wait long enough for the
-	 * ZIL to be clean, and to wait for all pending lwbs to be
-	 * written out.
-	 */
-	if (txg != 0)
+	if (zilog_is_dirty(zilog)) {
+		/*
+		 * If we're dirty, always wait for the current transaction --
+		 * our lwb_max_txg may be in the past.
+		 */
+		txg_wait_synced(zilog->zl_dmu_pool, 0);
+	} else if (txg != 0) {
+		/*
+		 * We need to use txg_wait_synced() to wait long enough for the
+		 * ZIL to be clean, and to wait for all pending lwbs to be
+		 * written out.
+		 */
 		txg_wait_synced(zilog->zl_dmu_pool, txg);
+	}
 
 	if (zilog_is_dirty(zilog))
 		zfs_dbgmsg("zil (%p) is dirty, txg %llu", zilog, txg);

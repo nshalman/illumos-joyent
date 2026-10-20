@@ -394,8 +394,14 @@ typedef zio_t *zio_pipe_stage_t(zio_t *zio);
  * the reexecute flags are protected by io_lock, modifiable by children,
  * and always propagated -- even when ZIO_FLAG_DONT_PROPAGATE is set.
  */
-#define	ZIO_REEXECUTE_NOW	0x01
-#define	ZIO_REEXECUTE_SUSPEND	0x02
+#define	ZIO_REEXECUTE_NOW		0x01
+#define	ZIO_REEXECUTE_SUSPEND		0x02
+#define	ZIO_REEXECUTE_NO_SUSPEND	0x04
+
+#define	ZIO_SHOULD_REEXECUTE(x)		\
+	((x)->io_reexecute & ZIO_REEXECUTE_NOW || \
+	((x)->io_reexecute & ZIO_REEXECUTE_SUSPEND && \
+	(((x)->io_reexecute & ZIO_REEXECUTE_NO_SUSPEND) == 0)))
 
 /*
  * The io_trim flags are used to specify the type of TRIM to perform.  They
