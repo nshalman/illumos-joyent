@@ -24,6 +24,10 @@
  * SUCH DAMAGE.
  */
 
+/*
+ * Copyright (c) 2019, Joyent, Inc.
+ */
+
 #include <sys/cdefs.h>
 
 /*
@@ -96,6 +100,8 @@ smap_find(struct bios_smap *smap, int smaplen, vm_offset_t addr, size_t size)
 	return (0);
 }
 
+#define SAFE_LOAD_BASE 0xc800000
+
 /*
  * Find usable address for loading. The address for the kernel is fixed, as
  * it is determined by kernel linker map (dboot PT_LOAD address).
@@ -119,8 +125,13 @@ i386_loadaddr(uint_t type, void *data, vm_offset_t addr)
 	if (type == LOAD_KERN)
 		return (addr);
 
+	/*
+	 * Nothing is yet loaded. We shouldn't get to a module with a load
+	 * address of zero still, and the kernel loads at its own multiboot
+	 * address, so we don't need to make any adjustments here.
+	 */
 	if (addr == 0)
-		return (addr);	/* nothing to do */
+		return (0);
 
 	if (type == LOAD_ELF)
 		return (0);	/* not supported */
@@ -149,12 +160,19 @@ i386_loadaddr(uint_t type, void *data, vm_offset_t addr)
 	/* Start from the end of the kernel. */
 	mfp = fp;
 	do {
+
+
 		if (mfp == NULL) {
 			off = roundup2(addr + 1, MULTIBOOT_MOD_ALIGN);
 		} else {
 			off = roundup2(mfp->f_addr + mfp->f_size + 1,
 			    MULTIBOOT_MOD_ALIGN);
 		}
+
+		/* RICHMOND-16 work around. */
+		if (off < SAFE_LOAD_BASE)
+			off = SAFE_LOAD_BASE;
+
 		/* Avoid possible framebuffer memory */
 		if (plat_stdout_is_framebuffer()) {
 			vm_offset_t fb_addr;

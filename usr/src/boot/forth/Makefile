@@ -11,6 +11,8 @@
 
 #
 # Copyright 2022 Toomas Soome <tsoome@me.com>
+# Copyright 2022 Joyent, Inc.
+# Copyright 2022 MNX Cloud, Inc.
 #
 include $(SRC)/Makefile.master
 
@@ -27,6 +29,7 @@ FORTH =	beastie.4th
 FORTH +=	beadm.4th
 FORTH +=	brand.4th
 FORTH +=	brand-illumos.4th
+FORTH +=	brand-smartos.4th
 FORTH +=	check-password.4th
 FORTH +=	color.4th
 FORTH +=	delay.4th
@@ -40,6 +43,7 @@ FORTH +=	logo-fbsdbw.4th
 FORTH +=	logo-illumos.4th
 FORTH +=	logo-orb.4th
 FORTH +=	logo-orbbw.4th
+FORTH +=	logo-smartos.4th
 FORTH +=	menu.4th
 FORTH +=	menu.rc
 FORTH +=	menu-commands.4th
@@ -51,6 +55,8 @@ FORTH +=	support.4th
 FORTH +=	version.4th
 FILES +=	illumos-logo.png
 FILES +=	illumos-brand.png
+FILES +=	triton-logo.png
+FILES +=	triton.png
 FILES +=	loader.rc
 
 all clean clobber:
@@ -63,6 +69,11 @@ $(ROOT_BOOT)/%: % $(ROOT_BOOT)
 
 $(ROOT_BOOT_DEFAULTS)/%: % $(ROOT_BOOT_DEFAULTS)
 	$(INS.file)
+
+$(ROOT_BOOT_FORTH)/menu.rc: triton.menu.rc $(ROOT_BOOT_FORTH)
+	$(RM) $@; \
+	$(INS) -s -m $(FILEMODE) -f $(@D) triton.menu.rc; \
+	$(MV) $(@D)/triton.menu.rc $@
 
 $(ROOT_BOOT_FORTH)/%: % $(ROOT_BOOT_FORTH)
 	$(INS.file)

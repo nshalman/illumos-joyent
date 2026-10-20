@@ -1118,6 +1118,7 @@ tem_control(struct tem_vt_state *tem, uint8_t ch)
 		break;
 
 	case A_BS:
+		tem->tvs_stateflags &= ~TVS_WRAPPED;
 		tem_mv_cursor(tem,
 		    tem->tvs_c_cursor.row,
 		    tem->tvs_c_cursor.col - 1);
@@ -1531,48 +1532,57 @@ tem_chkparam(struct tem_vt_state *tem, uint8_t ch)
 		break;
 
 	case 'A':		/* cursor up */
+		tem->tvs_stateflags &= ~TVS_WRAPPED;
 		tem_setparam(tem, 1, 1);
 		tem_mv_cursor(tem, row - tem->tvs_params[0], col);
 		break;
 
 	case 'd':		/* VPA - vertical position absolute */
+		tem->tvs_stateflags &= ~TVS_WRAPPED;
 		tem_setparam(tem, 1, 1);
 		tem_mv_cursor(tem, tem->tvs_params[0] - 1, col);
 		break;
 
 	case 'e':		/* VPR - vertical position relative */
 	case 'B':		/* cursor down */
+		tem->tvs_stateflags &= ~TVS_WRAPPED;
 		tem_setparam(tem, 1, 1);
 		tem_mv_cursor(tem, row + tem->tvs_params[0], col);
 		break;
 
 	case 'a':		/* HPR - horizontal position relative */
 	case 'C':		/* cursor right */
+		tem->tvs_stateflags &= ~TVS_WRAPPED;
 		tem_setparam(tem, 1, 1);
 		tem_mv_cursor(tem, row, col + tem->tvs_params[0]);
 		break;
 
 	case '`':		/* HPA - horizontal position absolute */
+		tem->tvs_stateflags &= ~TVS_WRAPPED;
 		tem_setparam(tem, 1, 1);
 		tem_mv_cursor(tem, row, tem->tvs_params[0] - 1);
 		break;
 
 	case 'D':		/* cursor left */
+		tem->tvs_stateflags &= ~TVS_WRAPPED;
 		tem_setparam(tem, 1, 1);
 		tem_mv_cursor(tem, row, col - tem->tvs_params[0]);
 		break;
 
 	case 'E':		/* CNL cursor next line */
+		tem->tvs_stateflags &= ~TVS_WRAPPED;
 		tem_setparam(tem, 1, 1);
 		tem_mv_cursor(tem, row + tem->tvs_params[0], 0);
 		break;
 
 	case 'F':		/* CPL cursor previous line */
+		tem->tvs_stateflags &= ~TVS_WRAPPED;
 		tem_setparam(tem, 1, 1);
 		tem_mv_cursor(tem, row - tem->tvs_params[0], 0);
 		break;
 
 	case 'G':		/* cursor horizontal position */
+		tem->tvs_stateflags &= ~TVS_WRAPPED;
 		tem_setparam(tem, 1, 1);
 		tem_mv_cursor(tem, row, tem->tvs_params[0] - 1);
 		break;
@@ -1584,6 +1594,7 @@ tem_chkparam(struct tem_vt_state *tem, uint8_t ch)
 
 	case 'f':		/* HVP Horizontal and Vertical Position */
 	case 'H':		/* CUP position cursor */
+		tem->tvs_stateflags &= ~TVS_WRAPPED;
 		tem_setparam(tem, 2, 1);
 		tem_mv_cursor(tem,
 		    tem->tvs_params[0] - 1, tem->tvs_params[1] - 1);

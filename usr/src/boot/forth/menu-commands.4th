@@ -41,6 +41,43 @@ variable kmdb_state
 
 also menu-namespace also menu-command-helpers
 
+\ PATH_MAX + 6
+create chaincmd 1030 chars allot
+
+\
+\ Rollback to previous platform image.
+\ Used by Joyent Triton
+\
+: rollback_boot ( N -- NOTREACHED )
+	dup
+	s" prev-platform" getenv s" bootfile" setenv
+	s" prev-archive" getenv s" boot_archive" set-module-path
+	s" prev-hash" getenv s" boot_archive.hash" set-module-path
+	0 boot ( state -- )
+;
+
+\
+\ Boot from ipxe kernel
+\ Used by Joyent Triton when booted in BIOS/CSM mode
+\
+: ipxe_boot ( N -- NOTREACHED )
+	dup
+	s" ipxe-bootfile" getenv s" bootfile" setenv
+	s" ipxe-archive" getenv s" boot_archive" set-module-path
+	s" boot_archive.hash" disable-module
+	0 boot ( state -- )
+;
+
+\
+\ Chainload the ipxe EFI binary
+\ Used by Joyent Triton when booted in UEFI mode
+\
+: ipxe_chainload ( N -- NOTREACHED )
+	s" chain " chaincmd place
+	s" ipxe-efi" getenv chaincmd append
+	chaincmd count evaluate
+;
+
 \
 \ Boot
 \
@@ -99,6 +136,25 @@ also menu-namespace also menu-command-helpers
 		then
 	then
 	0 boot ( state -- )
+;
+
+\
+\ Platform-image selection for standalone SmartOS is mostly in pi.rc.
+\ We will also steal a boot environment routine in pi_draw_screen (way below).
+
+: init_pi ( -- )
+	s" bootpi" getenv? 0= if
+		s" default" s" bootpi" setenv
+	then
+
+	\ Reset the "options" text to show current bootpi selected.
+	s" set menu_optionstext=${pitext}${bootpi}" evaluate 
+	s" set pimenu_optionstext=${pitext}${bootpi}" evaluate 
+;
+
+\ Shorter than inlining this in pi.rc.
+: pi_unload ( -- )
+	s" unload" evaluate
 ;
 
 \
@@ -241,6 +297,53 @@ also menu-namespace also menu-command-helpers
 	draw-brand
 	menu-init		\ needed to reset menu position
 	menu-redraw
+
+	TRUE \ loop menu again
+;
+
+\
+\ Disaster Recovery boot
+\
+
+: rescue_enabled? ( -- flag )
+	s" noimport" getenv -1 <> dup if
+		swap drop ( c-addr flag -- flag )
+	then
+;
+
+: rescue_enable ( -- )
+	s" set noimport=true" evaluate
+	s" smartos" getenv? if
+		s" set standalone=true" evaluate
+		s" set smartos=false" evaluate
+	then
+;
+
+: rescue_disable ( -- )
+	s" noimport" unsetenv
+	s" standalone" unsetenv
+	s" smartos" getenv? if
+		s" set smartos=true" evaluate
+	then
+;
+
+: init_rescue ( N -- N )
+	rescue_enabled? if
+		toggle_menuitem ( n -- n )
+	then
+;
+
+: toggle_rescue ( N -- N TRUE )
+	toggle_menuitem
+	menu-redraw
+
+	\ Now we're going to make the change effective
+
+	dup toggle_stateN @ 0= if
+		rescue_disable
+	else
+		rescue_enable
+	then
 
 	TRUE \ loop menu again
 ;
@@ -503,6 +606,17 @@ also menu-namespace also menu-command-helpers
 	draw-beastie	\ Draw FreeBSD logo at right (in beastie.4th)
 	draw-brand	\ Draw brand.4th logo at top (in brand.4th)
 	menu-init	\ Initialize menu and draw bounding box (in menu.4th)
+;
+
+\ PI reuse of be_draw_screen, plus some other things to be used by pi.rc.
+
+: pi_draw_screen ( -- TRUE )
+	\ So we can make SURE we have the current boot PI on display.
+	init_pi
+
+	be_draw_screen
+	menu-redraw
+	TRUE
 ;
 
 \

@@ -3,6 +3,9 @@
 \ Copyright (c) 2006-2015 Devin Teske <dteske@FreeBSD.org>
 \ Copyright 2020 OmniOS Community Edition (OmniOSce) Association.
 \ All rights reserved.
+\ Copyright 2019 Joyent, Inc.
+\ Copyright 2023 MNX Cloud, Inc.
+\ Copyright 2025 Edgecast Cloud LLC.
 \
 \ Redistribution and use in source and binary forms, with or without
 \ modification, are permitted provided that the following conditions
@@ -336,7 +339,7 @@ also menu-infrastructure definitions
 
 	\ Print the frame caption at (x,y)
 	s" loader_menu_title" getenv dup -1 = if
-		drop s" Welcome to illumos"
+		drop s" Welcome to SmartOS"
 	then
 	TRUE ( use default alignment )
 	s" loader_menu_title_align" getenv dup -1 <> if
@@ -553,23 +556,57 @@ also menu-infrastructure definitions
 	then
 ;
 
-\ Takes an integer on the stack and updates the timeout display.
-\
+: do_ipxe ( -- bool)
+	\ getenv? leaves -1 on stack if the env var exists.  Thus if both
+	\ headnode and ipxe exist then the sum of what will be left on the
+	\ stack should be -2.
+	s" headnode" getenv? s" ipxe" getenv? + -2 = if
+		s" ipxe" getenv s" true" compare 0= if
+			true
+		else
+			false
+		then
+	else
+		false
+	then
+;
+
+\ output or clear the line
+\ if N is 0, we output spaces.
+: menu-timeout-draw ( N c-addr/u -- N )
+	>R	( length to return stack )
+	over	( N addr N )
+	0= if	\ if N is 0, output spaces
+		drop
+		R> spaces
+	else
+		R> type
+	then
+;
+
+\ Takes a integer on the stack and updates the timeout display.
 : menu-timeout-update ( N -- )
 
 	\ Enforce minimum
 	dup 0 < if drop 0 then
 
-	menu_timeout_x @ menu_timeout_y @ at-xy \ position cursor
-
-	dup 0> if
-		s" Autoboot in " type
-		dup . s" second" type
-		1 > if [char] s emit then
-		s" . [Space] to pause " type
-	else
-		drop 40 spaces \ erase message
+	s" Autoboot in " menu-timeout-draw
+	dup 0 <# #S #> menu-timeout-draw
+	s"  second" menu-timeout-draw
+	dup 1 > if s" s" menu-timeout-draw then
+	s" headnode" getenv? if
+		do_ipxe if
+			s"  from PXE"
+		else
+			s"  from the USB Key"
+		then
+		menu-timeout-draw
 	then
+	s" ." menu-timeout-draw
+
+	s"  [Space] to pause" menu-timeout-draw
+	space	\ clear last char from previous output
+	drop
 
 	at-bl
 ;
@@ -1016,8 +1053,16 @@ also menu-namespace
 		dup over 13 = swap 10 = or if
 			drop ( no longer needed )
 			cursor-normal cursor-set
-			s" boot" evaluate
-			exit ( pedantic; never reached )
+			do_ipxe if
+				s" efi-version" getenv? if
+					s" ipxe_chainload" evaluate
+				else
+					s" ipxe_boot" evaluate
+				then
+			else
+				s" boot" evaluate
+				exit ( pedantic; never reached )
+			then
 		then
 
 		dup menureboot @ = if 0 reboot then
@@ -1155,6 +1200,8 @@ also menu-namespace
 	s" menu_options"         unsetenv	\ Options separator flag
 	s" menu_optionstext"     unsetenv	\ separator display text
 	s" menu_init"            unsetenv	\ menu initializer
+	s" pimenu_optionstext"   unsetenv	\ PI menu separator display text
+	s" pitext"               unsetenv	\ PI menu text
 
 	0 menureboot !
 	0 menuacpi !

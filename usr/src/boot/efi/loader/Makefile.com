@@ -12,6 +12,8 @@
 #
 # Copyright 2016 Toomas Soome <tsoome@me.com>
 #
+# Copyright 2022 Joyent, Inc.
+#
 
 include $(SRC)/boot/Makefile.version
 include $(SRC)/boot/Makefile.inc
@@ -56,6 +58,14 @@ CPPFLAGS +=	-I../../../sys/cddl/boot/zfs
 CPPFLAGS +=	-I$(SRC)/uts/intel/sys/acpi
 CPPFLAGS +=	-I$(PNGLITE)
 CPPFLAGS +=	-DNO_PCI -DEFI
+
+#
+# Using SNP from loader causes issues when chain-loading iPXE, as described in
+# TRITON-1191.  While the exact problem is not known, we have no use for SNP, so
+# we'll just disable it.
+#
+CPPFLAGS +=	-DLOADER_DISABLE_SNP
+
 
 DPLIBSA=	../../../libsa/$(MACHINE)/libsa_pics.a
 LIBSA=	-L../../../libsa/$(MACHINE) -lsa_pics

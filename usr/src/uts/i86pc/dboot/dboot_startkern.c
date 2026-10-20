@@ -24,6 +24,7 @@
  * Use is subject to license terms.
  *
  * Copyright 2020 Joyent, Inc.
+ * Copyright 2024 MNX Cloud, Inc.
  */
 
 
@@ -1535,6 +1536,120 @@ dboot_process_modules(void)
 	fixup_modules();
 	assign_module_hashes();
 	check_images();
+}
+
+#define	CORRUPT_REGION_START	0xc700000
+#define	CORRUPT_REGION_SIZE	0x100000
+#define	CORRUPT_REGION_END	(CORRUPT_REGION_START + CORRUPT_REGION_SIZE)
+
+static void
+dboot_add_memlist(struct boot_memlist *mlist, uint_t *indexp,
+    uint32_t type, uint64_t start, uint64_t end)
+{
+	if (type != 1) {
+		goto out;
+	}
+
+	if (end > max_mem)
+		max_mem = end;
+
+	/*
+	 * Well, this is sad.  On some systems, there is a region of memory that
+	 * can be corrupted until some number of seconds after we have booted.
+	 * And the BIOS doesn't tell us that this memory is unsafe to use.  And
+	 * we don't know how long it's dangerous.  So we'll chop out this range
+	 * from any memory list that would otherwise be usable.  Note that any
+	 * system of this type will give us the new-style (0x40) memlist, so we
+	 * need not fix up the other path below.
+	 *
+	 * However, if we're boot-loaded from something that doesn't have a
+	 * RICHMOND-16 workaround (which on many systems is just fine), it could
+	 * actually use this region for the boot modules; if we remove it from
+	 * the memlist, we'll keel over when trying to access the region.
+	 *
+	 * So, if we see that a module intersects the region, we presume it's
+	 * OK.
+	 */
+
+	if (find_boot_prop("disable-RICHMOND-16") != NULL)
+		goto out;
+
+	for (uint32_t i = 0; i < bi->bi_module_cnt; i++) {
+		native_ptr_t mod_start = modules[i].bm_addr;
+		native_ptr_t mod_end = modules[i].bm_addr + modules[i].bm_size;
+
+		if (ranges_intersect(mod_start, mod_end, CORRUPT_REGION_START,
+		    CORRUPT_REGION_END)) {
+			/* Output this message only once. */
+			if (prom_debug && message_enabled) {
+				dboot_printf("disabling RICHMOND-16 workaround "
+				"due to module #%d: "
+				"name %s addr %lx size %lx\n",
+				    i, (char *)(uintptr_t)modules[i].bm_name,
+				    (ulong_t)modules[i].bm_addr,
+				    (ulong_t)modules[i].bm_size);
+				message_enabled = B_FALSE;
+			}
+			goto out;
+		}
+	}
+
+	if (start < CORRUPT_REGION_START && end > CORRUPT_REGION_START) {
+		if (memlists_used > MAX_MEMLIST)
+			dboot_panic("too many memlists");
+
+		/*
+		 * Add segment [start, CORRUPT_REGION_START]
+		 */
+		if ((mlist[memlists_used].addr +
+		    mlist[memlists_used].size) == start) {
+			mlist[memlists_used].size =
+			    CORRUPT_REGION_START - mlist[memlists_used].addr;
+		} else {
+			if (mlist[memlists_used].size != 0)
+				memlists_used++;
+			if (memlists_used > MAX_MEMLIST)
+				dboot_panic("too many memlists");
+
+			mlist[memlists_used].addr = start;
+			mlist[memlists_used].size =
+			    CORRUPT_REGION_START - start;
+		}
+
+		/*
+		 * Add segment [CORRUPT_REGION_END, end]
+		 */
+		if (end > CORRUPT_REGION_END)
+			start = CORRUPT_REGION_END;
+		else
+			return;
+	}
+
+	if (start >= CORRUPT_REGION_START && start < CORRUPT_REGION_END) {
+		if (end <= CORRUPT_REGION_END)
+			return;
+		start = CORRUPT_REGION_END;
+	}
+
+out:
+	if (memlists_used > MAX_MEMLIST)
+		dboot_panic("too many memlists");
+	if (rsvdmemlists_used > MAX_MEMLIST)
+		dboot_panic("too many rsvdmemlists");
+
+	if ((mlist[*indexp].addr + mlist[*indexp].size) == start) {
+		mlist[*indexp].size = end - mlist[*indexp].addr;
+		return;
+	}
+	/* do we need new entry? */
+	if (mlist[*indexp].size != 0) {
+		*indexp = *indexp + 1;
+		if (*indexp > MAX_MEMLIST)
+			return;
+	}
+
+	mlist[*indexp].addr = start;
+	mlist[*indexp].size = end - start;
 }
 
 /*

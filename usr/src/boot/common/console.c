@@ -24,7 +24,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
+/*
+ * Copyright (c) 2019, Joyent, Inc.
+ */
 #include <sys/cdefs.h>
 
 #include <stand.h>
@@ -428,15 +430,6 @@ cons_change(const char *string, char **list)
 				active++;
 				*list = cons_add_list(*list, curpos);
 				continue;
-			}
-
-			if (active != 0) {
-				/*
-				 * If no consoles have initialised we wouldn't
-				 * see this.
-				 */
-				printf("console %s failed to initialize\n",
-				    consoles[cons]->c_name);
 			}
 		}
 	}

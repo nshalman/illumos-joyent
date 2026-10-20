@@ -245,6 +245,21 @@ create last_module_option sizeof module.next allot 0 last_module_option !
 	then
 ;
 
+\ Place string into an allocated buffer
+\
+\ e.g
+\ create mystring 32 chars allot
+\ s" Burning down " mystring place
+\
+: place over over >r >r char+ swap chars move r> r> c! ;
+
+\ Append string
+\
+\ e.g.
+\ s" the house!" mystring append
+\
+: append over over >r >r count chars + swap chars move r> r> dup >r c@ + r> c! ;
+
 \ execute xt for each device listed in console variable.
 \ this allows us to have device specific output for logos, menu frames etc
 : console-iterate { xt | caddr clen taddr tlen -- }
