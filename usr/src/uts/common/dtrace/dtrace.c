@@ -7800,7 +7800,7 @@ dtrace_cred2priv(cred_t *cr, uint32_t *privp, uid_t *uidp, zoneid_t *zoneidp)
 		priv = DTRACE_PRIV_ALL;
 	} else {
 		*uidp = crgetuid(cr);
-		*zoneidp = crgetzoneid(cr);
+		*zoneidp = crgetzonedid(cr);
 
 		priv = 0;
 		if (PRIV_POLICY_ONLY(cr, PRIV_DTRACE_KERNEL, B_FALSE))
@@ -8296,7 +8296,7 @@ dtrace_register(const char *name, const dtrace_pattr_t *pap, uint32_t priv,
 	provider->dtpv_priv.dtpp_flags = priv;
 	if (cr != NULL) {
 		provider->dtpv_priv.dtpp_uid = crgetuid(cr);
-		provider->dtpv_priv.dtpp_zoneid = crgetzoneid(cr);
+		provider->dtpv_priv.dtpp_zoneid = crgetzonedid(cr);
 	}
 	provider->dtpv_pops = *pops;
 

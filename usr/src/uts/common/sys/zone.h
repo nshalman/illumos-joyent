@@ -50,8 +50,10 @@
 #include <sys/socket_impl.h>
 #include <sys/secflags.h>
 #include <sys/cpu_uarray.h>
+#include <sys/nvpair.h>
 #include <sys/list.h>
 #include <sys/loadavg.h>
+#include <sys/vnode.h>
 #endif	/* _KERNEL */
 
 #ifdef	__cplusplus
@@ -62,15 +64,27 @@ extern "C" {
  * NOTE
  *
  * The contents of this file are private to the implementation of
- * Solaris and are subject to change at any time without notice.
+ * illumos and are subject to change at any time without notice.
  * Applications and drivers using these interfaces may fail to
  * run on future releases.
  */
 
 /* Available both in kernel and for user space */
 
-/* zone id restrictions and special ids */
-#define	MAX_ZONEID	9999
+/*
+ * zone id restrictions and special ids.
+ * See 'maxzones' for run-time zone limit.
+ *
+ * The current 8k value for MAX_ZONES was originally derived from the virtual
+ * interface limit in IP when "shared-stack" was the only supported networking
+ * for zones. The virtual interface limit is the number of addresses allowed
+ * on an interface (see MAX_ADDRS_PER_IF). Even with exclusive stacks, an 8k
+ * zone limit is still a reasonable choice at this time, given other limits
+ * within the kernel. Since we only support 8192 zones (which includes GZ),
+ * there is no point in allowing MAX_ZONEID > 8k.
+ */
+#define	MAX_ZONES	8192
+#define	MAX_ZONEID	(MAX_ZONES - 1)
 #define	MIN_USERZONEID	1	/* lowest user-creatable zone ID */
 #define	MIN_ZONEID	0	/* minimum zone ID on system */
 #define	GLOBAL_ZONEID	0
@@ -97,7 +111,13 @@ extern "C" {
 #define	ZONE_CHECK_DATALINK	12
 #define	ZONE_LIST_DATALINK	13
 
-/* zone attributes */
+/*
+ * zone attributes
+ *
+ * Note that values up to ZONE_ATTR_HOSTID are baked into things like Solaris
+ * 10 which can be run under the s10 brand; don't renumber or change them. Ones
+ * which are no longer used are commented out.
+ */
 #define	ZONE_ATTR_ROOT		1
 #define	ZONE_ATTR_NAME		2
 #define	ZONE_ATTR_STATUS	3
@@ -115,10 +135,17 @@ extern "C" {
 #define	ZONE_ATTR_HOSTID	15
 #define	ZONE_ATTR_FS_ALLOWED	16
 #define	ZONE_ATTR_NETWORK	17
+
+/* illumos extensions */
 #define	ZONE_ATTR_INITNORESTART	20
 #define	ZONE_ATTR_SECFLAGS	21
 #define	ZONE_ATTR_INITRESTART0	22
 #define	ZONE_ATTR_INITREBOOT	23
+
+/* OmniOS/SmartOS extensions */
+#define	ZONE_ATTR_DID		30
+#define	ZONE_ATTR_APP_SVC_CT	31
+#define	ZONE_ATTR_SCHED_FIXEDHI	32
 
 /* Start of the brand-specific attribute namespace */
 #define	ZONE_ATTR_BRAND_ATTRS	32768
@@ -134,12 +161,17 @@ extern "C" {
 #define	ZONE_EVENT_READY		"ready"
 #define	ZONE_EVENT_RUNNING		"running"
 #define	ZONE_EVENT_SHUTTING_DOWN	"shutting_down"
+#define	ZONE_EVENT_FREE			"free"
 
 #define	ZONE_CB_NAME		"zonename"
 #define	ZONE_CB_NEWSTATE	"newstate"
 #define	ZONE_CB_OLDSTATE	"oldstate"
+#define	ZONE_CB_RESTARTS	"restarts"
 #define	ZONE_CB_TIMESTAMP	"when"
 #define	ZONE_CB_ZONEID		"zoneid"
+
+#define	ZONE_EVENT_INIT_CLASS		"init"
+#define	ZONE_EVENT_INIT_RESTART_SC	"restart"
 
 /*
  * Exit values that may be returned by scripts or programs invoked by various
@@ -199,6 +231,7 @@ typedef struct {
 	uint32_t doi;			/* DOI for label */
 	caddr32_t label;		/* label associated with zone */
 	int flags;
+	zoneid_t zoneid;		/* requested zoneid */
 } zone_def32;
 #endif
 typedef struct {
@@ -215,6 +248,7 @@ typedef struct {
 	uint32_t doi;			/* DOI for label */
 	const bslabel_t *label;		/* label associated with zone */
 	int flags;
+	zoneid_t zoneid;		/* requested zoneid */
 } zone_def;
 
 /* extended error information */
@@ -239,7 +273,8 @@ typedef enum {
 	ZONE_IS_EMPTY,
 	ZONE_IS_DOWN,
 	ZONE_IS_DYING,
-	ZONE_IS_DEAD
+	ZONE_IS_DEAD,
+	ZONE_IS_FREE		/* transient state for zone sysevent */
 } zone_status_t;
 #define	ZONE_MIN_STATE		ZONE_IS_UNINITIALIZED
 #define	ZONE_MAX_STATE		ZONE_IS_DEAD
@@ -400,12 +435,57 @@ typedef struct zone_kstat {
 struct cpucap;
 
 typedef struct {
+	hrtime_t	cycle_start;
+	uint_t		cycle_cnt;
+	hrtime_t	zone_avg_cnt;
+} sys_zio_cntr_t;
+
+typedef struct {
+	kstat_named_t	zv_zonename;
+	kstat_named_t	zv_nread;
+	kstat_named_t	zv_reads;
+	kstat_named_t	zv_rtime;
+	kstat_named_t	zv_rlentime;
+	kstat_named_t	zv_rcnt;
+	kstat_named_t	zv_nwritten;
+	kstat_named_t	zv_writes;
+	kstat_named_t	zv_wtime;
+	kstat_named_t	zv_wlentime;
+	kstat_named_t	zv_wcnt;
+	kstat_named_t	zv_10ms_ops;
+	kstat_named_t	zv_100ms_ops;
+	kstat_named_t	zv_1s_ops;
+	kstat_named_t	zv_10s_ops;
+	kstat_named_t	zv_delay_cnt;
+	kstat_named_t	zv_delay_time;
+} zone_vfs_kstat_t;
+
+typedef struct {
+	kstat_named_t	zz_zonename;
+	kstat_named_t	zz_nread;
+	kstat_named_t	zz_reads;
+	kstat_named_t	zz_rtime;
+	kstat_named_t	zz_rlentime;
+	kstat_named_t	zz_nwritten;
+	kstat_named_t	zz_writes;
+	kstat_named_t	zz_waittime;
+} zone_zfs_kstat_t;
+
+typedef struct {
 	kstat_named_t	zm_zonename;
+	kstat_named_t	zm_rss;
+	kstat_named_t	zm_phys_cap;
+	kstat_named_t	zm_swap;
+	kstat_named_t	zm_swap_cap;
+	kstat_named_t	zm_nover;
+	kstat_named_t	zm_pagedout;
 	kstat_named_t	zm_pgpgin;
 	kstat_named_t	zm_anonpgin;
 	kstat_named_t	zm_execpgin;
 	kstat_named_t	zm_fspgin;
 	kstat_named_t	zm_anon_alloc_fail;
+	kstat_named_t	zm_pf_throttle;
+	kstat_named_t	zm_pf_throttle_usec;
 } zone_mcap_kstat_t;
 
 typedef struct {
@@ -420,8 +500,10 @@ typedef struct {
 	kstat_named_t	zm_ffnoproc;
 	kstat_named_t	zm_ffnomem;
 	kstat_named_t	zm_ffmisc;
+	kstat_named_t	zm_mfseglim;
 	kstat_named_t	zm_nested_intp;
 	kstat_named_t	zm_init_pid;
+	kstat_named_t	zm_init_restarts;
 	kstat_named_t	zm_boot_time;
 } zone_misc_kstat_t;
 
@@ -464,6 +546,7 @@ typedef struct zone {
 	 */
 	list_node_t	zone_linkage;
 	zoneid_t	zone_id;	/* ID of zone */
+	zoneid_t	zone_did;	/* persistent debug ID of zone */
 	uint_t		zone_ref;	/* count of zone_hold()s on zone */
 	uint_t		zone_cred_ref;	/* count of zone_hold_cred()s on zone */
 	/*
@@ -516,7 +599,9 @@ typedef struct zone {
 	kcondvar_t	zone_cv;	/* used to signal state changes */
 	struct proc	*zone_zsched;	/* Dummy kernel "zsched" process */
 	pid_t		zone_proc_initpid; /* pid of "init" for this zone */
-	char		*zone_initname;	/* fs path to 'init' */
+	uint_t		zone_proc_init_restarts; /* times init restarted */
+	char		*zone_initname;		/* fs path to 'init' */
+	int		zone_init_status;	/* init's exit status */
 	int		zone_boot_err;  /* for zone_boot() if boot fails */
 	char		*zone_bootargs;	/* arguments passed via zone_boot() */
 	uint64_t	zone_phys_mcap;	/* physical memory cap */
@@ -559,9 +644,11 @@ typedef struct zone {
 	boolean_t	zone_restart_init;	/* Restart init if it dies? */
 	boolean_t	zone_reboot_on_init_exit; /* Reboot if init dies? */
 	boolean_t	zone_restart_init_0;	/* Restart only if it exits 0 */
+	boolean_t	zone_setup_app_contract; /* setup contract? */
 	struct brand	*zone_brand;		/* zone's brand */
 	void		*zone_brand_data;	/* store brand specific data */
 	id_t		zone_defaultcid;	/* dflt scheduling class id */
+	boolean_t	zone_fixed_hipri;	/* fixed sched. hi prio */
 	kstat_t		*zone_swapresv_kstat;
 	kstat_t		*zone_lockedmem_kstat;
 	/*
@@ -570,8 +657,24 @@ typedef struct zone {
 	list_t		zone_dl_list;
 	netstack_t	*zone_netstack;
 	struct cpucap	*zone_cpucap;	/* CPU caps data */
+
 	/*
-	 * Solaris Auditing per-zone audit context
+	 * kstats and counters for VFS ops and bytes.
+	 */
+	kmutex_t	zone_vfs_lock;		/* protects VFS statistics */
+	kstat_t		*zone_vfs_ksp;
+	kstat_io_t	zone_vfs_rwstats;
+	zone_vfs_kstat_t *zone_vfs_stats;
+
+	/*
+	 * kstats for ZFS I/O ops and bytes.
+	 */
+	kmutex_t	zone_zfs_lock;		/* protects ZFS statistics */
+	kstat_t		*zone_zfs_ksp;
+	zone_zfs_kstat_t *zone_zfs_stats;
+
+	/*
+	 * illumos Auditing per-zone audit context
 	 */
 	struct au_kcontext	*zone_audit_kctxt;
 	/*
@@ -588,7 +691,11 @@ typedef struct zone {
 						/* zone_rctls->rcs_lock */
 	kstat_t		*zone_nprocs_kstat;
 
-	kmutex_t	zone_mcap_lock;	/* protects mcap statistics */
+	/*
+	 * kstats and counters for physical memory capping.
+	 */
+	kstat_t		*zone_physmem_kstat;
+	kmutex_t	zone_mcap_lock;		/* protects mcap statistics */
 	kstat_t		*zone_mcap_ksp;
 	zone_mcap_kstat_t *zone_mcap_stats;
 	uint64_t	zone_pgpgin;		/* pages paged in */
@@ -640,6 +747,53 @@ typedef struct zone {
 } zone_t;
 
 /*
+ * Data and counters used for ZFS fair-share disk IO.
+ */
+typedef struct zone_zfs_io {
+	uint16_t	zpers_zfs_io_pri;	/* ZFS IO priority - 16k max */
+	uint_t		zpers_zfs_queued[2];	/* sync I/O enqueued count */
+	sys_zio_cntr_t	zpers_rd_ops;		/* Counters for ZFS reads, */
+	sys_zio_cntr_t	zpers_wr_ops;		/* writes, and */
+	sys_zio_cntr_t	zpers_lwr_ops;		/* logical writes. */
+	kstat_io_t	zpers_zfs_rwstats;
+	uint64_t	zpers_io_util;		/* IO utilization metric */
+	uint64_t	zpers_zfs_rd_waittime;
+	uint8_t		zpers_io_delay;		/* IO delay on logical r/w */
+	uint8_t		zpers_zfs_weight;	/* used to prevent starvation */
+	uint8_t		zpers_io_util_above_avg; /* IO util percent > avg. */
+} zone_zfs_io_t;
+
+/*
+ * "Persistent" zone data which can be accessed idependently of the zone_t.
+ */
+typedef struct zone_persist {
+	kmutex_t	zpers_zfs_lock;	/* Protects zpers_zfsp references */
+	zone_zfs_io_t	*zpers_zfsp;	/* ZFS fair-share IO data */
+	uint8_t		zpers_over;	/* currently over cap */
+	uint32_t	zpers_pg_cnt;	/* current RSS in pages */
+	uint32_t	zpers_pg_limit;	/* current RRS limit in pages */
+	uint32_t	zpers_nover;	/* # of times over phys. cap */
+#ifndef DEBUG
+	uint64_t	zpers_pg_out;	/* # pages flushed */
+#else
+	/*
+	 * To conserve memory, some detailed kstats are only kept for DEBUG
+	 * builds.
+	 */
+	uint64_t	zpers_zfs_rd_waittime;
+
+	uint64_t	zpers_pg_anon;		/* # clean anon pages flushed */
+	uint64_t	zpers_pg_anondirty;	/* # dirty anon pages flushed */
+	uint64_t	zpers_pg_fs;		/* # clean fs pages flushed */
+	uint64_t	zpers_pg_fsdirty;	/* # dirty fs pages flushed */
+#endif
+} zone_persist_t;
+
+typedef enum zone_pageout_op {
+	ZPO_DIRTY, ZPO_FS, ZPO_ANON, ZPO_ANONDIRTY
+} zone_pageout_op_t;
+
+/*
  * Special value of zone_psetid to indicate that pools are disabled.
  */
 #define	ZONE_PS_INVAL	PS_MYID
@@ -668,6 +822,7 @@ extern zone_t *zone_find_by_name(char *);
 extern zone_t *zone_find_by_any_path(const char *, boolean_t);
 extern zone_t *zone_find_by_path(const char *);
 extern zoneid_t getzoneid(void);
+extern zoneid_t getzonedid(void);
 extern zone_t *zone_find_by_id_nolock(zoneid_t);
 extern int zone_datalink_walk(zoneid_t, int (*)(datalink_id_t, void *), void *);
 extern int zone_check_datalink(zoneid_t *, datalink_id_t);
@@ -802,7 +957,7 @@ struct zsd_entry {
  * NOTE:  Using the VN_ prefix, even though it's defined here in zone.h.
  * NOTE2: See above warning about ZONE_ROOTVP().
  */
-#define	VN_IS_CURZONEROOT(vp)   (VN_CMP(vp, ZONE_ROOTVP()))
+#define	VN_IS_CURZONEROOT(vp)	(VN_CMP(vp, ZONE_ROOTVP()))
 
 /*
  * Zone-safe version of thread_create() to be used when the caller wants to
@@ -880,9 +1035,24 @@ extern void mount_completed(zone_t *);
 
 extern int zone_walk(int (*)(zone_t *, void *), void *);
 
+struct page;
+extern void zone_add_page(struct page *);
+extern void zone_rm_page(struct page *);
+extern void zone_pageout_stat(int, zone_pageout_op_t);
+extern void zone_get_physmem_data(int, pgcnt_t *, pgcnt_t *);
+
+/* Interfaces for page scanning */
+extern uint_t zone_num_over_cap;
+extern zone_persist_t zone_pdata[MAX_ZONES];
+
 extern rctl_hndl_t rc_zone_locked_mem;
 extern rctl_hndl_t rc_zone_max_swap;
+extern rctl_hndl_t rc_zone_phys_mem;
 extern rctl_hndl_t rc_zone_max_lofi;
+
+/* For publishing sysevents related to a particular zone */
+extern void zone_sysevent_publish(zone_t *, const char *, const char *,
+    nvlist_t *);
 
 #endif	/* _KERNEL */
 

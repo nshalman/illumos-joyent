@@ -25,6 +25,7 @@
  * Copyright 2022 Spencer Evans-Cole.
  * Copyright 2016 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
+ * Copyright 2021 OmniOS Community Edition (OmniOSce) Association.
  */
 
 /*	Copyright (c) 1983, 1984, 1985, 1986, 1987, 1988, 1989 AT&T	*/
@@ -208,6 +209,11 @@ static void		(**vsd_destructor)(void *);
 	if (vfsp != NULL && (vfsp->vfs_flag & VFS_XID) == 0)		\
 		cr = crgetmapped(cr);					\
 	}
+
+#define	VOP_LATENCY_10MS	10000000
+#define	VOP_LATENCY_100MS	100000000
+#define	VOP_LATENCY_1S		1000000000
+#define	VOP_LATENCY_10S		10000000000
 
 /*
  * Convert stat(2) formats to vnode types and vice versa.  (Knows about
@@ -3468,14 +3474,58 @@ fop_read(
 	cred_t *cr,
 	caller_context_t *ct)
 {
-	int	err;
 	ssize_t	resid_start = uiop->uio_resid;
+	zone_t	*zonep = curzone;
+	zone_vfs_kstat_t *zvp = zonep->zone_vfs_stats;
+
+	hrtime_t start = 0, lat;
+	ssize_t len;
+	int err;
+
+	if ((vp->v_type == VREG || vp->v_type == VDIR || vp->v_type == VBLK) &&
+	    vp->v_vfsp != NULL && (vp->v_vfsp->vfs_flag & VFS_STATS)) {
+		start = gethrtime();
+
+		mutex_enter(&zonep->zone_vfs_lock);
+		kstat_runq_enter(&zonep->zone_vfs_rwstats);
+		mutex_exit(&zonep->zone_vfs_lock);
+	}
 
 	VOPXID_MAP_CR(vp, cr);
 
 	err = (*(vp)->v_op->vop_read)(vp, uiop, ioflag, cr, ct);
-	VOPSTATS_UPDATE_IO(vp, read,
-	    read_bytes, (resid_start - uiop->uio_resid));
+	len = resid_start - uiop->uio_resid;
+
+	VOPSTATS_UPDATE_IO(vp, read, read_bytes, len);
+
+	if (start != 0) {
+		mutex_enter(&zonep->zone_vfs_lock);
+		zonep->zone_vfs_rwstats.reads++;
+		zonep->zone_vfs_rwstats.nread += len;
+		kstat_runq_exit(&zonep->zone_vfs_rwstats);
+		mutex_exit(&zonep->zone_vfs_lock);
+
+		lat = gethrtime() - start;
+
+		if (lat >= VOP_LATENCY_10MS) {
+			if (lat < VOP_LATENCY_100MS)
+				atomic_inc_64(&zvp->zv_10ms_ops.value.ui64);
+			else if (lat < VOP_LATENCY_1S) {
+				atomic_inc_64(&zvp->zv_10ms_ops.value.ui64);
+				atomic_inc_64(&zvp->zv_100ms_ops.value.ui64);
+			} else if (lat < VOP_LATENCY_10S) {
+				atomic_inc_64(&zvp->zv_10ms_ops.value.ui64);
+				atomic_inc_64(&zvp->zv_100ms_ops.value.ui64);
+				atomic_inc_64(&zvp->zv_1s_ops.value.ui64);
+			} else {
+				atomic_inc_64(&zvp->zv_10ms_ops.value.ui64);
+				atomic_inc_64(&zvp->zv_100ms_ops.value.ui64);
+				atomic_inc_64(&zvp->zv_1s_ops.value.ui64);
+				atomic_inc_64(&zvp->zv_10s_ops.value.ui64);
+			}
+		}
+	}
+
 	return (err);
 }
 
@@ -3487,14 +3537,63 @@ fop_write(
 	cred_t *cr,
 	caller_context_t *ct)
 {
-	int	err;
 	ssize_t	resid_start = uiop->uio_resid;
+	zone_t	*zonep = curzone;
+	zone_vfs_kstat_t *zvp = zonep->zone_vfs_stats;
+
+	hrtime_t start = 0, lat;
+	ssize_t len;
+	int	err;
+
+	/*
+	 * For the purposes of VFS kstat consumers, the "waitq" calculation is
+	 * repurposed as the active queue for VFS write operations.  There's no
+	 * actual wait queue for VFS operations.
+	 */
+	if ((vp->v_type == VREG || vp->v_type == VDIR || vp->v_type == VBLK) &&
+	    vp->v_vfsp != NULL && (vp->v_vfsp->vfs_flag & VFS_STATS)) {
+		start = gethrtime();
+
+		mutex_enter(&zonep->zone_vfs_lock);
+		kstat_waitq_enter(&zonep->zone_vfs_rwstats);
+		mutex_exit(&zonep->zone_vfs_lock);
+	}
 
 	VOPXID_MAP_CR(vp, cr);
 
 	err = (*(vp)->v_op->vop_write)(vp, uiop, ioflag, cr, ct);
-	VOPSTATS_UPDATE_IO(vp, write,
-	    write_bytes, (resid_start - uiop->uio_resid));
+	len = resid_start - uiop->uio_resid;
+
+	VOPSTATS_UPDATE_IO(vp, write, write_bytes, len);
+
+	if (start != 0) {
+		mutex_enter(&zonep->zone_vfs_lock);
+		zonep->zone_vfs_rwstats.writes++;
+		zonep->zone_vfs_rwstats.nwritten += len;
+		kstat_waitq_exit(&zonep->zone_vfs_rwstats);
+		mutex_exit(&zonep->zone_vfs_lock);
+
+		lat = gethrtime() - start;
+
+		if (lat >= VOP_LATENCY_10MS) {
+			if (lat < VOP_LATENCY_100MS)
+				atomic_inc_64(&zvp->zv_10ms_ops.value.ui64);
+			else if (lat < VOP_LATENCY_1S) {
+				atomic_inc_64(&zvp->zv_10ms_ops.value.ui64);
+				atomic_inc_64(&zvp->zv_100ms_ops.value.ui64);
+			} else if (lat < VOP_LATENCY_10S) {
+				atomic_inc_64(&zvp->zv_10ms_ops.value.ui64);
+				atomic_inc_64(&zvp->zv_100ms_ops.value.ui64);
+				atomic_inc_64(&zvp->zv_1s_ops.value.ui64);
+			} else {
+				atomic_inc_64(&zvp->zv_10ms_ops.value.ui64);
+				atomic_inc_64(&zvp->zv_100ms_ops.value.ui64);
+				atomic_inc_64(&zvp->zv_1s_ops.value.ui64);
+				atomic_inc_64(&zvp->zv_10s_ops.value.ui64);
+			}
+		}
+	}
+
 	return (err);
 }
 

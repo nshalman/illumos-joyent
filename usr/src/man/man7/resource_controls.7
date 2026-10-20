@@ -1,12 +1,13 @@
 '\" te
 .\" Copyright (c) 2007, Sun Microsystems, Inc. All Rights Reserved.
+.\" Copyright 2017, Joyent, Inc.
 .\" Copyright 2021 OmniOS Community Edition (OmniOSce) Association.
 .\" The contents of this file are subject to the terms of the Common Development and Distribution License (the "License").  You may not use this file except in compliance with the License.
 .\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE or http://www.opensolaris.org/os/licensing.  See the License for the specific language governing permissions and limitations under the License.
 .\" When distributing Covered Code, include this CDDL HEADER in each file and include the License file at usr/src/OPENSOLARIS.LICENSE.  If applicable, add the following below this CDDL HEADER, with the fields enclosed by brackets "[]" replaced with your own identifying information: Portions Copyright [yyyy] [name of copyright owner]
 .TH RESOURCE_CONTROLS 7 "Jan 23, 2021"
 .SH NAME
-resource_controls \- resource controls available through project database
+resource_controls \- resource controls available through projects and zones
 .SH DESCRIPTION
 The resource controls facility is configured through the project database. See
 \fBproject\fR(5). You can set and modify resource controls through the
@@ -34,6 +35,12 @@ following utilities:
 .ie t \(bu
 .el o
 .BR rctladm (8)
+.RE
+.RS +4
+.TP
+.ie t \(bu
+.el o
+\fBzonecfg\fR(8)
 .RE
 .sp
 .LP
@@ -407,6 +414,33 @@ The following zone-wide resource controls are available:
 .sp
 .ne 2
 .na
+\fBzone.cpu-baseline\fR
+.ad
+.sp .6
+.RS 4n
+Sets a baseline amount of CPU time that a zone can use before it is considered
+to be bursting. The unit used is the percentage of a single CPU that is being
+used by all user threads in a zone. The value should be less than the
+\fBzone.cpu-cap\fR rctl value and is expressed as an integer.
+This resource control does not support the \fBsyslog\fR action.
+.RE
+
+.sp
+.ne 2
+.na
+\fBzone.cpu-burst-time\fR
+.ad
+.sp .6
+.RS 4n
+Sets the number of seconds that a zone can exceed the \fBzone.cpu-baseline\fR
+rctl value before being cpu-capped down to the \fBzone.cpu-baseline\fR.
+A value of 0 means that \fBzone.cpu-baseline\fR can be exceeded indefinitely.
+This resource control does not support the \fBsyslog\fR action.
+.RE
+
+.sp
+.ne 2
+.na
 \fBzone.cpu-cap\fR
 .ad
 .sp .6
@@ -425,7 +459,7 @@ not support the \fBsyslog\fR action.
 .ad
 .sp .6
 .RS 4n
-Sets a limit on the number of fair share scheduler (FSS) CPU shares for a zone.
+Sets a value on the number of fair share scheduler (FSS) CPU shares for a zone.
 CPU shares are first allocated to the zone, and then further subdivided among
 projects within the zone as specified in the \fBproject.cpu-shares\fR entries.
 Expressed as an integer. This resource control does not support the
@@ -445,6 +479,15 @@ Total amount of physical locked memory available to a zone.
 .sp
 .ne 2
 .na
+\fBzone.max-lofi\fR
+.ad
+.sp .6
+.RS 4n
+Sets a limit on the number of \fBLOFI\fR(4D) devices that can be created in a
+zone. Expressed as an integer. This resource control does not support the
+\fBsyslog\fR action.
+.RE
+
 \fBzone.max-lwps\fR
 .ad
 .sp .6
@@ -469,6 +512,14 @@ integer.
 .sp
 .ne 2
 .na
+\fBzone.max-physical-memory\fR
+.ad
+.sp .6
+.RS 4n
+Sets a limit on the amount of physical memory (RSS) that can be used by a zone
+before resident pages start being forcibly paged out.  The unit used is bytes.
+Expressed as an integer.  This resource control does not support the
+\fBsyslog\fR action.
 \fBzone.max-processes\fR
 .ad
 .sp .6
@@ -477,6 +528,11 @@ Enhances resource isolation by preventing too many processes in one zone from
 affecting other zones. A zone's total processes can be further subdivided among
 projects within the zone by using \fBproject.max-processes\fR entries.
 Expressed as an integer.
+.RE
+
+.sp
+.ne 2
+.na
 .RE
 
 .sp
@@ -520,6 +576,18 @@ bytes.
 .RS 4n
 Total amount of swap that can be consumed by user process address space
 mappings and \fBtmpfs\fR mounts for this zone.
+.RE
+
+.sp
+.ne 2
+.na
+\fB\fBzone.zfs-io-priority\fR\fR
+.ad
+.sp .6
+.RS 4n
+Sets a value for the \fBzfs\fR(8) I/O priority for a zone. This is used as
+one of the inputs to determine if a zone's I/O should be throttled.  Expressed
+as an integer. This resource control does not support the \fBsyslog\fR action.
 .RE
 
 .sp
@@ -1032,6 +1100,8 @@ Interface Stability	Evolving
 .BR FSS (4),
 .BR project (5),
 .BR attributes (7),
+.BR privileges (7),
+.BR zones (7),
 .BR pooladm (8),
 .BR poolcfg (8),
 .BR projadd (8),

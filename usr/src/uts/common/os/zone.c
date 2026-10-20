@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2015, Joyent Inc. All rights reserved.
+ * Copyright 2019 Joyent, Inc.
  * Copyright (c) 2016 by Delphix. All rights reserved.
  * Copyright 2018 OmniOS Community Edition (OmniOSce) Association.
  */
@@ -106,14 +106,16 @@
  *   removed from the list of active zones.  zone_destroy() returns, and
  *   the zone can be recreated.
  *
- *   ZONE_IS_FREE (internal state): zone_ref goes to 0, ZSD destructor
- *   callbacks are executed, and all memory associated with the zone is
- *   freed.
+ *   ZONE_IS_FREE (internal state): All references have been dropped and
+ *   the zone_t is no longer in the zone_active nor zone_deathrow lists.
+ *   The zone_t is in the process of being freed.  This state exists
+ *   only for publishing a sysevent to indicate that the zone by this
+ *   name can be booted again.
  *
- *   Threads can wait for the zone to enter a requested state by using
- *   zone_status_wait() or zone_status_timedwait() with the desired
- *   state passed in as an argument.  Zone state transitions are
- *   uni-directional; it is not possible to move back to an earlier state.
+ *   Threads can wait for the zone to enter a requested state (other than
+ *   ZONE_IS_FREE) by using zone_status_wait() or zone_status_timedwait()
+ *   with the desired state passed in as an argument.  Zone state transitions
+ *   are uni-directional; it is not possible to move back to an earlier state.
  *
  *
  *   Zone-Specific Data:
@@ -252,6 +254,8 @@
 #include <sys/cpucaps.h>
 #include <vm/seg.h>
 #include <sys/mac.h>
+#include <sys/rt.h>
+#include <sys/fx.h>
 
 /*
  * This constant specifies the number of seconds that threads waiting for
@@ -312,6 +316,7 @@ static id_space_t *zoneid_space;
  * 'global_zone'.
  */
 zone_t zone0;
+zone_zfs_io_t zone0_zp_zfs;
 zone_t *global_zone = NULL;	/* Set when the global zone is initialized */
 
 /*
@@ -327,8 +332,8 @@ static list_t zone_active;
 static list_t zone_deathrow;
 static kmutex_t zone_deathrow_lock;
 
-/* number of zones is limited by virtual interface limit in IP */
-uint_t maxzones = 8192;
+/* This can be dynamically reduced if various subsystems hit internal limits. */
+uint_t maxzones = MAX_ZONES;
 
 /* Event channel to sent zone state change notifications */
 evchan_t *zone_event_chan;
@@ -350,6 +355,7 @@ const char  *zone_status_table[] = {
 	ZONE_EVENT_SHUTTING_DOWN,	/* down */
 	ZONE_EVENT_SHUTTING_DOWN,	/* dying */
 	ZONE_EVENT_UNINITIALIZED,	/* dead */
+	ZONE_EVENT_FREE,		/* free */
 };
 
 /*
@@ -372,6 +378,7 @@ static char *zone_ref_subsys_names[] = {
 rctl_hndl_t rc_zone_cpu_shares;
 rctl_hndl_t rc_zone_locked_mem;
 rctl_hndl_t rc_zone_max_swap;
+rctl_hndl_t rc_zone_phys_mem;
 rctl_hndl_t rc_zone_max_lofi;
 rctl_hndl_t rc_zone_cpu_cap;
 rctl_hndl_t rc_zone_nlwps;
@@ -389,6 +396,7 @@ static int zone_remove_datalink(zoneid_t, datalink_id_t);
 static int zone_list_datalink(zoneid_t, int *, datalink_id_t *);
 static int zone_set_network(zoneid_t, zone_net_data_t *);
 static int zone_get_network(zoneid_t, zone_net_data_t *);
+static void zone_status_set(zone_t *, zone_status_t);
 
 typedef boolean_t zsd_applyfn_t(kmutex_t *, boolean_t, zone_t *, zone_key_t);
 
@@ -419,8 +427,72 @@ static boolean_t zsd_wait_for_inprogress(zone_t *, struct zsd_entry *,
  * Version 5 alters the zone_boot system call, and converts its old
  *     bootargs parameter to be set by the zone_setattr API instead.
  * Version 6 adds the flag argument to zone_create.
+ * Version 7 adds the requested zoneid to zone_create.
  */
-static const int ZONE_SYSCALL_API_VERSION = 6;
+static const int ZONE_SYSCALL_API_VERSION = 7;
+
+/*
+ * "zone_pdata" is an array indexed by zoneid. It is used to store "persistent"
+ * data which can be referenced independently of the zone_t structure. This
+ * data falls into two categories;
+ *   1) pages and RSS data associated with processes inside a zone
+ *   2) in-flight ZFS I/O data
+ *
+ * Each member of zone_persist_t stores the zone's current page usage, its page
+ * limit, a flag indicating if the zone is over its physical memory cap and
+ * various page-related statistics. The zpers_over flag is the interface for
+ * the page scanner to use when reclaiming pages for zones that are over their
+ * cap. The zone_persist_t structure also includes a mutex and a reference to a
+ * zone_zfs_io_t structure used for tracking the zone's ZFS I/O data.
+ *
+ * All zone physical memory cap data is stored in this array instead of within
+ * the zone structure itself. This is because zone structures come and go, but
+ * paging-related work can be asynchronous to any particular zone. In,
+ * particular:
+ * 1) Page scanning to reclaim pages occurs from a kernel thread that is not
+ *    associated with any zone.
+ * 2) Freeing segkp pages can occur long after the zone which first
+ *    instantiated those pages has gone away.
+ * We want to be able to account for pages/zone without constantly having to
+ * take extra locks and finding the relevant zone structure, particularly during
+ * page scanning.
+ *
+ * The page scanner can run when "zone_num_over_cap" is non-zero. It can
+ * do a direct lookup of a zoneid into the "zone_pdata" array to determine
+ * if that zone is over its cap.
+ *
+ * There is no locking for the page scanner to perform these two checks.
+ * We cannot have the page scanner blocking normal paging activity for
+ * running processes. Because the physical memory cap is a soft cap, it is
+ * fine for the scanner to simply read the current state of the counter and
+ * the zone's zpers_over entry in the array. The scanner should never modify
+ * either of these items. Internally the entries and the counter are managed
+ * with the "zone_physcap_lock" mutex as we add/remove mappings to pages. We
+ * take care to ensure that we only take the zone_physcap_lock mutex when a
+ * zone is transitioning over/under its physical memory cap.
+ *
+ * The "zone_incr_capped" and "zone_decr_capped" functions are used to manage
+ * the "zone_pdata" array and associated counter.
+ *
+ * The zone_persist_t structure tracks the zone's physical cap and phyiscal
+ * usage in terms of pages. These values are currently defined as uint32. Thus,
+ * the maximum number of pages we can track is a UINT_MAX-1 (4,294,967,295)
+ * since UINT_MAX means the zone's RSS is unlimited. Assuming a 4k page size, a
+ * zone's maximum RSS is limited to 17.5 TB and twice that with an 8k page size.
+ * In the future we may need to expand these counters to 64-bit, but for now
+ * we're using 32-bit to conserve memory, since this array is statically
+ * allocated within the kernel based on the maximum number of zones supported.
+ *
+ * With respect to the zone_zfs_io_t referenced by the zone_persist_t, under
+ * a heavy I/O workload, the "zonehash_lock" would become extremely hot if we
+ * had to continuously find the zone structure associated with an I/O that has
+ * just completed. To avoid that overhead, we track the I/O data within the
+ * zone_zfs_io_t instead. We can directly access that data without having to
+ * lookup the full zone_t structure.
+ */
+uint_t zone_num_over_cap;
+zone_persist_t zone_pdata[MAX_ZONES];
+static kmutex_t zone_physcap_lock;
 
 /*
  * Certain filesystems (such as NFS and autofs) need to know which zone
@@ -1705,6 +1777,57 @@ static rctl_ops_t zone_max_swap_ops = {
 
 /*ARGSUSED*/
 static rctl_qty_t
+zone_phys_mem_usage(rctl_t *rctl, struct proc *p)
+{
+	rctl_qty_t q;
+	zone_persist_t *zp = &zone_pdata[p->p_zone->zone_id];
+
+	ASSERT(MUTEX_HELD(&p->p_lock));
+	q = ptob(zp->zpers_pg_cnt);
+	return (q);
+}
+
+/*ARGSUSED*/
+static int
+zone_phys_mem_set(rctl_t *rctl, struct proc *p, rctl_entity_p_t *e,
+    rctl_qty_t nv)
+{
+	zoneid_t zid;
+	uint_t pg_val;
+
+	ASSERT(MUTEX_HELD(&p->p_lock));
+	ASSERT(e->rcep_t == RCENTITY_ZONE);
+	if (e->rcep_p.zone == NULL)
+		return (0);
+	zid = e->rcep_p.zone->zone_id;
+	if (nv == UINT64_MAX) {
+		pg_val = UINT32_MAX;
+	} else {
+		uint64_t pages = btop(nv);
+
+		/*
+		 * Return from RCTLOP_SET is always ignored so just clamp an
+		 * out-of-range value to our largest "limited" value.
+		 */
+		if (pages >= UINT32_MAX) {
+			pg_val = UINT32_MAX - 1;
+		} else {
+			pg_val = (uint_t)pages;
+		}
+	}
+	zone_pdata[zid].zpers_pg_limit = pg_val;
+	return (0);
+}
+
+static rctl_ops_t zone_phys_mem_ops = {
+	rcop_no_action,
+	zone_phys_mem_usage,
+	zone_phys_mem_set,
+	rcop_no_test
+};
+
+/*ARGSUSED*/
+static rctl_qty_t
 zone_max_lofi_usage(rctl_t *rctl, struct proc *p)
 {
 	rctl_qty_t q;
@@ -1798,6 +1921,21 @@ zone_lockedmem_kstat_update(kstat_t *ksp, int rw)
 }
 
 static int
+zone_physmem_kstat_update(kstat_t *ksp, int rw)
+{
+	zone_t *zone = ksp->ks_private;
+	zone_kstat_t *zk = ksp->ks_data;
+	zone_persist_t *zp = &zone_pdata[zone->zone_id];
+
+	if (rw == KSTAT_WRITE)
+		return (EACCES);
+
+	zk->zk_usage.value.ui64 = ptob(zp->zpers_pg_cnt);
+	zk->zk_value.value.ui64 = ptob(zp->zpers_pg_limit);
+	return (0);
+}
+
+static int
 zone_nprocs_kstat_update(kstat_t *ksp, int rw)
 {
 	zone_t *zone = ksp->ks_private;
@@ -1826,7 +1964,7 @@ zone_swapresv_kstat_update(kstat_t *ksp, int rw)
 }
 
 static kstat_t *
-zone_kstat_create_common(zone_t *zone, char *name,
+zone_rctl_kstat_create_common(zone_t *zone, char *name,
     int (*updatefunc) (kstat_t *, int))
 {
 	kstat_t *ksp;
@@ -1851,16 +1989,200 @@ zone_kstat_create_common(zone_t *zone, char *name,
 	return (ksp);
 }
 
+static int
+zone_vfs_kstat_update(kstat_t *ksp, int rw)
+{
+	zone_t *zone = ksp->ks_private;
+	zone_vfs_kstat_t *zvp = ksp->ks_data;
+	kstat_io_t *kiop = &zone->zone_vfs_rwstats;
+
+	if (rw == KSTAT_WRITE)
+		return (EACCES);
+
+	/*
+	 * Extract the VFS statistics from the kstat_io_t structure used by
+	 * kstat_runq_enter() and related functions.  Since the slow ops
+	 * counters are updated directly by the VFS layer, there's no need to
+	 * copy those statistics here.
+	 *
+	 * Note that kstat_runq_enter() and the related functions use
+	 * gethrtime_unscaled(), so scale the time here.
+	 */
+	zvp->zv_nread.value.ui64 = kiop->nread;
+	zvp->zv_reads.value.ui64 = kiop->reads;
+	zvp->zv_rtime.value.ui64 = kiop->rtime;
+	zvp->zv_rcnt.value.ui64 = kiop->rcnt;
+	zvp->zv_rlentime.value.ui64 = kiop->rlentime;
+	zvp->zv_nwritten.value.ui64 = kiop->nwritten;
+	zvp->zv_writes.value.ui64 = kiop->writes;
+	zvp->zv_wtime.value.ui64 = kiop->wtime;
+	zvp->zv_wcnt.value.ui64 = kiop->wcnt;
+	zvp->zv_wlentime.value.ui64 = kiop->wlentime;
+
+	scalehrtime((hrtime_t *)&zvp->zv_rtime.value.ui64);
+	scalehrtime((hrtime_t *)&zvp->zv_rlentime.value.ui64);
+	scalehrtime((hrtime_t *)&zvp->zv_wtime.value.ui64);
+	scalehrtime((hrtime_t *)&zvp->zv_wlentime.value.ui64);
+
+	return (0);
+}
+
+static kstat_t *
+zone_vfs_kstat_create(zone_t *zone)
+{
+	kstat_t *ksp;
+	zone_vfs_kstat_t *zvp;
+
+	if ((ksp = kstat_create_zone("zone_vfs", zone->zone_id,
+	    zone->zone_name, "zone_vfs", KSTAT_TYPE_NAMED,
+	    sizeof (zone_vfs_kstat_t) / sizeof (kstat_named_t),
+	    KSTAT_FLAG_VIRTUAL, zone->zone_id)) == NULL)
+		return (NULL);
+
+	if (zone->zone_id != GLOBAL_ZONEID)
+		kstat_zone_add(ksp, GLOBAL_ZONEID);
+
+	zvp = ksp->ks_data = kmem_zalloc(sizeof (zone_vfs_kstat_t), KM_SLEEP);
+	ksp->ks_data_size += strlen(zone->zone_name) + 1;
+	ksp->ks_lock = &zone->zone_vfs_lock;
+	zone->zone_vfs_stats = zvp;
+
+	/* The kstat "name" field is not large enough for a full zonename */
+	kstat_named_init(&zvp->zv_zonename, "zonename", KSTAT_DATA_STRING);
+	kstat_named_setstr(&zvp->zv_zonename, zone->zone_name);
+	kstat_named_init(&zvp->zv_nread, "nread", KSTAT_DATA_UINT64);
+	kstat_named_init(&zvp->zv_reads, "reads", KSTAT_DATA_UINT64);
+	kstat_named_init(&zvp->zv_rtime, "rtime", KSTAT_DATA_UINT64);
+	kstat_named_init(&zvp->zv_rcnt, "rcnt", KSTAT_DATA_UINT64);
+	kstat_named_init(&zvp->zv_rlentime, "rlentime", KSTAT_DATA_UINT64);
+	kstat_named_init(&zvp->zv_nwritten, "nwritten", KSTAT_DATA_UINT64);
+	kstat_named_init(&zvp->zv_writes, "writes", KSTAT_DATA_UINT64);
+	kstat_named_init(&zvp->zv_wtime, "wtime", KSTAT_DATA_UINT64);
+	kstat_named_init(&zvp->zv_wcnt, "wcnt", KSTAT_DATA_UINT64);
+	kstat_named_init(&zvp->zv_wlentime, "wlentime", KSTAT_DATA_UINT64);
+	kstat_named_init(&zvp->zv_10ms_ops, "10ms_ops", KSTAT_DATA_UINT64);
+	kstat_named_init(&zvp->zv_100ms_ops, "100ms_ops", KSTAT_DATA_UINT64);
+	kstat_named_init(&zvp->zv_1s_ops, "1s_ops", KSTAT_DATA_UINT64);
+	kstat_named_init(&zvp->zv_10s_ops, "10s_ops", KSTAT_DATA_UINT64);
+	kstat_named_init(&zvp->zv_delay_cnt, "delay_cnt", KSTAT_DATA_UINT64);
+	kstat_named_init(&zvp->zv_delay_time, "delay_time", KSTAT_DATA_UINT64);
+
+	ksp->ks_update = zone_vfs_kstat_update;
+	ksp->ks_private = zone;
+
+	kstat_install(ksp);
+	return (ksp);
+}
+
+static int
+zone_zfs_kstat_update(kstat_t *ksp, int rw)
+{
+	zone_t *zone = ksp->ks_private;
+	zone_zfs_kstat_t *zzp = ksp->ks_data;
+	zone_persist_t *zp = &zone_pdata[zone->zone_id];
+
+	if (rw == KSTAT_WRITE)
+		return (EACCES);
+
+	mutex_enter(&zp->zpers_zfs_lock);
+	if (zp->zpers_zfsp == NULL) {
+		zzp->zz_nread.value.ui64 = 0;
+		zzp->zz_reads.value.ui64 = 0;
+		zzp->zz_rtime.value.ui64 = 0;
+		zzp->zz_rlentime.value.ui64 = 0;
+		zzp->zz_nwritten.value.ui64 = 0;
+		zzp->zz_writes.value.ui64 = 0;
+		zzp->zz_waittime.value.ui64 = 0;
+	} else {
+		kstat_io_t *kiop = &zp->zpers_zfsp->zpers_zfs_rwstats;
+
+		/*
+		 * Extract the ZFS statistics from the kstat_io_t structure
+		 * used by kstat_runq_enter() and related functions. Since the
+		 * I/O throttle counters are updated directly by the ZFS layer,
+		 * there's no need to copy those statistics here.
+		 *
+		 * Note that kstat_runq_enter() and the related functions use
+		 * gethrtime_unscaled(), so scale the time here.
+		 */
+		zzp->zz_nread.value.ui64 = kiop->nread;
+		zzp->zz_reads.value.ui64 = kiop->reads;
+		zzp->zz_rtime.value.ui64 = kiop->rtime;
+		zzp->zz_rlentime.value.ui64 = kiop->rlentime;
+		zzp->zz_nwritten.value.ui64 = kiop->nwritten;
+		zzp->zz_writes.value.ui64 = kiop->writes;
+		zzp->zz_waittime.value.ui64 =
+		    zp->zpers_zfsp->zpers_zfs_rd_waittime;
+	}
+	mutex_exit(&zp->zpers_zfs_lock);
+
+	scalehrtime((hrtime_t *)&zzp->zz_rtime.value.ui64);
+	scalehrtime((hrtime_t *)&zzp->zz_rlentime.value.ui64);
+
+	return (0);
+}
+
+static kstat_t *
+zone_zfs_kstat_create(zone_t *zone)
+{
+	kstat_t *ksp;
+	zone_zfs_kstat_t *zzp;
+
+	if ((ksp = kstat_create_zone("zone_zfs", zone->zone_id,
+	    zone->zone_name, "zone_zfs", KSTAT_TYPE_NAMED,
+	    sizeof (zone_zfs_kstat_t) / sizeof (kstat_named_t),
+	    KSTAT_FLAG_VIRTUAL, zone->zone_id)) == NULL)
+		return (NULL);
+
+	if (zone->zone_id != GLOBAL_ZONEID)
+		kstat_zone_add(ksp, GLOBAL_ZONEID);
+
+	zzp = ksp->ks_data = kmem_zalloc(sizeof (zone_zfs_kstat_t), KM_SLEEP);
+	ksp->ks_data_size += strlen(zone->zone_name) + 1;
+	ksp->ks_lock = &zone->zone_zfs_lock;
+	zone->zone_zfs_stats = zzp;
+
+	/* The kstat "name" field is not large enough for a full zonename */
+	kstat_named_init(&zzp->zz_zonename, "zonename", KSTAT_DATA_STRING);
+	kstat_named_setstr(&zzp->zz_zonename, zone->zone_name);
+	kstat_named_init(&zzp->zz_nread, "nread", KSTAT_DATA_UINT64);
+	kstat_named_init(&zzp->zz_reads, "reads", KSTAT_DATA_UINT64);
+	kstat_named_init(&zzp->zz_rtime, "rtime", KSTAT_DATA_UINT64);
+	kstat_named_init(&zzp->zz_rlentime, "rlentime", KSTAT_DATA_UINT64);
+	kstat_named_init(&zzp->zz_nwritten, "nwritten", KSTAT_DATA_UINT64);
+	kstat_named_init(&zzp->zz_writes, "writes", KSTAT_DATA_UINT64);
+	kstat_named_init(&zzp->zz_waittime, "waittime", KSTAT_DATA_UINT64);
+
+	ksp->ks_update = zone_zfs_kstat_update;
+	ksp->ks_private = zone;
+
+	kstat_install(ksp);
+	return (ksp);
+}
 
 static int
 zone_mcap_kstat_update(kstat_t *ksp, int rw)
 {
 	zone_t *zone = ksp->ks_private;
 	zone_mcap_kstat_t *zmp = ksp->ks_data;
+	zone_persist_t *zp;
 
 	if (rw == KSTAT_WRITE)
 		return (EACCES);
 
+	zp = &zone_pdata[zone->zone_id];
+
+	zmp->zm_rss.value.ui64 = ptob(zp->zpers_pg_cnt);
+	zmp->zm_phys_cap.value.ui64 = ptob(zp->zpers_pg_limit);
+	zmp->zm_swap.value.ui64 = zone->zone_max_swap;
+	zmp->zm_swap_cap.value.ui64 = zone->zone_max_swap_ctl;
+	zmp->zm_nover.value.ui64 = zp->zpers_nover;
+#ifndef DEBUG
+	zmp->zm_pagedout.value.ui64 = ptob(zp->zpers_pg_out);
+#else
+	zmp->zm_pagedout.value.ui64 = ptob(zp->zpers_pg_fsdirty +
+	    zp->zpers_pg_fs + zp->zpers_pg_anon + zp->zpers_pg_anondirty);
+#endif
 	zmp->zm_pgpgin.value.ui64 = zone->zone_pgpgin;
 	zmp->zm_anonpgin.value.ui64 = zone->zone_anonpgin;
 	zmp->zm_execpgin.value.ui64 = zone->zone_execpgin;
@@ -1893,6 +2215,12 @@ zone_mcap_kstat_create(zone_t *zone)
 	/* The kstat "name" field is not large enough for a full zonename */
 	kstat_named_init(&zmp->zm_zonename, "zonename", KSTAT_DATA_STRING);
 	kstat_named_setstr(&zmp->zm_zonename, zone->zone_name);
+	kstat_named_init(&zmp->zm_rss, "rss", KSTAT_DATA_UINT64);
+	kstat_named_init(&zmp->zm_phys_cap, "physcap", KSTAT_DATA_UINT64);
+	kstat_named_init(&zmp->zm_swap, "swap", KSTAT_DATA_UINT64);
+	kstat_named_init(&zmp->zm_swap_cap, "swapcap", KSTAT_DATA_UINT64);
+	kstat_named_init(&zmp->zm_nover, "nover", KSTAT_DATA_UINT64);
+	kstat_named_init(&zmp->zm_pagedout, "pagedout", KSTAT_DATA_UINT64);
 	kstat_named_init(&zmp->zm_pgpgin, "pgpgin", KSTAT_DATA_UINT64);
 	kstat_named_init(&zmp->zm_anonpgin, "anonpgin", KSTAT_DATA_UINT64);
 	kstat_named_init(&zmp->zm_execpgin, "execpgin", KSTAT_DATA_UINT64);
@@ -1985,9 +2313,13 @@ zone_misc_kstat_create(zone_t *zone)
 	    KSTAT_DATA_UINT32);
 	kstat_named_init(&zmp->zm_ffnomem, "forkfail_nomem", KSTAT_DATA_UINT32);
 	kstat_named_init(&zmp->zm_ffmisc, "forkfail_misc", KSTAT_DATA_UINT32);
+	kstat_named_init(&zmp->zm_mfseglim, "mapfail_seglim",
+	    KSTAT_DATA_UINT32);
 	kstat_named_init(&zmp->zm_nested_intp, "nested_interp",
 	    KSTAT_DATA_UINT32);
 	kstat_named_init(&zmp->zm_init_pid, "init_pid", KSTAT_DATA_UINT32);
+	kstat_named_init(&zmp->zm_init_restarts, "init_restarts",
+	    KSTAT_DATA_UINT32);
 	kstat_named_init(&zmp->zm_boot_time, "boot_time", KSTAT_DATA_UINT64);
 
 	ksp->ks_update = zone_misc_kstat_update;
@@ -2000,12 +2332,24 @@ zone_misc_kstat_create(zone_t *zone)
 static void
 zone_kstat_create(zone_t *zone)
 {
-	zone->zone_lockedmem_kstat = zone_kstat_create_common(zone,
+	zone->zone_lockedmem_kstat = zone_rctl_kstat_create_common(zone,
 	    "lockedmem", zone_lockedmem_kstat_update);
-	zone->zone_swapresv_kstat = zone_kstat_create_common(zone,
+	zone->zone_swapresv_kstat = zone_rctl_kstat_create_common(zone,
 	    "swapresv", zone_swapresv_kstat_update);
-	zone->zone_nprocs_kstat = zone_kstat_create_common(zone,
+	zone->zone_physmem_kstat = zone_rctl_kstat_create_common(zone,
+	    "physicalmem", zone_physmem_kstat_update);
+	zone->zone_nprocs_kstat = zone_rctl_kstat_create_common(zone,
 	    "nprocs", zone_nprocs_kstat_update);
+
+	if ((zone->zone_vfs_ksp = zone_vfs_kstat_create(zone)) == NULL) {
+		zone->zone_vfs_stats = kmem_zalloc(
+		    sizeof (zone_vfs_kstat_t), KM_SLEEP);
+	}
+
+	if ((zone->zone_zfs_ksp = zone_zfs_kstat_create(zone)) == NULL) {
+		zone->zone_zfs_stats = kmem_zalloc(
+		    sizeof (zone_zfs_kstat_t), KM_SLEEP);
+	}
 
 	if ((zone->zone_mcap_ksp = zone_mcap_kstat_create(zone)) == NULL) {
 		zone->zone_mcap_stats = kmem_zalloc(
@@ -2038,8 +2382,15 @@ zone_kstat_delete(zone_t *zone)
 	    sizeof (zone_kstat_t));
 	zone_kstat_delete_common(&zone->zone_swapresv_kstat,
 	    sizeof (zone_kstat_t));
+	zone_kstat_delete_common(&zone->zone_physmem_kstat,
+	    sizeof (zone_kstat_t));
 	zone_kstat_delete_common(&zone->zone_nprocs_kstat,
 	    sizeof (zone_kstat_t));
+
+	zone_kstat_delete_common(&zone->zone_vfs_ksp,
+	    sizeof (zone_vfs_kstat_t));
+	zone_kstat_delete_common(&zone->zone_zfs_ksp,
+	    sizeof (zone_zfs_kstat_t));
 	zone_kstat_delete_common(&zone->zone_mcap_ksp,
 	    sizeof (zone_mcap_kstat_t));
 	zone_kstat_delete_common(&zone->zone_misc_ksp,
@@ -2101,7 +2452,11 @@ zone_zsd_init(void)
 	zone0.zone_initname = initname;
 	zone0.zone_lockedmem_kstat = NULL;
 	zone0.zone_swapresv_kstat = NULL;
+	zone0.zone_physmem_kstat = NULL;
 	zone0.zone_nprocs_kstat = NULL;
+
+	zone_pdata[0].zpers_zfsp = &zone0_zp_zfs;
+	zone_pdata[0].zpers_zfsp->zpers_zfs_io_pri = 1;
 
 	list_create(&zone0.zone_ref_list, sizeof (zone_ref_t),
 	    offsetof(zone_ref_t, zref_linkage));
@@ -2250,6 +2605,20 @@ zone_init(void)
 	rde = rctl_dict_lookup("zone.cpu-shares");
 	(void) rctl_val_list_insert(&rde->rcd_default_value, dval);
 
+	/*
+	 * Create a rctl_val with PRIVILEGED, NOACTION, value = 1.  Then attach
+	 * this at the head of the rctl_dict_entry for ``zone.zfs-io-priority'.
+	 */
+	dval = kmem_cache_alloc(rctl_val_cache, KM_SLEEP);
+	bzero(dval, sizeof (rctl_val_t));
+	dval->rcv_value = 1;
+	dval->rcv_privilege = RCPRIV_PRIVILEGED;
+	dval->rcv_flagaction = RCTL_LOCAL_NOACTION;
+	dval->rcv_action_recip_pid = -1;
+
+	rde = rctl_dict_lookup("zone.zfs-io-priority");
+	(void) rctl_val_list_insert(&rde->rcd_default_value, dval);
+
 	rc_zone_locked_mem = rctl_register("zone.max-locked-memory",
 	    RCENTITY_ZONE, RCTL_GLOBAL_NOBASIC | RCTL_GLOBAL_BYTES |
 	    RCTL_GLOBAL_DENY_ALWAYS, UINT64_MAX, UINT64_MAX,
@@ -2259,6 +2628,11 @@ zone_init(void)
 	    RCENTITY_ZONE, RCTL_GLOBAL_NOBASIC | RCTL_GLOBAL_BYTES |
 	    RCTL_GLOBAL_DENY_ALWAYS, UINT64_MAX, UINT64_MAX,
 	    &zone_max_swap_ops);
+
+	rc_zone_phys_mem = rctl_register("zone.max-physical-memory",
+	    RCENTITY_ZONE, RCTL_GLOBAL_NOBASIC | RCTL_GLOBAL_BYTES |
+	    RCTL_GLOBAL_DENY_ALWAYS, UINT64_MAX, UINT64_MAX,
+	    &zone_phys_mem_ops);
 
 	rc_zone_max_lofi = rctl_register("zone.max-lofi",
 	    RCENTITY_ZONE, RCTL_GLOBAL_NOBASIC | RCTL_GLOBAL_COUNT |
@@ -2283,6 +2657,7 @@ zone_init(void)
 	zone0.zone_restart_init = B_TRUE;
 	zone0.zone_reboot_on_init_exit = B_FALSE;
 	zone0.zone_restart_init_0 = B_FALSE;
+	zone0.zone_init_status = -1;
 	zone0.zone_brand = &native_brand;
 	rctl_prealloc_destroy(gp);
 	/*
@@ -2381,6 +2756,9 @@ zone_free(zone_t *zone)
 	 */
 	cpucaps_zone_remove(zone);
 
+	/* Clear physical memory capping data. */
+	bzero(&zone_pdata[zone->zone_id], sizeof (zone_persist_t));
+
 	ASSERT(zone->zone_cpucap == NULL);
 
 	/* remove from deathrow list */
@@ -2408,6 +2786,15 @@ zone_free(zone_t *zone)
 		kmem_free(zdl, sizeof (zone_dl_t));
 	}
 	list_destroy(&zone->zone_dl_list);
+
+	/*
+	 * This zone_t can no longer inhibit creation of another zone_t
+	 * with the same name or debug ID.  Generate a sysevent so that
+	 * userspace tools know it is safe to carry on.
+	 */
+	mutex_enter(&zone_status_lock);
+	zone_status_set(zone, ZONE_IS_FREE);
+	mutex_exit(&zone_status_lock);
 
 	cpu_uarray_free(zone->zone_ustate);
 
@@ -2453,11 +2840,17 @@ zone_free(zone_t *zone)
 static void
 zone_status_set(zone_t *zone, zone_status_t status)
 {
+	timestruc_t now;
+	uint64_t t;
 
 	nvlist_t *nvl = NULL;
 	ASSERT(MUTEX_HELD(&zone_status_lock));
-	ASSERT(status > ZONE_MIN_STATE && status <= ZONE_MAX_STATE &&
-	    status >= zone_status_get(zone));
+	ASSERT((status > ZONE_MIN_STATE && status <= ZONE_MAX_STATE ||
+	    status == ZONE_IS_FREE) && status >= zone_status_get(zone));
+
+	/* Current time since Jan 1 1970 but consumers expect NS */
+	gethrestime(&now);
+	t = (now.tv_sec * NANOSEC) + now.tv_nsec;
 
 	if (nvlist_alloc(&nvl, NV_UNIQUE_NAME, KM_SLEEP) ||
 	    nvlist_add_string(nvl, ZONE_CB_NAME, zone->zone_name) ||
@@ -2466,12 +2859,14 @@ zone_status_set(zone_t *zone, zone_status_t status)
 	    nvlist_add_string(nvl, ZONE_CB_OLDSTATE,
 	    zone_status_table[zone->zone_status]) ||
 	    nvlist_add_int32(nvl, ZONE_CB_ZONEID, zone->zone_id) ||
-	    nvlist_add_uint64(nvl, ZONE_CB_TIMESTAMP, (uint64_t)gethrtime()) ||
+	    nvlist_add_uint64(nvl, ZONE_CB_TIMESTAMP, t) ||
 	    sysevent_evc_publish(zone_event_chan, ZONE_EVENT_STATUS_CLASS,
 	    ZONE_EVENT_STATUS_SUBCLASS, "sun.com", "kernel", nvl, EVCH_SLEEP)) {
 #ifdef DEBUG
 		(void) printf(
 		    "Failed to allocate and send zone state change event.\n");
+#else
+		/* EMPTY */
 #endif
 	}
 	nvlist_free(nvl);
@@ -2489,6 +2884,38 @@ zone_status_t
 zone_status_get(zone_t *zone)
 {
 	return (zone->zone_status);
+}
+
+/*
+ * Publish a zones-related sysevent for purposes other than zone state changes.
+ * While it is unfortunate that zone_event_chan is associated with
+ * "com.sun:zones:status" (rather than "com.sun:zones") state changes should be
+ * the only ones with class "status" and subclass "change".
+ */
+void
+zone_sysevent_publish(zone_t *zone, const char *class, const char *subclass,
+    nvlist_t *ev_nvl)
+{
+	nvlist_t *nvl = NULL;
+	timestruc_t now;
+	uint64_t t;
+
+	gethrestime(&now);
+	t = (now.tv_sec * NANOSEC) + now.tv_nsec;
+
+	if (nvlist_dup(ev_nvl, &nvl, KM_SLEEP) != 0 ||
+	    nvlist_add_string(nvl, ZONE_CB_NAME, zone->zone_name) != 0 ||
+	    nvlist_add_uint64(nvl, ZONE_CB_ZONEID, zone->zone_id) != 0 ||
+	    nvlist_add_uint64(nvl, ZONE_CB_TIMESTAMP, t) != 0 ||
+	    sysevent_evc_publish(zone_event_chan, class, subclass, "sun.com",
+	    "kernel", nvl, EVCH_SLEEP) != 0) {
+#ifdef DEBUG
+		(void) printf("Failed to allocate and send zone misc event.\n");
+#else
+		/* EMPTY */
+#endif
+	}
+	nvlist_free(nvl);
 }
 
 static int
@@ -2544,7 +2971,12 @@ zone_set_brand(zone_t *zone, const char *brand)
 		return (EINVAL);
 	}
 
-	/* set up the brand specific data */
+	/*
+	 * Set up the brand specific data.
+	 * Note that it's possible that the hook has to drop the
+	 * zone_status_lock and reaquire it before returning so we can't
+	 * assume the lock has been held the entire time.
+	 */
 	zone->zone_brand = bp;
 	ZBROP(zone)->b_init_brand_data(zone);
 
@@ -2616,18 +3048,6 @@ zone_set_initname(zone_t *zone, const char *zone_initname)
 	zone->zone_initname = kmem_alloc(strlen(initname) + 1, KM_SLEEP);
 	(void) strcpy(zone->zone_initname, initname);
 	return (0);
-}
-
-static int
-zone_set_phys_mcap(zone_t *zone, const uint64_t *zone_mcap)
-{
-	uint64_t mcap;
-	int err = 0;
-
-	if ((err = copyin(zone_mcap, &mcap, sizeof (uint64_t))) == 0)
-		zone->zone_phys_mcap = mcap;
-
-	return (err);
 }
 
 static int
@@ -3035,6 +3455,12 @@ zoneid_t
 getzoneid(void)
 {
 	return (curproc->p_zone->zone_id);
+}
+
+zoneid_t
+getzonedid(void)
+{
+	return (curproc->p_zone->zone_did);
 }
 
 /*
@@ -3783,6 +4209,17 @@ zone_start_init(void)
 	 */
 	z->zone_proc_initpid = p->p_pid;
 
+	if (z->zone_setup_app_contract == B_TRUE) {
+		/*
+		 * Normally a process cannot modify its own contract, but we're
+		 * just starting the zone's init process and its contract is
+		 * always initialized from the sys_process_tmpl template, so
+		 * this is the simplest way to setup init's contract to kill
+		 * the process if any other process in the contract exits.
+		 */
+		p->p_ct_process->conp_ev_fatal |= CT_PR_EV_EXIT;
+	}
+
 	/*
 	 * We maintain zone_boot_err so that we can return the cause of the
 	 * failure back to the caller of the zone_boot syscall.
@@ -3811,9 +4248,54 @@ zone_start_init(void)
 			lwp_exit();
 		}
 	} else {
+		id_t cid = curthread->t_cid;
+
 		if (zone_status_get(z) == ZONE_IS_BOOTING)
 			zone_status_set(z, ZONE_IS_RUNNING);
 		mutex_exit(&zone_status_lock);
+
+		mutex_enter(&class_lock);
+		ASSERT(cid < loaded_classes);
+		if (strcmp(sclass[cid].cl_name, "FX") == 0 &&
+		    z->zone_fixed_hipri) {
+			/*
+			 * If the zone is using FX then by default all
+			 * processes start at the lowest priority and stay
+			 * there. We provide a mechanism for the zone to
+			 * indicate that it should run at "high priority". In
+			 * this case we setup init to run at the highest FX
+			 * priority (which is one level higher than the
+			 * non-fixed scheduling classes can use).
+			 */
+			pcparms_t pcparms;
+
+			pcparms.pc_cid = cid;
+			((fxkparms_t *)pcparms.pc_clparms)->fx_upri = FXMAXUPRI;
+			((fxkparms_t *)pcparms.pc_clparms)->fx_uprilim =
+			    FXMAXUPRI;
+			((fxkparms_t *)pcparms.pc_clparms)->fx_cflags =
+			    FX_DOUPRILIM | FX_DOUPRI;
+
+			mutex_enter(&pidlock);
+			mutex_enter(&curproc->p_lock);
+
+			(void) parmsset(&pcparms, curthread);
+
+			mutex_exit(&curproc->p_lock);
+			mutex_exit(&pidlock);
+		} else if (strcmp(sclass[cid].cl_name, "RT") == 0) {
+			/*
+			 * zsched always starts the init lwp at priority
+			 * minclsyspri - 1. This priority gets set in t_pri and
+			 * is invalid for RT, but RT never uses t_pri. However
+			 * t_pri is used by procfs, so we always see processes
+			 * within an RT zone with an invalid priority value.
+			 * We fix that up now.
+			 */
+			curthread->t_pri = RTGPPRIO0;
+		}
+		mutex_exit(&class_lock);
+
 		/* cause the process to return to userland. */
 		lwp_rtt();
 	}
@@ -4419,7 +4901,7 @@ zone_create(const char *zone_name, const char *zone_root,
     caddr_t rctlbuf, size_t rctlbufsz,
     caddr_t zfsbuf, size_t zfsbufsz, int *extended_error,
     int match, uint32_t doi, const bslabel_t *label,
-    int flags)
+    int flags, zoneid_t zone_did)
 {
 	struct zsched_arg zarg;
 	nvlist_t *rctls = NULL;
@@ -4491,6 +4973,7 @@ zone_create(const char *zone_name, const char *zone_root,
 
 	zone = kmem_zalloc(sizeof (zone_t), KM_SLEEP);
 	zone->zone_id = zoneid;
+	zone->zone_did = zone_did;
 	zone->zone_status = ZONE_IS_UNINITIALIZED;
 	zone->zone_pool = pool_default;
 	zone->zone_pool_mod = gethrtime();
@@ -4500,6 +4983,7 @@ zone_create(const char *zone_name, const char *zone_root,
 	zone->zone_restart_init = B_TRUE;
 	zone->zone_reboot_on_init_exit = B_FALSE;
 	zone->zone_restart_init_0 = B_FALSE;
+	zone->zone_init_status = -1;
 	zone->zone_brand = &native_brand;
 	zone->zone_initname = NULL;
 	mutex_init(&zone->zone_lock, NULL, MUTEX_DEFAULT, NULL);
@@ -4566,8 +5050,13 @@ zone_create(const char *zone_name, const char *zone_root,
 	zone->zone_max_swap_ctl = UINT64_MAX;
 	zone->zone_max_lofi = 0;
 	zone->zone_max_lofi_ctl = UINT64_MAX;
-	zone0.zone_lockedmem_kstat = NULL;
-	zone0.zone_swapresv_kstat = NULL;
+	zone->zone_lockedmem_kstat = NULL;
+	zone->zone_swapresv_kstat = NULL;
+	zone->zone_physmem_kstat = NULL;
+
+	zone_pdata[zoneid].zpers_zfsp =
+	    kmem_zalloc(sizeof (zone_zfs_io_t), KM_SLEEP);
+	zone_pdata[zoneid].zpers_zfsp->zpers_zfs_io_pri = 1;
 
 	zone->zone_ustate = cpu_uarray_zalloc(ZONE_USTATE_MAX, KM_SLEEP);
 
@@ -4575,6 +5064,13 @@ zone_create(const char *zone_name, const char *zone_root,
 	 * Zsched initializes the rctls.
 	 */
 	zone->zone_rctls = NULL;
+
+	/*
+	 * Ensure page count is 0 (in case zoneid has wrapped).
+	 * Initialize physical memory cap as unlimited.
+	 */
+	zone_pdata[zoneid].zpers_pg_cnt = 0;
+	zone_pdata[zoneid].zpers_pg_limit = UINT32_MAX;
 
 	if ((error = parse_rctls(rctlbuf, rctlbufsz, &rctls)) != 0) {
 		zone_free(zone);
@@ -4724,8 +5220,8 @@ zone_create(const char *zone_name, const char *zone_root,
 	/*
 	 * The process, task, and project rctls are probably wrong;
 	 * we need an interface to get the default values of all rctls,
-	 * and initialize zsched appropriately.  I'm not sure that that
-	 * makes much of a difference, though.
+	 * and initialize zsched appropriately. However, we allow zoneadmd
+	 * to pass down both zone and project rctls for the zone's init.
 	 */
 	error = newproc(zsched, (void *)&zarg, syscid, minclsyspri, NULL, 0);
 	if (error != 0) {
@@ -4864,6 +5360,7 @@ zone_boot(zoneid_t zoneid)
 static int
 zone_empty(zone_t *zone)
 {
+	int cnt = 0;
 	int waitstatus;
 
 	/*
@@ -4874,7 +5371,16 @@ zone_empty(zone_t *zone)
 	ASSERT(MUTEX_NOT_HELD(&zonehash_lock));
 	while ((waitstatus = zone_status_timedwait_sig(zone,
 	    ddi_get_lbolt() + hz, ZONE_IS_EMPTY)) == -1) {
-		killall(zone->zone_id);
+		boolean_t force = B_FALSE;
+
+		/* Every 30 seconds, try harder */
+		if (cnt++ >= 30) {
+			cmn_err(CE_WARN, "attempt to force kill zone %d\n",
+			    zone->zone_id);
+			force = B_TRUE;
+			cnt = 0;
+		}
+		killall(zone->zone_id, force);
 	}
 	/*
 	 * return EINTR if we were signaled
@@ -5203,6 +5709,7 @@ zone_destroy(zoneid_t zoneid)
 	zone_status_t status;
 	clock_t wait_time;
 	boolean_t log_refcounts;
+	zone_persist_t *zp;
 
 	if (secpolicy_zone_config(CRED()) != 0)
 		return (set_errno(EPERM));
@@ -5235,6 +5742,12 @@ zone_destroy(zoneid_t zoneid)
 	mutex_exit(&zone_status_lock);
 	zone_hold(zone);
 	mutex_exit(&zonehash_lock);
+
+	zp = &zone_pdata[zoneid];
+	mutex_enter(&zp->zpers_zfs_lock);
+	kmem_free(zp->zpers_zfsp, sizeof (zone_zfs_io_t));
+	zp->zpers_zfsp = NULL;
+	mutex_exit(&zp->zpers_zfs_lock);
 
 	/*
 	 * wait for zsched to exit
@@ -5625,14 +6138,6 @@ zone_getattr(zoneid_t zoneid, int attr, void *buf, size_t bufsize)
 				error = EFAULT;
 		}
 		break;
-	case ZONE_ATTR_PHYS_MCAP:
-		size = sizeof (zone->zone_phys_mcap);
-		if (bufsize > size)
-			bufsize = size;
-		if (buf != NULL &&
-		    copyout(&zone->zone_phys_mcap, buf, bufsize) != 0)
-			error = EFAULT;
-		break;
 	case ZONE_ATTR_SCHED_CLASS:
 		mutex_enter(&class_lock);
 
@@ -5696,6 +6201,23 @@ zone_getattr(zoneid_t zoneid, int attr, void *buf, size_t bufsize)
 		}
 		kmem_free(zbuf, bufsize);
 		break;
+	case ZONE_ATTR_DID:
+		size = sizeof (zoneid_t);
+		if (bufsize > size)
+			bufsize = size;
+
+		if (buf != NULL && copyout(&zone->zone_did, buf, bufsize) != 0)
+			error = EFAULT;
+		break;
+	case ZONE_ATTR_SCHED_FIXEDHI:
+		size = sizeof (boolean_t);
+		if (bufsize > size)
+			bufsize = size;
+
+		if (buf != NULL && copyout(&zone->zone_fixed_hipri, buf,
+		    bufsize) != 0)
+			error = EFAULT;
+		break;
 	default:
 		if ((attr >= ZONE_ATTR_BRAND_ATTRS) && ZONE_IS_BRANDED(zone)) {
 			size = bufsize;
@@ -5727,10 +6249,9 @@ zone_setattr(zoneid_t zoneid, int attr, void *buf, size_t bufsize)
 		return (set_errno(EPERM));
 
 	/*
-	 * Only the ZONE_ATTR_PHYS_MCAP attribute can be set on the
-	 * global zone.
+	 * No attributes can be set on the global zone.
 	 */
-	if (zoneid == GLOBAL_ZONEID && attr != ZONE_ATTR_PHYS_MCAP) {
+	if (zoneid == GLOBAL_ZONEID) {
 		return (set_errno(EINVAL));
 	}
 
@@ -5743,11 +6264,11 @@ zone_setattr(zoneid_t zoneid, int attr, void *buf, size_t bufsize)
 	mutex_exit(&zonehash_lock);
 
 	/*
-	 * At present most attributes can only be set on non-running,
+	 * At present attributes can only be set on non-running,
 	 * non-global zones.
 	 */
 	zone_status = zone_status_get(zone);
-	if (attr != ZONE_ATTR_PHYS_MCAP && zone_status > ZONE_IS_READY) {
+	if (zone_status > ZONE_IS_READY) {
 		err = EINVAL;
 		goto done;
 	}
@@ -5780,9 +6301,6 @@ zone_setattr(zoneid_t zoneid, int attr, void *buf, size_t bufsize)
 	case ZONE_ATTR_SECFLAGS:
 		err = zone_set_secflags(zone, (psecflags_t *)buf);
 		break;
-	case ZONE_ATTR_PHYS_MCAP:
-		err = zone_set_phys_mcap(zone, (const uint64_t *)buf);
-		break;
 	case ZONE_ATTR_SCHED_CLASS:
 		err = zone_set_sched_class(zone, (const char *)buf);
 		break;
@@ -5809,6 +6327,22 @@ zone_setattr(zoneid_t zoneid, int attr, void *buf, size_t bufsize)
 		}
 		err = zone_set_network(zoneid, zbuf);
 		kmem_free(zbuf, bufsize);
+		break;
+	case ZONE_ATTR_APP_SVC_CT:
+		if (bufsize != sizeof (boolean_t)) {
+			err = EINVAL;
+		} else {
+			zone->zone_setup_app_contract = (boolean_t)buf;
+			err = 0;
+		}
+		break;
+	case ZONE_ATTR_SCHED_FIXEDHI:
+		if (bufsize != sizeof (boolean_t)) {
+			err = EINVAL;
+		} else {
+			zone->zone_fixed_hipri = (boolean_t)buf;
+			err = 0;
+		}
 		break;
 	default:
 		if ((attr >= ZONE_ATTR_BRAND_ATTRS) && ZONE_IS_BRANDED(zone))
@@ -6508,6 +7042,7 @@ zone(int cmd, void *arg1, void *arg2, void *arg3, void *arg4)
 			zs.doi = zs32.doi;
 			zs.label = (const bslabel_t *)(uintptr_t)zs32.label;
 			zs.flags = zs32.flags;
+			zs.zoneid = zs32.zoneid;
 #else
 			panic("get_udatamodel() returned bogus result\n");
 #endif
@@ -6518,7 +7053,7 @@ zone(int cmd, void *arg1, void *arg2, void *arg3, void *arg4)
 		    (caddr_t)zs.rctlbuf, zs.rctlbufsz,
 		    (caddr_t)zs.zfsbuf, zs.zfsbufsz,
 		    zs.extended_error, zs.match, zs.doi,
-		    zs.label, zs.flags));
+		    zs.label, zs.flags, zs.zoneid));
 	case ZONE_BOOT:
 		return (zone_boot((zoneid_t)(uintptr_t)arg1));
 	case ZONE_DESTROY:
@@ -6796,7 +7331,7 @@ zone_kadmin(int cmd, int fcn, const char *mdep, cred_t *credp)
 	 * zone_ki_call_zoneadmd() will do a more thorough job of this
 	 * later.
 	 */
-	killall(zone->zone_id);
+	killall(zone->zone_id, B_FALSE);
 	/*
 	 * Now, create the thread to contact zoneadmd and do the rest of the
 	 * work.  This thread can't be created in our zone otherwise
@@ -7074,6 +7609,27 @@ zone_add_datalink(zoneid_t zoneid, datalink_id_t linkid)
 	zone_t *zone;
 	zone_t *thiszone;
 
+	/*
+	 * Only the GZ may add a datalink to a zone's list.
+	 */
+	if (getzoneid() != GLOBAL_ZONEID)
+		return (set_errno(EPERM));
+
+	/*
+	 * Only a process with the datalink config priv may add a
+	 * datalink to a zone's list.
+	 */
+	if (secpolicy_dl_config(CRED()) != 0)
+		return (set_errno(EPERM));
+
+	/*
+	 * When links exist in the GZ, they aren't added to the GZ's
+	 * zone_dl_list. We must enforce this because link_activate()
+	 * depends on zone_check_datalink() returning only NGZs.
+	 */
+	if (zoneid == GLOBAL_ZONEID)
+		return (set_errno(EINVAL));
+
 	if ((thiszone = zone_find_by_id(zoneid)) == NULL)
 		return (set_errno(ENXIO));
 
@@ -7106,6 +7662,26 @@ zone_remove_datalink(zoneid_t zoneid, datalink_id_t linkid)
 	zone_t *zone;
 	int err = 0;
 
+	/*
+	 * Only the GZ may remove a datalink from a zone's list.
+	 */
+	if (getzoneid() != GLOBAL_ZONEID)
+		return (set_errno(EPERM));
+
+	/*
+	 * Only a process with the datalink config priv may remove a
+	 * datalink from a zone's list.
+	 */
+	if (secpolicy_dl_config(CRED()) != 0)
+		return (set_errno(EPERM));
+
+	/*
+	 * If we can't add a datalink to the GZ's zone_dl_list then we
+	 * certainly can't remove them either.
+	 */
+	if (zoneid == GLOBAL_ZONEID)
+		return (set_errno(EINVAL));
+
 	if ((zone = zone_find_by_id(zoneid)) == NULL)
 		return (set_errno(EINVAL));
 
@@ -7123,25 +7699,63 @@ zone_remove_datalink(zoneid_t zoneid, datalink_id_t linkid)
 }
 
 /*
- * Using the zoneidp as ALL_ZONES, we can lookup which zone has been assigned
- * the linkid.  Otherwise we just check if the specified zoneidp has been
- * assigned the supplied linkid.
+ *
+ * This function may be used in two ways:
+ *
+ * 1. to get the zoneid of the zone this link is under, or
+ *
+ * 2. to verify that the link is under a specific zone.
+ *
+ * The first use is achieved by passing a zoneid of ALL_ZONES. The
+ * function then iterates the datalink list of every zone on the
+ * system until it finds the linkid. If the linkid is found then the
+ * function returns 0 and zoneidp is updated. Otherwise, ENXIO is
+ * returned and zoneidp is not modified. The use of ALL_ZONES is
+ * limited to callers in the GZ to prevent leaking information to
+ * NGZs. If an NGZ passes ALL_ZONES it's query is implicitly changed
+ * to the second type in the list above.
+ *
+ * The second use is achieved by passing a specific zoneid. The GZ can
+ * use this to verify a link is under a particular zone. An NGZ can
+ * use this to verify a link is under itself. But an NGZ cannot use
+ * this to determine if a link is under some other zone as that would
+ * result in information leakage. If the link exists under the zone
+ * then 0 is returned. Otherwise, ENXIO is returned.
  */
 int
 zone_check_datalink(zoneid_t *zoneidp, datalink_id_t linkid)
 {
 	zone_t *zone;
+	zoneid_t zoneid = *zoneidp;
+	zoneid_t caller = getzoneid();
 	int err = ENXIO;
 
-	if (*zoneidp != ALL_ZONES) {
-		if ((zone = zone_find_by_id(*zoneidp)) != NULL) {
-			if (zone_dl_exists(zone, linkid))
+	/*
+	 * Only the GZ may enquire about all zones; an NGZ may only
+	 * enuqire about itself.
+	 */
+	if (zoneid == ALL_ZONES && caller != GLOBAL_ZONEID)
+		zoneid = caller;
+
+	if (zoneid != caller && caller != GLOBAL_ZONEID)
+		return (err);
+
+	if (zoneid != ALL_ZONES) {
+		if ((zone = zone_find_by_id(zoneid)) != NULL) {
+			if (zone_dl_exists(zone, linkid)) {
+				/*
+				 * We need to set this in case an NGZ
+				 * passes ALL_ZONES.
+				 */
+				*zoneidp = zoneid;
 				err = 0;
+			}
 			zone_rele(zone);
 		}
 		return (err);
 	}
 
+	ASSERT(caller == GLOBAL_ZONEID);
 	mutex_enter(&zonehash_lock);
 	for (zone = list_head(&zone_active); zone != NULL;
 	    zone = list_next(&zone_active, zone)) {
@@ -7152,6 +7766,7 @@ zone_check_datalink(zoneid_t *zoneidp, datalink_id_t linkid)
 		}
 	}
 	mutex_exit(&zonehash_lock);
+
 	return (err);
 }
 
@@ -7171,6 +7786,12 @@ zone_list_datalink(zoneid_t zoneid, int *nump, datalink_id_t *idarray)
 	zone_t *zone;
 	zone_dl_t *zdl;
 	datalink_id_t *idptr = idarray;
+
+	/*
+	 * Only the GZ or the owning zone may look at the datalink list.
+	 */
+	if ((getzoneid() != GLOBAL_ZONEID) && (getzoneid() != zoneid))
+		return (set_errno(EPERM));
 
 	if (copyin(nump, &dlcount, sizeof (dlcount)) != 0)
 		return (set_errno(EFAULT));
@@ -7416,4 +8037,232 @@ done:
 		return (set_errno(err));
 	else
 		return (0);
+}
+
+static void
+zone_incr_capped(zoneid_t zid)
+{
+	zone_persist_t *zp = &zone_pdata[zid];
+
+	/* See if over (unlimited is UINT32_MAX), or already marked that way. */
+	if (zp->zpers_pg_cnt <= zp->zpers_pg_limit || zp->zpers_over == 1) {
+		return;
+	}
+
+	mutex_enter(&zone_physcap_lock);
+	/* Recheck setting under mutex */
+	if (zp->zpers_pg_cnt > zp->zpers_pg_limit && zp->zpers_over == 0) {
+		zp->zpers_over = 1;
+		zp->zpers_nover++;
+		zone_num_over_cap++;
+		DTRACE_PROBE1(zone__over__pcap, zoneid_t, zid);
+	}
+	mutex_exit(&zone_physcap_lock);
+}
+
+/*
+ * We want some hysteresis when the zone is going under its cap so that we're
+ * not continuously toggling page scanning back and forth by a single page
+ * around the cap. Using ~1% of the zone's page limit seems to be a good
+ * quantity. This table shows some various zone memory caps and the number of
+ * pages (assuming a 4k page size). Given this, we choose to shift the page
+ * limit by 7 places to get a hysteresis that is slightly less than 1%.
+ *
+ *   cap    pages     pages     1% shift7  shift7
+ *  128M    32768 0x0008000    327    256 0x00100
+ *  512M   131072 0x0020000   1310   1024 0x00400
+ *    1G   262144 0x0040000   2621   2048 0x00800
+ *    4G  1048576 0x0100000  10485   8192 0x02000
+ *    8G  2097152 0x0200000  20971  16384 0x04000
+ *   16G  4194304 0x0400000  41943  32768 0x08000
+ *   32G  8388608 0x0800000  83886  65536 0x10000
+ *   64G 16777216 0x1000000 167772 131072 0x20000
+ */
+static void
+zone_decr_capped(zoneid_t zid)
+{
+	zone_persist_t *zp = &zone_pdata[zid];
+	uint32_t adjusted_limit;
+
+	/*
+	 * See if under, or already marked that way. There is no need to
+	 * check for an unlimited cap (zpers_pg_limit == UINT32_MAX)
+	 * since we'll never set zpers_over in zone_incr_capped().
+	 */
+	if (zp->zpers_over == 0 || zp->zpers_pg_cnt >= zp->zpers_pg_limit) {
+		return;
+	}
+
+	adjusted_limit = zp->zpers_pg_limit - (zp->zpers_pg_limit >> 7);
+
+	/* Recheck, accounting for our hysteresis. */
+	if (zp->zpers_pg_cnt >= adjusted_limit) {
+		return;
+	}
+
+	mutex_enter(&zone_physcap_lock);
+	/* Recheck under mutex. */
+	if (zp->zpers_pg_cnt < adjusted_limit && zp->zpers_over == 1) {
+		zp->zpers_over = 0;
+		ASSERT(zone_num_over_cap > 0);
+		zone_num_over_cap--;
+		DTRACE_PROBE1(zone__under__pcap, zoneid_t, zid);
+	}
+	mutex_exit(&zone_physcap_lock);
+}
+
+/*
+ * For zone_add_page() and zone_rm_page(), access to the page we're touching is
+ * controlled by our caller's locking.
+ * On x86 our callers already did: ASSERT(x86_hm_held(pp))
+ * On SPARC our callers already did: ASSERT(sfmmu_mlist_held(pp))
+ */
+void
+zone_add_page(page_t *pp)
+{
+	uint_t pcnt;
+	zone_persist_t *zp;
+	zoneid_t zid;
+
+	/* Skip pages in segkmem, etc. (KV_KVP, ...) */
+	if (PP_ISKAS(pp))
+		return;
+
+	ASSERT(!PP_ISFREE(pp));
+
+	zid = curzone->zone_id;
+	if (pp->p_zoneid == zid) {
+		/* Another mapping to this page for this zone, do nothing */
+		return;
+	}
+
+	if (pp->p_szc == 0) {
+		pcnt = 1;
+	} else {
+		/* large page */
+		pcnt = page_get_pagecnt(pp->p_szc);
+	}
+
+	if (pp->p_share == 0) {
+		/* First mapping to this page. */
+		pp->p_zoneid = zid;
+		zp = &zone_pdata[zid];
+		ASSERT(zp->zpers_pg_cnt + pcnt < UINT32_MAX);
+		atomic_add_32((uint32_t *)&zp->zpers_pg_cnt, pcnt);
+		zone_incr_capped(zid);
+		return;
+	}
+
+	if (pp->p_zoneid != ALL_ZONES) {
+		/*
+		 * The page is now being shared across a different zone.
+		 * Decrement the original zone's usage.
+		 */
+		zid = pp->p_zoneid;
+		pp->p_zoneid = ALL_ZONES;
+		ASSERT(zid >= 0 && zid <= MAX_ZONEID);
+		zp = &zone_pdata[zid];
+
+		if (zp->zpers_pg_cnt > 0) {
+			atomic_add_32((uint32_t *)&zp->zpers_pg_cnt, -pcnt);
+		}
+		zone_decr_capped(zid);
+	}
+}
+
+void
+zone_rm_page(page_t *pp)
+{
+	uint_t pcnt;
+	zone_persist_t *zp;
+	zoneid_t zid;
+
+	/* Skip pages in segkmem, etc. (KV_KVP, ...) */
+	if (PP_ISKAS(pp))
+		return;
+
+	zid = pp->p_zoneid;
+	if (zid == ALL_ZONES || pp->p_share != 0)
+		return;
+
+	/* This is the last mapping to the page for a zone. */
+	if (pp->p_szc == 0) {
+		pcnt = 1;
+	} else {
+		/* large page */
+		pcnt = (int64_t)page_get_pagecnt(pp->p_szc);
+	}
+
+	ASSERT(zid >= 0 && zid <= MAX_ZONEID);
+	zp = &zone_pdata[zid];
+	if (zp->zpers_pg_cnt > 0) {
+		atomic_add_32((uint32_t *)&zp->zpers_pg_cnt, -pcnt);
+	}
+	zone_decr_capped(zid);
+	pp->p_zoneid = ALL_ZONES;
+}
+
+void
+zone_pageout_stat(int zid, zone_pageout_op_t op)
+{
+	zone_persist_t *zp;
+
+	if (zid == ALL_ZONES)
+		return;
+
+	ASSERT(zid >= 0 && zid <= MAX_ZONEID);
+	zp = &zone_pdata[zid];
+
+#ifndef DEBUG
+	atomic_add_64(&zp->zpers_pg_out, 1);
+#else
+	switch (op) {
+	case ZPO_DIRTY:
+		atomic_add_64(&zp->zpers_pg_fsdirty, 1);
+		break;
+	case ZPO_FS:
+		atomic_add_64(&zp->zpers_pg_fs, 1);
+		break;
+	case ZPO_ANON:
+		atomic_add_64(&zp->zpers_pg_anon, 1);
+		break;
+	case ZPO_ANONDIRTY:
+		atomic_add_64(&zp->zpers_pg_anondirty, 1);
+		break;
+	default:
+		cmn_err(CE_PANIC, "Invalid pageout operator %d", op);
+		break;
+	}
+#endif
+}
+
+/*
+ * Return the zone's physical memory cap and current free memory (in pages).
+ */
+void
+zone_get_physmem_data(int zid, pgcnt_t *memcap, pgcnt_t *free)
+{
+	zone_persist_t *zp;
+
+	ASSERT(zid >= 0 && zid <= MAX_ZONEID);
+	zp = &zone_pdata[zid];
+
+	/*
+	 * If memory or swap limits are set on the zone, use those, otherwise
+	 * use the system values. physmem and freemem are also in pages.
+	 */
+	if (zp->zpers_pg_limit == UINT32_MAX) {
+		*memcap = physmem;
+		*free = freemem;
+	} else {
+		int64_t freemem;
+
+		*memcap = (pgcnt_t)zp->zpers_pg_limit;
+		freemem = zp->zpers_pg_limit - zp->zpers_pg_cnt;
+		if (freemem > 0) {
+			*free = (pgcnt_t)freemem;
+		} else {
+			*free = (pgcnt_t)0;
+		}
+	}
 }

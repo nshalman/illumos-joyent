@@ -23,7 +23,7 @@
  * Copyright (c) 1988, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2018 Joyent, Inc.
  * Copyright 2026 Oxide Computer Company
- * Copyright 2021 OmniOS Community Edition (OmniOSce) Association.
+ * Copyright 2026 OmniOS Community Edition (OmniOSce) Association.
  */
 
 /*	Copyright (c) 1984, 1986, 1987, 1988, 1989 AT&T	*/
@@ -139,6 +139,27 @@ void
 rexit(int rval)
 {
 	exit(CLD_EXITED, rval);
+}
+
+/*
+ * Bump the init_restarts kstat and let interested parties know about the
+ * restart.
+ */
+static void
+restart_init_notify(zone_t *zone)
+{
+	nvlist_t *nvl = NULL;
+
+	zone->zone_proc_init_restarts++;
+
+	if (nvlist_alloc(&nvl, NV_UNIQUE_NAME, KM_SLEEP) == 0 &&
+	    nvlist_add_uint32(nvl, ZONE_CB_RESTARTS,
+	    zone->zone_proc_init_restarts) == 0) {
+		zone_sysevent_publish(zone, ZONE_EVENT_INIT_CLASS,
+		    ZONE_EVENT_INIT_RESTART_SC, nvl);
+	}
+
+	nvlist_free(nvl);
 }
 
 /*

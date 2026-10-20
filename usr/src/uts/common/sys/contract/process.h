@@ -21,6 +21,7 @@
 /*
  * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ * Copyright 2015 Joyent, Inc.
  */
 
 #ifndef	_SYS_CONTRACT_PROCESS_H
@@ -53,7 +54,8 @@ typedef struct cont_process cont_process_t;
 #define	CT_PR_NOORPHAN	0x2	/* kill when contract is abandoned */
 #define	CT_PR_PGRPONLY	0x4	/* only kill process group on fatal errors */
 #define	CT_PR_REGENT	0x8	/* automatically detach inherited contracts */
-#define	CT_PR_ALLPARAM	0xf
+#define	CT_PR_KEEP_EXEC	0x10	/* preserve template accross exec */
+#define	CT_PR_ALLPARAM	0x1f
 
 /*
  * ctr_ev_* flags

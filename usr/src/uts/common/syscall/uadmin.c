@@ -22,7 +22,7 @@
 /*
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
- * Copyright 2013 Joyent, Inc.  All rights reserved.
+ * Copyright 2016 Joyent, Inc.
  * Copyright 2024 Oxide Computer Company
  */
 
@@ -79,7 +79,7 @@ volatile int fastreboot_dryrun = 0;
  * system with many zones.
  */
 void
-killall(zoneid_t zoneid)
+killall(zoneid_t zoneid, boolean_t force)
 {
 	proc_t *p;
 
@@ -109,7 +109,7 @@ killall(zoneid_t zoneid)
 		    p->p_stat != SIDL &&
 		    p->p_stat != SZOMB) {
 			mutex_enter(&p->p_lock);
-			if (sigismember(&p->p_sig, SIGKILL)) {
+			if (!force && sigismember(&p->p_sig, SIGKILL)) {
 				mutex_exit(&p->p_lock);
 				p = p->p_next;
 			} else {
@@ -274,7 +274,7 @@ kadmin(int cmd, int fcn, void *mdep, cred_t *credp)
 		 */
 		zone_shutdown_global();
 
-		killall(ALL_ZONES);
+		killall(ALL_ZONES, B_FALSE);
 		/*
 		 * If we are calling kadmin() from a kernel context then we
 		 * do not release these resources.

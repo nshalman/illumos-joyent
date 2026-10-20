@@ -956,6 +956,18 @@ contract_process_exit(cont_process_t *ctp, proc_t *p, int exitstatus)
 		(void) cte_publish_all(ct, event, nvl, NULL);
 		mutex_enter(&ct->ct_lock);
 	}
+
+	/*
+	 * CT_PR_EV_EXIT is not part of the CT_PR_ALLFATAL definition since
+	 * we never allow including this in the fatal set via a user-land
+	 * application, but we do allow CT_PR_EV_EXIT in the contract's fatal
+	 * set for a process setup for zone init. See zone_start_init().
+	 */
+	if (EVFATALP(ctp, CT_PR_EV_EXIT)) {
+		ASSERT(MUTEX_HELD(&ct->ct_lock));
+		contract_process_kill(ct, p, B_TRUE);
+	}
+
 	if (empty) {
 		/*
 		 * Send EMPTY message.
@@ -1058,6 +1070,17 @@ contract_process_fork(ctmpl_process_t *rtmpl, proc_t *cp, proc_t *pp,
 		event->cte_type = CT_PR_EV_FORK;
 		(void) cte_publish_all(ct, event, nvl, NULL);
 	}
+
+	/*
+	 * Because the CT_PR_KEEP_EXEC flag is meant to be used by applications
+	 * which are not contract aware, we can assume that these applications
+	 * will never explicitly abandon the child's new contract. Thus, we
+	 * abandon it now.
+	 */
+	if (ctp->conp_params & CT_PR_KEEP_EXEC) {
+		(void) contract_abandon(ct, pp, 1);
+	}
+
 	return (ctp);
 }
 
