@@ -22,9 +22,11 @@
 /*
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ * Copyright 2011 Joyent Inc.  All rights reserved.
  */
 
 #include "lint.h"
+#include "thr_uberdata.h"
 #include <sys/types.h>
 #include <sys/syscall.h>
 #include <sys/zone.h>
@@ -240,4 +242,11 @@ int
 zone_list_datalink(zoneid_t zoneid, int *dlnump, datalink_id_t *linkids)
 {
 	return (syscall(SYS_zone, ZONE_LIST_DATALINK, zoneid, dlnump, linkids));
+}
+
+const char *
+zone_get_nroot()
+{
+	uberdata_t *udp = curthread->ul_uberdata;
+	return (udp->ub_broot);
 }

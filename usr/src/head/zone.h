@@ -21,6 +21,7 @@
 /*
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ * Copyright 2015 Joyent Inc.
  */
 
 #ifndef _ZONE_H
@@ -69,6 +70,7 @@ extern int	zone_add_datalink(zoneid_t, datalink_id_t);
 extern int	zone_remove_datalink(zoneid_t, datalink_id_t);
 extern int	zone_check_datalink(zoneid_t *, datalink_id_t);
 extern int	zone_list_datalink(zoneid_t, int *, datalink_id_t *);
+extern const char *zone_get_nroot(void);
 
 #ifdef	__cplusplus
 }

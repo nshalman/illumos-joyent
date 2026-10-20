@@ -138,6 +138,7 @@ uberdata_t __uberdata = {
 	NULL,			/* robustlocks */
 	NULL,			/* robustlist */
 	NULL,			/* progname */
+	NULL,			/* ub_broot */
 	NULL,			/* ub_comm_page */
 	NULL,			/* __tdb_bootstrap */
 	{			/* tdb */

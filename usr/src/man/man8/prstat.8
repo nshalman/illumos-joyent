@@ -14,7 +14,7 @@ prstat \- report active process statistics
 \fBprstat\fR [\fB-acHJLmRrtTvWZ\fR] [\fB-d\fR u | d] [\fB-C\fR \fIpsrsetlist\fR] [\fB-h\fR \fIlgrplist\fR]
      [\fB-j\fR \fIprojlist\fR] [\fB-k\fR \fItasklist\fR] [\fB-n\fR \fIntop\fR[,\fInbottom\fR]]
      [\fB-p\fR \fIpidlist\fR] [\fB-P\fR \fIcpulist\fR] [\fB-s\fR \fIkey\fR | \fB-S\fR \fIkey\fR ]
-     [\fB-u\fR \fIeuidlist\fR] [\fB-U\fR \fIuidlist\fR] [\fB-z\fR \fIzoneidlist\fR]
+     [\fB-u\fR \fIeuidlist\fR] [\fB-U\fR \fIuidlist\fR] [\fB-z\fR \fIzoneidlist\fR] [\fB-Z\fR]
      [\fIinterval\fR [\fIcount\fR]]
 .fi
 
@@ -446,9 +446,11 @@ devices, in kilobytes (\fBK\fR), megabytes (\fBM\fR), or gigabytes (\fBG\fR).
 .RS 4n
 The resident set size of the process (\fBRSS\fR), in kilobytes (\fBK\fR),
 megabytes (\fBM\fR), or gigabytes (\fBG\fR). The RSS value is an estimate
-provided by \fBproc\fR(5) that might underestimate the actual resident set
-size. Users who want to get more accurate usage information for capacity
-planning should use the \fB-x\fR option to \fBpmap\fR(1) instead.
+provided by \fBproc\fR(5) that might underestimate the actual
+per-process resident set size, but is generally accurate for the aggregated
+resident set size. Users who want to get more accurate usage information for
+capacity planning should use the \fB-x\fR option to \fBpmap\fR(1) for
+per-process results instead.
 .RE
 
 .sp
