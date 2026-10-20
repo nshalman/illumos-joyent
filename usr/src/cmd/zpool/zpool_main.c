@@ -24,6 +24,7 @@
  * Copyright (c) 2011, 2018 by Delphix. All rights reserved.
  * Copyright (c) 2012 by Frederik Wessels. All rights reserved.
  * Copyright (c) 2013 by Prasad Joshi (sTec). All rights reserved.
+ * Copyright (c) 2013 Joyent, Inc. All rights reserved.
  * Copyright 2016 Igor Kozhukhov <ikozhukhov@gmail.com>.
  * Copyright 2016 Nexenta Systems, Inc.
  * Copyright (c) 2017 Datto Inc.
@@ -2833,6 +2834,8 @@ zpool_do_checkpoint(int argc, char **argv)
  *	-f	Force import, even if it appears that the pool is active.
  *
  *	-F	Attempt rewind if necessary.
+ *
+ *      -m     Allow import with a missing log device.
  *
  *	-n	See if rewind would work, but don't actually rewind.
  *

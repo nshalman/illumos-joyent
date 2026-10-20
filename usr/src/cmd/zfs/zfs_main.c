@@ -696,7 +696,8 @@ finish_progress(char *done)
 }
 
 static int
-zfs_mount_and_share(libzfs_handle_t *hdl, const char *dataset, zfs_type_t type)
+zfs_mount_and_share(libzfs_handle_t *hdl, const char *dataset, zfs_type_t type,
+    boolean_t keeptrying)
 {
 	zfs_handle_t *zhp = NULL;
 	int ret = 0;
@@ -724,11 +725,17 @@ zfs_mount_and_share(libzfs_handle_t *hdl, const char *dataset, zfs_type_t type)
 	 */
 	if (zfs_prop_valid_for_type(ZFS_PROP_CANMOUNT, type, B_FALSE) &&
 	    zfs_prop_get_int(zhp, ZFS_PROP_CANMOUNT) == ZFS_CANMOUNT_ON) {
-		if (zfs_mount(zhp, NULL, 0) != 0) {
-			(void) fprintf(stderr, gettext("filesystem "
-			    "successfully created, but not mounted\n"));
-			ret = 1;
-		} else if (zfs_share(zhp) != 0) {
+		ret = 0;
+		while (zfs_mount(zhp, NULL, 0) != 0) {
+			/* Only persist on -F clone operations, per OS-993. */
+			if (!keeptrying || errno != EBUSY) {
+				(void) fprintf(stderr, gettext("filesystem "
+				    "successfully created, but not mounted\n"));
+				ret = 1;
+				break; /* out of while loop */
+			}
+		}
+		if (ret == 0 && zfs_share(zhp) != 0) {
 			(void) fprintf(stderr, gettext("filesystem "
 			    "successfully created, but not shared\n"));
 			ret = 1;
@@ -741,7 +748,7 @@ zfs_mount_and_share(libzfs_handle_t *hdl, const char *dataset, zfs_type_t type)
 }
 
 /*
- * zfs clone [-p] [-o prop=value] ... <snap> <fs | vol>
+ * zfs clone [-Fp] [-o prop=value] ... <snap> <fs | vol>
  *
  * Given an existing dataset, create a writable copy whose initial contents
  * are the same as the source.  The newly created dataset maintains a
@@ -749,12 +756,18 @@ zfs_mount_and_share(libzfs_handle_t *hdl, const char *dataset, zfs_type_t type)
  * the clone exists.
  *
  * The '-p' flag creates all the non-existing ancestors of the target first.
+ *
+ * The '-F' flag retries the zfs_mount() operation as long as zfs_mount() is
+ * still returning EBUSY.  Any callers which specify -F should be careful to
+ * ensure that no other process has a persistent hold on the mountpoint's
+ * directory.
  */
 static int
 zfs_do_clone(int argc, char **argv)
 {
 	zfs_handle_t *zhp = NULL;
 	boolean_t parents = B_FALSE;
+	boolean_t keeptrying = B_FALSE;
 	nvlist_t *props;
 	int ret = 0;
 	int c;
@@ -763,8 +776,11 @@ zfs_do_clone(int argc, char **argv)
 		nomem();
 
 	/* check options */
-	while ((c = getopt(argc, argv, "o:p")) != -1) {
+	while ((c = getopt(argc, argv, "Fo:p")) != -1) {
 		switch (c) {
+		case 'F':
+			keeptrying = B_TRUE;
+			break;
 		case 'o':
 			if (!parseprop(props, optarg)) {
 				nvlist_free(props);
@@ -828,7 +844,8 @@ zfs_do_clone(int argc, char **argv)
 			log_history = B_FALSE;
 		}
 
-		ret = zfs_mount_and_share(g_zfs, argv[1], ZFS_TYPE_DATASET);
+		ret = zfs_mount_and_share(g_zfs, argv[1], ZFS_TYPE_DATASET,
+		    keeptrying);
 	}
 
 	zfs_close(zhp);
@@ -1111,7 +1128,7 @@ zfs_do_create(int argc, char **argv)
 		log_history = B_FALSE;
 	}
 
-	ret = zfs_mount_and_share(g_zfs, argv[0], ZFS_TYPE_DATASET);
+	ret = zfs_mount_and_share(g_zfs, argv[0], ZFS_TYPE_DATASET, B_FALSE);
 error:
 	nvlist_free(props);
 	return (ret);
@@ -1122,12 +1139,13 @@ badusage:
 }
 
 /*
- * zfs destroy [-rRf] <fs, vol>
+ * zfs destroy [-rRfF] <fs, vol>
  * zfs destroy [-rRd] <snap>
  *
  *	-r	Recursively destroy all children
  *	-R	Recursively destroy all dependents, including clones
  *	-f	Force unmounting of any dependents
+ *	-F	Continue retrying on seeing EBUSY
  *	-d	If we can't destroy now, mark for deferred destruction
  *
  * Destroys the given dataset.  By default, it will unmount any filesystems,
@@ -1137,6 +1155,7 @@ badusage:
 typedef struct destroy_cbdata {
 	boolean_t	cb_first;
 	boolean_t	cb_force;
+	boolean_t cb_wait;
 	boolean_t	cb_recurse;
 	boolean_t	cb_error;
 	boolean_t	cb_doclones;
@@ -1220,13 +1239,18 @@ out:
 static int
 destroy_callback(zfs_handle_t *zhp, void *data)
 {
-	destroy_cbdata_t *cb = data;
+	destroy_cbdata_t *cbp = data;
+	struct timespec ts;
+	int err = 0;
+
+	ts.tv_sec = 0;
+	ts.tv_nsec = 500 * (NANOSEC / MILLISEC);
 	const char *name = zfs_get_name(zhp);
 
-	if (cb->cb_verbose) {
-		if (cb->cb_parsable) {
+	if (cbp->cb_verbose) {
+		if (cbp->cb_parsable) {
 			(void) printf("destroy\t%s\n", name);
-		} else if (cb->cb_dryrun) {
+		} else if (cbp->cb_dryrun) {
 			(void) printf(gettext("would destroy %s\n"),
 			    name);
 		} else {
@@ -1241,13 +1265,10 @@ destroy_callback(zfs_handle_t *zhp, void *data)
 	 */
 	if (strchr(zfs_get_name(zhp), '/') == NULL &&
 	    zfs_get_type(zhp) == ZFS_TYPE_FILESYSTEM) {
-		zfs_close(zhp);
-		return (0);
+		goto out;
 	}
-	if (cb->cb_dryrun) {
-		zfs_close(zhp);
-		return (0);
-	}
+	if (cbp->cb_dryrun)
+		goto out;
 
 	/*
 	 * We batch up all contiguous snapshots (even of different
@@ -1256,23 +1277,66 @@ destroy_callback(zfs_handle_t *zhp, void *data)
 	 * because we must delete a clone before its origin.
 	 */
 	if (zfs_get_type(zhp) == ZFS_TYPE_SNAPSHOT) {
-		fnvlist_add_boolean(cb->cb_batchedsnaps, name);
-	} else {
-		int error = zfs_destroy_snaps_nvl(g_zfs,
-		    cb->cb_batchedsnaps, B_FALSE);
-		fnvlist_free(cb->cb_batchedsnaps);
-		cb->cb_batchedsnaps = fnvlist_alloc();
-
-		if (error != 0 ||
-		    zfs_unmount(zhp, NULL, cb->cb_force ? MS_FORCE : 0) != 0 ||
-		    zfs_destroy(zhp, cb->cb_defer_destroy) != 0) {
-			zfs_close(zhp);
-			return (-1);
-		}
+		fnvlist_add_boolean(cbp->cb_batchedsnaps, name);
+		goto out;
 	}
 
+	if (cbp->cb_wait)
+		libzfs_print_on_error(g_zfs, B_FALSE);
+
+	/*
+	 * Unless instructed to retry on EBUSY, bail out on the first error.
+	 * When retrying, try every 500ms until either succeeding or seeing a
+	 * non-EBUSY error code.
+	 */
+	while ((err = zfs_destroy_snaps_nvl(g_zfs,
+	    cbp->cb_batchedsnaps, B_FALSE)) != 0) {
+		if (cbp->cb_wait && libzfs_errno(g_zfs) == EZFS_BUSY) {
+			(void) nanosleep(&ts, NULL);
+			continue;
+		}
+		(void) fprintf(stderr, "%s: %s\n",
+		    libzfs_error_action(g_zfs),
+		    libzfs_error_description(g_zfs));
+		break;
+	}
+
+	fnvlist_free(cbp->cb_batchedsnaps);
+	cbp->cb_batchedsnaps = fnvlist_alloc();
+
+	if (err != 0)
+		goto out;
+
+	while ((err = zfs_unmount(zhp, NULL,
+	    cbp->cb_force ? MS_FORCE : 0)) != 0) {
+		if (cbp->cb_wait && libzfs_errno(g_zfs) == EZFS_BUSY) {
+			(void) nanosleep(&ts, NULL);
+			continue;
+		}
+		(void) fprintf(stderr, "%s: %s\n",
+		    libzfs_error_action(g_zfs),
+		    libzfs_error_description(g_zfs));
+		break;
+	}
+
+	if (err != 0)
+		goto out;
+
+	while ((err = zfs_destroy(zhp, cbp->cb_defer_destroy)) != 0) {
+		if (cbp->cb_wait && libzfs_errno(g_zfs) == EZFS_BUSY) {
+			(void) nanosleep(&ts, NULL);
+			continue;
+		}
+		(void) fprintf(stderr, "%s: %s\n",
+		    libzfs_error_action(g_zfs),
+		    libzfs_error_description(g_zfs));
+		break;
+	}
+
+out:
+	libzfs_print_on_error(g_zfs, B_TRUE);
 	zfs_close(zhp);
-	return (0);
+	return (err);
 }
 
 static int
@@ -1428,7 +1492,7 @@ zfs_do_destroy(int argc, char **argv)
 	zfs_type_t type = ZFS_TYPE_DATASET;
 
 	/* check options */
-	while ((c = getopt(argc, argv, "vpndfrR")) != -1) {
+	while ((c = getopt(argc, argv, "vpndfFrR")) != -1) {
 		switch (c) {
 		case 'v':
 			cb.cb_verbose = B_TRUE;
@@ -1446,6 +1510,9 @@ zfs_do_destroy(int argc, char **argv)
 			break;
 		case 'f':
 			cb.cb_force = B_TRUE;
+			break;
+		case 'F':
+			cb.cb_wait = B_TRUE;
 			break;
 		case 'r':
 			cb.cb_recurse = B_TRUE;
@@ -3352,6 +3419,7 @@ zfs_do_list(int argc, char **argv)
 	int types = ZFS_TYPE_DATASET;
 	boolean_t types_specified = B_FALSE;
 	char *fields = NULL;
+	zprop_list_t *pl;
 	list_cbdata_t cb = { 0 };
 	char *value;
 	int limit = 0;
@@ -3469,6 +3537,18 @@ zfs_do_list(int argc, char **argv)
 	if (zprop_get_list(g_zfs, fields, &cb.cb_proplist, ZFS_TYPE_DATASET)
 	    != 0)
 		usage(B_FALSE);
+
+	/*
+	 * The default set of properties contains only properties which can be
+	 * retrieved from the set of cached properties.  If any user-specfied
+	 * properties cannot be retrieved from that set, unset the cachedprops
+	 * flags on the ZFS handle.
+	 */
+	libzfs_set_cachedprops(g_zfs, B_TRUE);
+	for (pl = cb.cb_proplist; pl != NULL; pl = pl->pl_next) {
+		if (zfs_prop_cacheable(pl->pl_prop))
+			libzfs_set_cachedprops(g_zfs, B_FALSE);
+	}
 
 	cb.cb_first = B_TRUE;
 

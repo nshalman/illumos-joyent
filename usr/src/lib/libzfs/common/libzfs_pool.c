@@ -384,6 +384,7 @@ zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf, size_t len,
 		default:
 			(void) snprintf(buf, len, "%llu", intval);
 		}
+
 		break;
 
 	case PROP_TYPE_INDEX:
@@ -2003,6 +2004,8 @@ zpool_import_props(libzfs_handle_t *hdl, nvlist_t *config, const char *newname,
 				    "corrupted, use '-m' to import the pool "
 				    "anyway:\n"));
 				print_vdev_tree(hdl, NULL, missing, 2);
+				zpool_rewind_exclaim(hdl, newname ? origname :
+				    thename, B_TRUE, nv);
 				(void) printf("\n");
 			}
 			(void) zpool_standard_error(hdl, error, desc);
@@ -2036,8 +2039,9 @@ zpool_import_props(libzfs_handle_t *hdl, nvlist_t *config, const char *newname,
 			ret = -1;
 		else if (zhp != NULL)
 			zpool_close(zhp);
-		if (policy.zlp_rewind &
-		    (ZPOOL_DO_REWIND | ZPOOL_TRY_REWIND)) {
+		if ((policy.zlp_rewind &
+		    (ZPOOL_DO_REWIND | ZPOOL_TRY_REWIND)) ||
+		    (flags & ZFS_IMPORT_MISSING_LOG)) {
 			zpool_rewind_exclaim(hdl, newname ? origname : thename,
 			    ((policy.zlp_rewind & ZPOOL_TRY_REWIND) != 0), nv);
 		}
