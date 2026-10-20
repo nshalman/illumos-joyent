@@ -41,6 +41,8 @@
 .\"
 .\"
 .\" Copyright 1989 AT&T
+.\" Copyright (c) 2009, Sun Microsystems, Inc. All Rights Reserved
+.\" Copyright (c) 2011, Joyent, Inc. All Rights Reserved
 .\" Portions Copyright (c) 1992, X/Open Company Limited All Rights Reserved
 .\" Copyright (c) 2009, Sun Microsystems, Inc. All Rights Reserved
 .\" Copyright 2020 OmniOS Community Edition (OmniOSce) Association.
@@ -62,7 +64,7 @@ crontab \- user crontab file
 
 .LP
 .nf
-\fB/usr/bin/crontab\fR \fB-u\fR \fIusername\fR \fB{ -e | -l | -r }\fR
+\fB/usr/bin/crontab\fR \fB-u\fR \fIusername\fR \fB{ -e | -g | -l | -r }\fR
 .fi
 
 .LP
@@ -72,7 +74,7 @@ crontab \- user crontab file
 
 .LP
 .nf
-\fB/usr/xpg4/bin/crontab\fR \fB{ -e | -l | -r }\fR [\fIusername\fR]
+\fB/usr/xpg4/bin/crontab\fR \fB{ -e | -g | -l | -r }\fR [\fIusername\fR]
 .fi
 
 .LP
@@ -87,7 +89,7 @@ crontab \- user crontab file
 
 .LP
 .nf
-\fB/usr/xpg6/bin/crontab\fR \fB{ -e | -l | -r }\fR [\fIusername\fR]
+\fB/usr/xpg6/bin/crontab\fR \fB{ -e | -g | -l | -r }\fR [\fIusername\fR]
 .fi
 
 .LP
@@ -106,6 +108,19 @@ users' crontabs.
 If \fBcrontab\fR is invoked with \fIfilename\fR, this overwrites an existing
 \fBcrontab\fR entry for the user that invokes it, or for the user specified
 with the \fB-u\fR option.
+.sp
+.LP
+Cron supports a merged crontab with entries coming from either the user's
+\fB/var/spool/cron/crontabs\fR file or from the user's
+\fB/etc/cron.d/crontabs\fR file.  The entries in the user's
+\fB/var/spool/cron/crontabs\fR file are editable whereas those in
+\fB/etc/cron.d/crontabs\fR are system-defined entries which may not
+be customized by the user.  The dual set of crontab entries is only
+of interest to system-defined users such as \fBroot\fR.  Except where
+otherwise explicitly indicated, all variants of the \fBcrontab\fR command
+act only on the editable crontab files found in \fB/var/spool/cron/crontabs\fR.
+.sp
+.LP
 .SS "\fBcrontab\fR Access Control"
 Users: Access to \fBcrontab\fR is allowed:
 .RS +4
@@ -382,6 +397,9 @@ file using the \fB-r\fR option.
 If \fIusername\fR is specified, the specified user's \fBcrontab\fR file is
 edited, rather than the current user's \fBcrontab\fR file. This can only be
 done by root or by a user with the \fBsolaris.jobs.admin\fR authorization.
+.sp
+Only the entries in the user's \fB/var/spool/cron/crontabs\fR file are
+editable.
 .RE
 
 .sp
@@ -393,6 +411,22 @@ done by root or by a user with the \fBsolaris.jobs.admin\fR authorization.
 Lists the \fBcrontab\fR file for the invoking user. Only root or a user with
 the \fBsolaris.jobs.admin\fR authorization can specify a username following the
 \fB-l\fR option to list the \fBcrontab\fR file of the specified user.
+.sp
+Entries from the user's \fB/var/spool/cron/crontabs\fR file are listed, unless
+the \fB-g\fR option is given, in which case only entries from the user's
+\fB/etc/cron.d/crontabs\fR file are listed.
+.RE
+
+.sp
+.ne 2
+.na
+\fB\fB-g\fR\fR
+.ad
+.RS 6n
+In conjunction with the \fB-l\fR option, lists the global \fBcrontab\fR file
+for the invoking or specified user (if authorized) instead of the editable
+\fBcrontab\fR file.  This option is not valid unless the \fB-l\fR option is
+also given.
 .RE
 
 .sp
@@ -646,6 +680,15 @@ contains cron default settings
 .ad
 .RS 28n
 list of denied users
+.RE
+
+.sp
+.ne 2
+.na
+\fB\fB/etc/cron.d/crontabs\fR\fR
+.ad
+.RS 28n
+system spool area for \fBcrontab\fR
 .RE
 
 .sp

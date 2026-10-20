@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright 2016 RackTop Systems.
  * Copyright 2020 Joyent, Inc.
  * Copyright 2026 Oxide Computer Company

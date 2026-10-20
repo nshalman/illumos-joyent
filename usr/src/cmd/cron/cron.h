@@ -76,6 +76,10 @@ struct	message {
 	char	logname[LLEN];
 };
 
+/* anything below here can be changed */
+
+#define	SYSCRONDIR	"/etc/cron.d/crontabs"
+
 /*
  * Errors from the crontab field parser.
  */

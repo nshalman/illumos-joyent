@@ -12,6 +12,7 @@ staff::10:
 daemon::12:root
 sysadmin::14:
 games::20:
+smmsp::25:
 gdm::50:
 upnp::52:
 xvm::60:

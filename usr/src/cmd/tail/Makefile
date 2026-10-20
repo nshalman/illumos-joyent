@@ -22,6 +22,7 @@ OBJS=		forward.o misc.o read.o reverse.o tail.o
 SRCS=	 	$(OBJS:%.o=%.c)
 
 include ../Makefile.cmd
+include ../Makefile.ctf
 
 CLOBBERFILES=	$(PROG)
 CPPFLAGS +=        -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
@@ -43,6 +44,10 @@ all:		$(PROG)
 $(PROG):	$(OBJS)
 	$(LINK.c) $(OBJS) -o $@ $(LDLIBS)
 	$(POST_PROCESS)
+
+%.o: %.c
+	$(COMPILE.c) $<
+	$(POST_PROCESS_O)
 
 install: all .WAIT $(ROOTPROG) $(ROOTXPG4PROG)
 

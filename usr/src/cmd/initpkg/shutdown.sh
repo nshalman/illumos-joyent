@@ -43,7 +43,7 @@ usage() {
 }
 
 notify() {
-	/usr/sbin/wall -a <<-!
+	/usr/sbin/wall -Za <<-!
 	$*
 	!
 	# We used to do rwall here if showmounts had any output, but
