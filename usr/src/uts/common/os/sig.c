@@ -22,7 +22,7 @@
 /*
  * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
- * Copyright (c) 2014, Joyent, Inc.  All rights reserved.
+ * Copyright 2017, Joyent, Inc.
  */
 
 /*	Copyright (c) 1984, 1986, 1987, 1988, 1989 AT&T	*/
@@ -60,6 +60,7 @@
 #include <sys/cyclic.h>
 #include <sys/dtrace.h>
 #include <sys/sdt.h>
+#include <sys/brand.h>
 #include <sys/signalfd.h>
 
 const k_sigset_t nullsmask = {0, 0, 0};
@@ -145,6 +146,21 @@ signal_is_blocked(kthread_t *t, int sig)
 {
 	return (sigismember(&t->t_hold, sig) ||
 	    (schedctl_sigblock(t) && !sigismember(&cantmask, sig)));
+}
+
+/*
+ * Return true if the signal can safely be ignored.
+ * That is, if the signal is included in the p_ignore mask and doing so is not
+ * forbidden by any process branding.
+ */
+static int
+sig_ignorable(proc_t *p, klwp_t *lwp, int sig)
+{
+	return (sigismember(&p->p_ignore, sig) &&	/* sig in ignore mask */
+	    !(PROC_IS_BRANDED(p) &&			/* allowed by brand */
+	    BROP(p)->b_sig_ignorable != NULL &&
+	    BROP(p)->b_sig_ignorable(p, lwp, sig) == B_FALSE));
+
 }
 
 /*
@@ -497,7 +513,7 @@ issig_justlooking(void)
 			if (sigismember(&set, sig) &&
 			    (tracing(p, sig) ||
 			    sigismember(&t->t_sigwait, sig) ||
-			    !sigismember(&p->p_ignore, sig))) {
+			    !sig_ignorable(p, lwp, sig))) {
 				/*
 				 * Don't promote a signal that will stop
 				 * the process when lwp_nostop is set.
@@ -1327,7 +1343,7 @@ psig(void)
 	 * this signal from pending to current (we dropped p->p_lock).
 	 * This can happen only in a multi-threaded process.
 	 */
-	if (sigismember(&p->p_ignore, sig) ||
+	if (sig_ignorable(p, lwp, sig) ||
 	    (func == SIG_DFL && sigismember(&stopdefault, sig))) {
 		lwp->lwp_cursig = 0;
 		lwp->lwp_extsig = 0;
@@ -1771,9 +1787,12 @@ post_sigcld(proc_t *cp, sigqueue_t *sqp)
 			/*
 			 * This can only happen when the parent is init.
 			 * (See call to sigcld(q, NULL) in exit().)
-			 * Use KM_NOSLEEP to avoid deadlock.
+			 * Use KM_NOSLEEP to avoid deadlock. The child procs
+			 * initpid can be 1 for zlogin.
 			 */
-			ASSERT(pp == proc_init);
+			ASSERT(pp->p_pidp->pid_id ==
+			    cp->p_zone->zone_proc_initpid ||
+			    pp->p_pidp->pid_id == 1);
 			winfo(cp, &info, 0);
 			sigaddq(pp, NULL, &info, KM_NOSLEEP);
 		} else {

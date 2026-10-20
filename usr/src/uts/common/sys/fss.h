@@ -160,6 +160,7 @@ typedef struct fsszone {
 /*
  * fss_flags
  */
+/* Formerly: FSSKPRI	0x01 - the thread is in kernel mode */
 #define	FSSBACKQ	0x02	/* thread should be placed at the back of */
 				/* the dispatch queue if preempted */
 #define	FSSRESTORE	0x04	/* thread was not preempted, due to schedctl */

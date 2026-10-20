@@ -23,7 +23,7 @@
  * Copyright (c) 1988, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2018 Joyent, Inc.
  * Copyright 2026 Oxide Computer Company
- * Copyright 2021 OmniOS Community Edition (OmniOSce) Association.
+ * Copyright 2026 OmniOS Community Edition (OmniOSce) Association.
  */
 
 /*	Copyright (c) 1984, 1986, 1987, 1988, 1989 AT&T	*/
@@ -146,7 +146,7 @@ rexit(int rval)
  * it failed.  As long as the given zone is still in the "running"
  * state, we will re-exec() init, but first we need to reset things
  * which are usually inherited across exec() but will break init's
- * assumption that it is being exec()'d from a virgin process.  Most
+ * assumption that it is being exec()'d from a virgin process.	Most
  * importantly this includes closing all file descriptors (exec only
  * closes those marked close-on-exec) and resetting signals (exec only
  * resets handled signals, and we need to clear any signals which
@@ -235,7 +235,7 @@ restart_init(int what, int why)
 		siginfofree(lwp->lwp_curinfo);
 		lwp->lwp_curinfo = NULL;
 	}
-	lwp_ctmpl_clear(lwp);
+	lwp_ctmpl_clear(lwp, B_FALSE);
 
 	/*
 	 * Reset both the process root directory and the current working
@@ -287,6 +287,8 @@ restart_init(int what, int why)
 	ASSERT(p == curproc);
 	(void) freectty(B_TRUE);
 
+	restart_init_notify(p->p_zone);
+
 	/*
 	 * Now exec() the new init(8) on top of the current process.  If we
 	 * succeed, the caller will treat this like a successful system call.
@@ -321,7 +323,7 @@ exit(int why, int what)
 	/*
 	 * If proc_exit() fails, then some other lwp in the process
 	 * got there first.  We just have to call lwp_exit() to allow
-	 * the other lwp to finish exiting the process.  Otherwise we're
+	 * the other lwp to finish exiting the process.	 Otherwise we're
 	 * restarting init, and should return.
 	 */
 	if (proc_exit(why, what) != 0) {
@@ -334,7 +336,7 @@ exit(int why, int what)
 
 /*
  * Set the SEXITING flag on the process, after making sure /proc does
- * not have it locked.  This is done in more places than proc_exit(),
+ * not have it locked.	This is done in more places than proc_exit(),
  * so it is a separate function.
  */
 void
@@ -381,8 +383,9 @@ zone_init_exit(zone_t *z, int why, int what)
 	 */
 	if (!z->zone_restart_init) {
 		/*
-		 * The zone has been set up to halt when init exits.
+		 * The zone has been setup to halt when init exits.
 		 */
+		z->zone_init_status = wstat(why, what);
 		(void) zone_kadmin(A_SHUTDOWN, AD_HALT, NULL, zone_kcred());
 		z->zone_proc_initpid = -1;
 		return (B_FALSE);
@@ -422,6 +425,7 @@ zone_init_exit(zone_t *z, int why, int what)
 			(void) zone_kadmin(A_REBOOT, 0, NULL, zone_kcred());
 		}
 
+		z->zone_init_status = wstat(why, what);
 		z->zone_proc_initpid = -1;
 		return (B_FALSE);
 	}
@@ -442,14 +446,16 @@ zone_init_exit(zone_t *z, int why, int what)
 		/*
 		 * No restart modifiers on the zone, attempt to restart init.
 		 */
-		if (restart_init(what, why) == 0)
+		if (restart_init(what, why) == 0) {
 			return (B_TRUE);
+		}
 	}
 
 	/*
 	 * The restart failed, or the criteria for a restart are not met;
 	 * the zone will shut down.
 	 */
+	z->zone_init_status = wstat(why, what);
 	(void) zone_kadmin(A_SHUTDOWN, AD_HALT, NULL, zone_kcred());
 	z->zone_proc_initpid = -1;
 	return (B_FALSE);
@@ -484,7 +490,7 @@ proc_exit(int why, int what)
 
 	/*
 	 * Stop and discard the process's lwps except for the current one,
-	 * unless some other lwp beat us to it.  If exitlwps() fails then
+	 * unless some other lwp beat us to it.	 If exitlwps() fails then
 	 * return and the calling lwp will call (or continue in) lwp_exit().
 	 */
 	proc_is_exiting(p);
@@ -512,19 +518,6 @@ proc_exit(int why, int what)
 	}
 	mutex_exit(&p->p_lock);
 
-	DTRACE_PROC(lwp__exit);
-	DTRACE_PROC1(exit, int, why);
-
-	/*
-	 * Will perform any brand specific proc exit processing, since this
-	 * is always the last lwp, will also perform lwp_exit and free brand
-	 * data
-	 */
-	if (PROC_IS_BRANDED(p)) {
-		lwp_detach_brand_hdlrs(lwp);
-		brand_clearbrand(p, B_FALSE);
-	}
-
 	/*
 	 * Don't let init exit unless zone_start_init() failed its exec, or
 	 * we are shutting down the zone or the machine.
@@ -536,6 +529,32 @@ proc_exit(int why, int what)
 		/* If zone's init restarts, we're done here. */
 		if (zone_init_exit(z, why, what))
 			return (0);
+	}
+
+	/*
+	 * Delay firing probes (and performing brand cleanup) until after the
+	 * zone_proc_initpid check. Cases which result in zone shutdown or
+	 * restart via zone_kadmin eventually result in a call back to
+	 * proc_exit.
+	 */
+	DTRACE_PROC(lwp__exit);
+	DTRACE_PROC1(exit, int, why);
+
+	/*
+	 * Will perform any brand specific proc exit processing. Since this
+	 * is always the last lwp, will also perform lwp exit/free and proc
+	 * exit. Brand data will be freed when the process is reaped.
+	 */
+	if (PROC_IS_BRANDED(p)) {
+		BROP(p)->b_lwpexit(lwp);
+		BROP(p)->b_proc_exit(p);
+		/*
+		 * To ensure that b_proc_exit has access to brand-specific data
+		 * contained by the one remaining lwp, call the freelwp hook as
+		 * the last part of this clean-up process.
+		 */
+		BROP(p)->b_freelwp(lwp);
+		lwp_detach_brand_hdlrs(lwp);
 	}
 
 	lwp_pcb_exit();
@@ -710,7 +729,7 @@ proc_exit(int why, int what)
 		semexit(p);
 	rv = wstat(why, what);
 
-	acct(rv & 0xff);
+	acct(rv);
 	exacct_commit_proc(p, rv);
 
 	/*
@@ -803,10 +822,22 @@ proc_exit(int why, int what)
 	if ((q = p->p_child) != NULL && p != proc_init) {
 		struct proc	*np;
 		struct proc	*initp = proc_init;
+		pid_t		zone_initpid = 1;
+		struct proc	*zoneinitp = NULL;
 		boolean_t	setzonetop = B_FALSE;
 
-		if (!INGLOBALZONE(curproc))
-			setzonetop = B_TRUE;
+		if (!INGLOBALZONE(curproc)) {
+			zone_initpid = curproc->p_zone->zone_proc_initpid;
+
+			ASSERT(MUTEX_HELD(&pidlock));
+			zoneinitp = prfind(zone_initpid);
+			if (zoneinitp != NULL) {
+				initp = zoneinitp;
+			} else {
+				zone_initpid = 1;
+				setzonetop = B_TRUE;
+			}
+		}
 
 		pgdetach(p);
 
@@ -818,7 +849,8 @@ proc_exit(int why, int what)
 			 */
 			delete_ns(q->p_parent, q);
 
-			q->p_ppid = 1;
+			q->p_ppid = zone_initpid;
+
 			q->p_pidflag &= ~(CLDNOSIGCHLD | CLDWAITPID);
 			if (setzonetop) {
 				mutex_enter(&q->p_lock);
@@ -976,7 +1008,7 @@ proc_exit(int why, int what)
 	 * curthread's proc pointer is changed to point to the 'sched'
 	 * process for the corresponding zone, except in the case when
 	 * the exiting process is in fact a zsched instance, in which
-	 * case the proc pointer is set to p0.  We do so, so that the
+	 * case the proc pointer is set to p0.	We do so, so that the
 	 * process still points at the right zone when we call the VN_RELE()
 	 * below.
 	 *
@@ -992,8 +1024,50 @@ proc_exit(int why, int what)
 
 	mutex_exit(&p->p_lock);
 	if (!evaporate) {
-		p->p_pidflag &= ~CLDPEND;
-		sigcld(p, sqp);
+		/*
+		 * The brand specific code only happens when the brand has a
+		 * function to call in place of sigcld and the parent of the
+		 * exiting process is not the global zone init. If the parent
+		 * is the global zone init, then the process was reparented,
+		 * and we don't want brand code delivering possibly strange
+		 * signals to init. Also, init is not branded, so any brand
+		 * specific exit data will not be picked up by init anyway.
+		 */
+		if (PROC_IS_BRANDED(p) &&
+		    BROP(p)->b_exit_with_sig != NULL &&
+		    p->p_ppid != 1) {
+			/*
+			 * The code for _fini that could unload the brand_t
+			 * blocks until the count of zones using the module
+			 * reaches zero. Zones decrement the refcount on their
+			 * brands only after all user tasks in that zone have
+			 * exited and been waited on. The decrement on the
+			 * brand's refcount happen in zone_destroy(). That
+			 * depends on zone_shutdown() having been completed.
+			 * zone_shutdown() includes a call to zone_empty(),
+			 * where the zone waits for itself to reach the state
+			 * ZONE_IS_EMPTY. This state is only set in either
+			 * zone_shutdown(), when there are no user processes as
+			 * the zone enters this function, or in
+			 * zone_task_rele(). zone_task_rele() is called from
+			 * code triggered by waiting on processes, not by the
+			 * processes exiting through proc_exit().  This means
+			 * all the branded processes that could exist for a
+			 * specific brand_t must exit and get reaped before the
+			 * refcount on the brand_t can reach 0. _fini will
+			 * never unload the corresponding brand module before
+			 * proc_exit finishes execution for all processes
+			 * branded with a particular brand_t, which makes the
+			 * operation below safe to do. Brands that wish to use
+			 * this mechanism must wait in _fini as described
+			 * above.
+			 */
+			BROP(p)->b_exit_with_sig(p, sqp);
+		} else {
+			p->p_pidflag &= ~CLDPEND;
+			sigcld(p, sqp);
+		}
+
 	} else {
 		/*
 		 * Do what sigcld() would do if the disposition
@@ -1018,7 +1092,7 @@ proc_exit(int why, int what)
 	/*
 	 * task_rele() may ultimately cause the zone to go away (or
 	 * may cause the last user process in a zone to go away, which
-	 * signals zsched to go away).  So prior to this call, we must
+	 * signals zsched to go away).	So prior to this call, we must
 	 * no longer point at zsched.
 	 */
 	t->t_procp = &p0;
@@ -1370,6 +1444,12 @@ freeproc(proc_t *p)
 		siginfofree(p->p_killsqp);
 		p->p_killsqp = NULL;
 	}
+
+	/* Clear any remaining brand data */
+	if (PROC_IS_BRANDED(p)) {
+		brand_clearbrand(p, B_TRUE);
+	}
+
 
 	prfree(p);	/* inform /proc */
 

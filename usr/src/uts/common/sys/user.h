@@ -26,7 +26,7 @@
 /*	Copyright (c) 1984, 1986, 1987, 1988, 1989 AT&T	*/
 /*	  All Rights Reserved	*/
 /*
- * Copyright (c) 2018, Joyent, Inc.
+ * Copyright 2019 Joyent, Inc.
  * Copyright 2026 Oxide Computer Company
  */
 
@@ -205,9 +205,9 @@ typedef struct {		/* kernel syscall set type */
  * This value should not be changed in a patch.
  */
 #if defined(__sparc)
-#define	__KERN_NAUXV_IMPL 20
+#define	__KERN_NAUXV_IMPL 24
 #elif defined(__i386) || defined(__amd64)
-#define	__KERN_NAUXV_IMPL 26
+#define	__KERN_NAUXV_IMPL 29
 #endif
 
 struct execsw;

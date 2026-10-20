@@ -23,6 +23,7 @@
  * Copyright (c) 1988, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2012 Milan Jurik. All rights reserved.
  * Copyright (c) 2013, OmniTI Computer Consulting, Inc. All rights reserved.
+ * Copyright 2016 Joyent, Inc.
  * Copyright (c) 2018, Joyent, Inc.
  * Copyright 2026 Oxide Computer Company
  */
@@ -1094,18 +1095,20 @@ char **syscallnames;
 
 systrace_sysent_t *systrace_sysent;
 void (*systrace_probe)(dtrace_id_t, uintptr_t, uintptr_t,
-    uintptr_t, uintptr_t, uintptr_t, uintptr_t);
+    uintptr_t, uintptr_t, uintptr_t, uintptr_t, uintptr_t, uintptr_t);
 
 /*ARGSUSED*/
 void
 systrace_stub(dtrace_id_t id, uintptr_t arg0, uintptr_t arg1,
-    uintptr_t arg2, uintptr_t arg3, uintptr_t arg4, uintptr_t arg5)
+    uintptr_t arg2, uintptr_t arg3, uintptr_t arg4, uintptr_t arg5,
+    uintptr_t arg6, uintptr_t arg7)
 {}
 
 /*ARGSUSED*/
 int64_t
 dtrace_systrace_syscall(uintptr_t arg0, uintptr_t arg1, uintptr_t arg2,
-    uintptr_t arg3, uintptr_t arg4, uintptr_t arg5)
+    uintptr_t arg3, uintptr_t arg4, uintptr_t arg5, uintptr_t arg6,
+    uintptr_t arg7)
 {
 	systrace_sysent_t *sy = &systrace_sysent[curthread->t_sysnum];
 	dtrace_id_t id;
@@ -1113,7 +1116,8 @@ dtrace_systrace_syscall(uintptr_t arg0, uintptr_t arg1, uintptr_t arg2,
 	proc_t *p;
 
 	if ((id = sy->stsy_entry) != DTRACE_IDNONE)
-		(*systrace_probe)(id, arg0, arg1, arg2, arg3, arg4, arg5);
+		(*systrace_probe)(id, arg0, arg1, arg2, arg3, arg4, arg5,
+		    arg6, arg7);
 
 	/*
 	 * We want to explicitly allow DTrace consumers to stop a process
@@ -1127,14 +1131,15 @@ dtrace_systrace_syscall(uintptr_t arg0, uintptr_t arg1, uintptr_t arg2,
 	}
 	mutex_exit(&p->p_lock);
 
-	rval = (*sy->stsy_underlying)(arg0, arg1, arg2, arg3, arg4, arg5);
+	rval = (*sy->stsy_underlying)(arg0, arg1, arg2, arg3, arg4, arg5,
+	    arg6, arg7);
 
 	if (ttolwp(curthread)->lwp_errno != 0)
 		rval = -1;
 
 	if ((id = sy->stsy_return) != DTRACE_IDNONE)
 		(*systrace_probe)(id, (uintptr_t)rval, (uintptr_t)rval,
-		    (uintptr_t)((int64_t)rval >> 32), 0, 0, 0);
+		    (uintptr_t)((int64_t)rval >> 32), 0, 0, 0, 0, 0);
 
 	return (rval);
 }
@@ -1146,7 +1151,8 @@ systrace_sysent_t *systrace_sysent32;
 /*ARGSUSED*/
 int64_t
 dtrace_systrace_syscall32(uintptr_t arg0, uintptr_t arg1, uintptr_t arg2,
-    uintptr_t arg3, uintptr_t arg4, uintptr_t arg5)
+    uintptr_t arg3, uintptr_t arg4, uintptr_t arg5, uintptr_t arg6,
+    uintptr_t arg7)
 {
 	systrace_sysent_t *sy = &systrace_sysent32[curthread->t_sysnum];
 	dtrace_id_t id;
@@ -1154,7 +1160,8 @@ dtrace_systrace_syscall32(uintptr_t arg0, uintptr_t arg1, uintptr_t arg2,
 	proc_t *p;
 
 	if ((id = sy->stsy_entry) != DTRACE_IDNONE)
-		(*systrace_probe)(id, arg0, arg1, arg2, arg3, arg4, arg5);
+		(*systrace_probe)(id, arg0, arg1, arg2, arg3, arg4, arg5, arg6,
+		    arg7);
 
 	/*
 	 * We want to explicitly allow DTrace consumers to stop a process
@@ -1168,14 +1175,15 @@ dtrace_systrace_syscall32(uintptr_t arg0, uintptr_t arg1, uintptr_t arg2,
 	}
 	mutex_exit(&p->p_lock);
 
-	rval = (*sy->stsy_underlying)(arg0, arg1, arg2, arg3, arg4, arg5);
+	rval = (*sy->stsy_underlying)(arg0, arg1, arg2, arg3, arg4, arg5, arg6,
+	    arg7);
 
 	if (ttolwp(curthread)->lwp_errno != 0)
 		rval = -1;
 
 	if ((id = sy->stsy_return) != DTRACE_IDNONE)
 		(*systrace_probe)(id, (uintptr_t)rval, (uintptr_t)rval,
-		    (uintptr_t)((uint64_t)rval >> 32), 0, 0, 0);
+		    (uintptr_t)((uint64_t)rval >> 32), 0, 0, 0, 0, 0);
 
 	return (rval);
 }
@@ -1203,5 +1211,5 @@ dtrace_systrace_rtt(void)
 	}
 
 	if ((id = sy->stsy_return) != DTRACE_IDNONE)
-		(*systrace_probe)(id, 0, 0, 0, 0, 0, 0);
+		(*systrace_probe)(id, 0, 0, 0, 0, 0, 0, 0, 0);
 }

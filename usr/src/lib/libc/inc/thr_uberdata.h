@@ -973,6 +973,7 @@ typedef struct uberdata {
 	int	ndaemons;	/* total number of THR_DAEMON threads/lwps */
 	pid_t	pid;		/* the current process's pid */
 	void	(*sigacthandler)(int, siginfo_t *, void *);
+	int	(*setctxt)(const ucontext_t *);
 	ulwp_t	*lwp_stacks;
 	ulwp_t	*lwp_laststack;
 	int	nfreestack;
@@ -1189,6 +1190,7 @@ typedef struct uberdata32 {
 	int		ndaemons;
 	int		pid;
 	caddr32_t	sigacthandler;
+	caddr32_t	setctxt;
 	caddr32_t	lwp_stacks;
 	caddr32_t	lwp_laststack;
 	int		nfreestack;

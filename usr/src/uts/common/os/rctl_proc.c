@@ -21,6 +21,7 @@
 /*
  * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ * Copyright 2017 Joyent, Inc.
  */
 
 #include <sys/types.h>
@@ -32,6 +33,7 @@
 #include <sys/port_kernel.h>
 #include <sys/signal.h>
 #include <sys/var.h>
+#include <sys/policy.h>
 
 #include <sys/vmparam.h>
 #include <sys/machparam.h>
@@ -66,6 +68,7 @@ rctl_hndl_t rc_process_semmsl;
 rctl_hndl_t rc_process_semopm;
 rctl_hndl_t rc_process_portev;
 rctl_hndl_t rc_process_sigqueue;
+rctl_hndl_t rc_process_maxlockedmem;
 
 /*
  * process.max-cpu-time / RLIMIT_CPU
@@ -209,6 +212,26 @@ static rctl_ops_t proc_vmem_ops = {
 	rcop_no_usage,
 	proc_vmem_set,
 	rcop_no_test
+};
+
+/*
+ * process.max-locked-memory
+ */
+/*ARGSUSED*/
+static int
+proc_maxlockedmem_test(struct rctl *r, struct proc *p, rctl_entity_p_t *e,
+    struct rctl_val *rv, rctl_qty_t i, uint_t f)
+{
+	if (secpolicy_lock_memory(CRED()) == 0)
+		return (0);
+	return ((p->p_locked_mem + i) > rv->rcv_value);
+}
+
+static rctl_ops_t proc_maxlockedmem_ops = {
+	rcop_no_action,
+	rcop_no_usage,
+	rcop_no_set,
+	proc_maxlockedmem_test
 };
 
 /*
@@ -382,6 +405,11 @@ rctlproc_init(void)
 	    _SIGQUEUE_SIZE_BASIC, RCPRIV_BASIC, RCTL_LOCAL_DENY);
 	rctl_add_default_limit("process.max-sigqueue-size",
 	    _SIGQUEUE_SIZE_PRIVILEGED, RCPRIV_PRIVILEGED, RCTL_LOCAL_DENY);
+
+	rc_process_maxlockedmem = rctl_register("process.max-locked-memory",
+	    RCENTITY_PROCESS, RCTL_GLOBAL_LOWERABLE | RCTL_GLOBAL_DENY_ALWAYS |
+	    RCTL_GLOBAL_SIGNAL_NEVER | RCTL_GLOBAL_BYTES,
+	    ULONG_MAX, UINT32_MAX, &proc_maxlockedmem_ops);
 
 	/*
 	 * Place minimal set of controls on "sched" process for inheritance by

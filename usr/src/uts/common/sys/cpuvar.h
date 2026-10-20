@@ -390,6 +390,8 @@ extern cpu_core_t cpu_core[];
 #define	CPU_DISP_DONTSTEAL	0x01	/* CPU undergoing context swtch */
 #define	CPU_DISP_HALTED		0x02	/* CPU halted waiting for interrupt */
 
+/* Note: inside ifdef: _KERNEL || _KMEMUSER || _BOOT */
+
 /*
  * Macros for manipulating sets of CPUs as a bitmap.  Note that this
  * bitmap may vary in size depending on the maximum CPU id a specific

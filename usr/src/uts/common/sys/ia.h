@@ -86,6 +86,7 @@ typedef struct iaproc {
 
 
 /* flags */
+/* Formerly: IAKPRI 0x01 - thread at kernel model priority */
 #define	IABACKQ	0x02	/* thread goes to back of disp q when preempted */
 #define	IASLEPT	0x04	/* thread had long-term suspend - give new slice */
 

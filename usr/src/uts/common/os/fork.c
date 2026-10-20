@@ -21,7 +21,8 @@
 
 /*
  * Copyright (c) 1988, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2013, Joyent, Inc. All rights reserved.
+ * Copyright 2016, Joyent, Inc.
+ * Copyright 2026 OmniOS Community Edition (OmniOSce) Association.
  * Copyright 2026 Oxide Computer Company
  */
 
@@ -898,7 +899,7 @@ forklwp_fail(proc_t *p)
 			kmem_free(t->t_door, sizeof (door_data_t));
 			t->t_door = NULL;
 		}
-		lwp_ctmpl_clear(ttolwp(t));
+		lwp_ctmpl_clear(ttolwp(t), B_FALSE);
 
 		/*
 		 * Remove the thread from the all threads list.

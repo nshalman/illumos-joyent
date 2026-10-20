@@ -24,10 +24,11 @@
  */
 
 /*	Copyright (c) 1988 AT&T	*/
-/*	  All Rights Reserved	*/
+/*	All Rights Reserved	*/
 /*
  * Copyright 2015 Garrett D'Amore <garrett@damore.org>
  * Copyright 2019 Joyent, Inc.
+ * Copyright 2026 OmniOS Community Edition (OmniOSce) Association.
  * Copyright 2026 Oxide Computer Company
  */
 
@@ -439,7 +440,7 @@ exec_common(const char *fname, const char **argp, const char **envp,
 	/*
 	 * Clear contract template state
 	 */
-	lwp_ctmpl_clear(lwp);
+	lwp_ctmpl_clear(lwp, B_TRUE);
 
 	/*
 	 * Save the directory in which we found the executable for expanding

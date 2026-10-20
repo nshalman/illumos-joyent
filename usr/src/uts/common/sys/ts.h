@@ -79,6 +79,8 @@ typedef struct tsproc {
 } tsproc_t;
 
 /* flags */
+
+/* Formerly: TSKPRI	0x01 - thread at kernel mode priority */
 #define	TSBACKQ		0x02	/* thread goes to back of dispq if preempted */
 #define	TSIA		0x04	/* thread is interactive		*/
 #define	TSIASET		0x08	/* interactive thread is "on"		*/

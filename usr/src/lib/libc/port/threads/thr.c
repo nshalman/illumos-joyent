@@ -126,6 +126,7 @@ uberdata_t __uberdata = {
 	0,			/* ndaemons */
 	0,			/* pid */
 	sigacthandler,		/* sigacthandler */
+	__setcontext,		/* setctxt */
 	NULL,			/* lwp_stacks */
 	NULL,			/* lwp_laststack */
 	0,			/* nfreestack */
@@ -1227,13 +1228,19 @@ init_auxv_data(uberdata_t *udp)
 {
 	Dl_argsinfo_t args;
 
+	udp->ub_broot = NULL;
 	udp->ub_comm_page = NULL;
 	if (dlinfo(RTLD_SELF, RTLD_DI_ARGSINFO, &args) < 0)
 		return;
 
 	while (args.dla_auxv->a_type != AT_NULL) {
-		if (args.dla_auxv->a_type == AT_SUN_COMMPAGE) {
+		switch (args.dla_auxv->a_type) {
+		case AT_SUN_BRAND_NROOT:
+			udp->ub_broot = args.dla_auxv->a_un.a_ptr;
+			break;
+		case AT_SUN_COMMPAGE:
 			udp->ub_comm_page = args.dla_auxv->a_un.a_ptr;
+			break;
 		}
 		args.dla_auxv++;
 	}
@@ -1277,7 +1284,8 @@ libc_init(void)
 	/*
 	 * Every libc, regardless of link map, needs to go through and check
 	 * its aux vectors.  Doing so will indicate whether or not this has
-	 * been given a comm page (to optimize certain system actions).
+	 * been given a brand root (used to qualify various other data) or a
+	 * comm page (to optimize certain system actions).
 	 */
 	init_auxv_data(udp);
 
