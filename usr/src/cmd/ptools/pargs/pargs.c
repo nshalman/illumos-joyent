@@ -835,6 +835,7 @@ static struct aux_id aux_arr[] = {
 	{ AT_BASE,		"AT_BASE",		at_null	},
 	{ AT_FLAGS,		"AT_FLAGS",		at_null	},
 	{ AT_ENTRY,		"AT_ENTRY",		at_null	},
+	{ AT_RANDOM,		"AT_RANDOM",		at_null	},
 	{ AT_SUN_UID,		"AT_SUN_UID",		at_uid	},
 	{ AT_SUN_RUID,		"AT_SUN_RUID",		at_uid	},
 	{ AT_SUN_GID,		"AT_SUN_GID",		at_gid	},

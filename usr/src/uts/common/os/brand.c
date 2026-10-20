@@ -22,6 +22,7 @@
  * Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2019 Joyent, Inc.
  * Copyright 2026 Oxide Computer Company
+ * Copyright 2026 OmniOS Community Edition (OmniOSce) Association.
  */
 
 #include <sys/kmem.h>
@@ -47,7 +48,7 @@ struct brand_mach_ops native_mach_ops  = {
 };
 #else /* !__sparcv9 */
 struct brand_mach_ops native_mach_ops  = {
-		NULL, NULL, NULL, NULL
+		NULL, NULL, NULL, NULL, NULL, NULL, NULL
 };
 #endif /* !__sparcv9 */
 
@@ -55,7 +56,8 @@ brand_t native_brand = {
 		BRAND_VER_1,
 		"native",
 		NULL,
-		&native_mach_ops
+		&native_mach_ops,
+		0
 };
 
 /*
@@ -312,46 +314,115 @@ brand_unregister_zone(struct brand *bp)
 	mutex_exit(&brand_list_lock);
 }
 
-void
-brand_setbrand(proc_t *p)
+int
+brand_setbrand(proc_t *p, boolean_t no_lwps)
 {
 	brand_t *bp = p->p_zone->zone_brand;
+	void *brand_data = NULL;
 
-	ASSERT(bp != NULL);
-	ASSERT(p->p_brand == &native_brand);
+	VERIFY(MUTEX_NOT_HELD(&p->p_lock));
+	VERIFY(bp != NULL);
 
 	/*
-	 * We should only be called from exec(), when we know the process
-	 * is single-threaded.
+	 * Process branding occurs during fork() and exec().  When it happens
+	 * during fork(), the LWP count will always be 0 since branding is
+	 * performed as part of getproc(), before LWPs have been associated.
+	 * The same is not true during exec(), where a multi-LWP process may
+	 * undergo branding just prior to gexec(). This is to ensure
+	 * exec-related brand hooks are available.  While it may seem
+	 * complicated to brand a multi-LWP process, the two possible outcomes
+	 * simplify things:
+	 *
+	 * 1. The exec() succeeds:  LWPs besides the caller will be killed and
+	 *    any further branding will occur in a single-LWP context.
+	 * 2. The exec() fails: The process will be promptly unbranded since
+	 *    the hooks are no longer needed.
+	 *
+	 * To prevent inconsistent brand state from being encountered during
+	 * the exec(), LWPs beyond the caller which are associated with this
+	 * process must be held temporarily.  They will be released either when
+	 * they are killed in the exec() success, or when the brand is cleared
+	 * after exec() failure.
 	 */
-	ASSERT(p->p_tlist == p->p_tlist->t_forw);
+	if (no_lwps) {
+		/*
+		 * Processes branded during fork() should not have LWPs at all.
+		 */
+		VERIFY(p->p_tlist == NULL);
+	} else {
+		/*
+		 * We've been called from a exec() context tolerating the
+		 * existence of multiple LWPs during branding is necessary.
+		 */
+		VERIFY(p == curproc);
+		VERIFY(p->p_tlist != NULL);
 
+		if (p->p_tlist != p->p_tlist->t_forw) {
+			/*
+			 * Multiple LWPs are present.  Hold all but the caller.
+			 */
+			if (!holdlwps(SHOLDFORK1)) {
+				return (-1);
+			}
+		}
+	}
+
+	if (bp->b_data_size > 0) {
+		brand_data = kmem_zalloc(bp->b_data_size, KM_SLEEP);
+	}
+
+	mutex_enter(&p->p_lock);
+	ASSERT(!PROC_IS_BRANDED(p));
 	p->p_brand = bp;
+	p->p_brand_data = brand_data;
 	ASSERT(PROC_IS_BRANDED(p));
 	BROP(p)->b_setbrand(p);
+	mutex_exit(&p->p_lock);
+	return (0);
 }
 
 void
 brand_clearbrand(proc_t *p, boolean_t no_lwps)
 {
 	brand_t *bp = p->p_zone->zone_brand;
-	klwp_t *lwp = NULL;
-	ASSERT(bp != NULL);
-	ASSERT(!no_lwps || (p->p_tlist == NULL));
+	void *brand_data;
 
-	/*
-	 * If called from exec_common() or proc_exit(),
-	 * we know the process is single-threaded.
-	 * If called from fork_fail, p_tlist is NULL.
-	 */
-	if (!no_lwps) {
-		ASSERT(p->p_tlist == p->p_tlist->t_forw);
-		lwp = p->p_tlist->t_lwp;
-	}
+	VERIFY(MUTEX_NOT_HELD(&p->p_lock));
+	VERIFY(bp != NULL);
+	VERIFY(PROC_IS_BRANDED(p));
 
-	ASSERT(PROC_IS_BRANDED(p));
-	BROP(p)->b_proc_exit(p, lwp);
+	if (BROP(p)->b_clearbrand != NULL)
+		BROP(p)->b_clearbrand(p, no_lwps);
+
+	mutex_enter(&p->p_lock);
 	p->p_brand = &native_brand;
+	brand_data = p->p_brand_data;
+	p->p_brand_data = NULL;
+
+	if (no_lwps) {
+		/*
+		 * The brand is being cleared on a process with no LWPs of its
+		 * own running: the child of a failed fork, or a zombie being
+		 * reaped in freeproc().  At most one LWP may remain on the list.
+		 */
+		VERIFY(p->p_tlist == NULL || p->p_tlist == p->p_tlist->t_forw);
+	} else {
+		VERIFY(p == curproc);
+		/*
+		 * The brand is being cleared on curproc during exec.  If an
+		 * exec failed after the other LWPs were held, a process with
+		 * multiple LWPs is being de-branded and those LWPs must be
+		 * resumed now.
+		 */
+		if (p->p_tlist != NULL && p->p_tlist != p->p_tlist->t_forw) {
+			continuelwps(p);
+		}
+	}
+	mutex_exit(&p->p_lock);
+
+	if (brand_data != NULL) {
+		kmem_free(brand_data, bp->b_data_size);
+	}
 }
 
 #if defined(__sparcv9)
@@ -485,7 +556,7 @@ brand_solaris_cmd(int cmd, uintptr_t arg1, uintptr_t arg2, uintptr_t arg3,
 		return (ENOSYS);
 
 	/* For all other operations this must be a branded process. */
-	if (p->p_brand == &native_brand)
+	if (!PROC_IS_BRANDED(p))
 		return (ENOSYS);
 
 	ASSERT(p->p_brand == pbrand);
@@ -572,20 +643,18 @@ brand_solaris_cmd(int cmd, uintptr_t arg1, uintptr_t arg2, uintptr_t arg3,
 void
 brand_solaris_copy_procdata(proc_t *child, proc_t *parent, struct brand *pbrand)
 {
-	brand_proc_data_t	*spd;
-
 	ASSERT(parent->p_brand == pbrand);
 	ASSERT(child->p_brand == pbrand);
 	ASSERT(parent->p_brand_data != NULL);
-	ASSERT(child->p_brand_data == NULL);
+	ASSERT(child->p_brand_data != NULL);
 
 	/*
-	 * Just duplicate all the proc data of the parent for the
-	 * child
+	 * Duplicate all the proc data of the parent for the child. The
+	 * child's brand data was already allocated by brand_setbrand()
+	 * since this brand declares a b_data_size.
 	 */
-	spd = kmem_alloc(sizeof (brand_proc_data_t), KM_SLEEP);
-	bcopy(parent->p_brand_data, spd, sizeof (brand_proc_data_t));
-	child->p_brand_data = spd;
+	bcopy(parent->p_brand_data, child->p_brand_data,
+	    sizeof (brand_proc_data_t));
 }
 
 static void
@@ -602,16 +671,16 @@ restoreexecenv(struct execenv *ep, stack_t *sp)
 /*ARGSUSED*/
 int
 brand_solaris_elfexec(vnode_t *vp, execa_t *uap, uarg_t *args,
-    intpdata_t *idatap, int level, size_t *execsz, int setid, caddr_t exec_file,
-    cred_t *cred, int brand_action, struct brand *pbrand, char *bname,
-    char *brandlib, char *brandlib32, char *brandlinker, char *brandlinker32)
+    intpdata_t *idatap, int level, size_t *execsz, int setid,
+    caddr_t exec_file, cred_t *cred, int *brand_action, struct brand *pbrand,
+    char *bname, char *brandlib, char *brandlib32)
 {
 
 	vnode_t		*nvp;
 	Ehdr		ehdr;
 	Addr		uphdr_vaddr;
 	intptr_t	voffset;
-	int		interp;
+	char		*interp;
 	int		i, err;
 	struct execenv	env;
 	struct execenv	origenv;
@@ -621,7 +690,6 @@ brand_solaris_elfexec(vnode_t *vp, execa_t *uap, uarg_t *args,
 	klwp_t		*lwp = ttolwp(curthread);
 	brand_proc_data_t	*spd;
 	brand_elf_data_t sed, *sedp;
-	char		*linker;
 	uintptr_t	lddata; /* lddata of executable's linker */
 
 	ASSERT(curproc->p_brand == pbrand);
@@ -638,12 +706,10 @@ brand_solaris_elfexec(vnode_t *vp, execa_t *uap, uarg_t *args,
 	 */
 	if (args->to_model == DATAMODEL_NATIVE) {
 		args->emulator = brandlib;
-		linker = brandlinker;
 	}
 #if defined(_LP64)
 	else {
 		args->emulator = brandlib32;
-		linker = brandlinker32;
 	}
 #endif  /* _LP64 */
 
@@ -727,7 +793,7 @@ brand_solaris_elfexec(vnode_t *vp, execa_t *uap, uarg_t *args,
 	if (args->to_model == DATAMODEL_NATIVE) {
 		err = mapexec_brand(vp, args, &ehdr, &uphdr_vaddr,
 		    &voffset, exec_file, &interp, &env.ex_bssbase,
-		    &env.ex_brkbase, &env.ex_brksize, NULL);
+		    &env.ex_brkbase, &env.ex_brksize, NULL, NULL);
 	}
 #if defined(_LP64)
 	else {
@@ -735,7 +801,7 @@ brand_solaris_elfexec(vnode_t *vp, execa_t *uap, uarg_t *args,
 		Elf32_Addr uphdr_vaddr32;
 		err = mapexec32_brand(vp, args, &ehdr32, &uphdr_vaddr32,
 		    &voffset, exec_file, &interp, &env.ex_bssbase,
-		    &env.ex_brkbase, &env.ex_brksize, NULL);
+		    &env.ex_brkbase, &env.ex_brksize, NULL, NULL);
 		Ehdr32to64(&ehdr32, &ehdr);
 
 		if (uphdr_vaddr32 == (Elf32_Addr)-1)
@@ -746,6 +812,10 @@ brand_solaris_elfexec(vnode_t *vp, execa_t *uap, uarg_t *args,
 #endif  /* _LP64 */
 	if (err != 0) {
 		restoreexecenv(&origenv, &orig_sigaltstack);
+
+		if (interp != NULL)
+			kmem_free(interp, MAXPATHLEN);
+
 		return (err);
 	}
 
@@ -763,7 +833,7 @@ brand_solaris_elfexec(vnode_t *vp, execa_t *uap, uarg_t *args,
 	sedp->sed_phent = ehdr.e_phentsize;
 	sedp->sed_phnum = ehdr.e_phnum;
 
-	if (interp) {
+	if (interp != NULL) {
 		if (ehdr.e_type == ET_DYN) {
 			/*
 			 * This is a shared object executable, so we
@@ -779,16 +849,20 @@ brand_solaris_elfexec(vnode_t *vp, execa_t *uap, uarg_t *args,
 		 * it in and store relevant information about it in the
 		 * aux vector, where the brand library can find it.
 		 */
-		if ((err = lookupname(linker, UIO_SYSSPACE,
+		if ((err = lookupname(interp, UIO_SYSSPACE,
 		    FOLLOW, NULLVPP, &nvp)) != 0) {
-			uprintf("%s: not found.", brandlinker);
+			uprintf("%s: not found.", interp);
 			restoreexecenv(&origenv, &orig_sigaltstack);
+			kmem_free(interp, MAXPATHLEN);
 			return (err);
 		}
+
+		kmem_free(interp, MAXPATHLEN);
+
 		if (args->to_model == DATAMODEL_NATIVE) {
 			err = mapexec_brand(nvp, args, &ehdr,
 			    &uphdr_vaddr, &voffset, exec_file, &interp,
-			    NULL, NULL, NULL, &lddata);
+			    NULL, NULL, NULL, &lddata, NULL);
 		}
 #if defined(_LP64)
 		else {
@@ -796,7 +870,7 @@ brand_solaris_elfexec(vnode_t *vp, execa_t *uap, uarg_t *args,
 			Elf32_Addr uphdr_vaddr32;
 			err = mapexec32_brand(nvp, args, &ehdr32,
 			    &uphdr_vaddr32, &voffset, exec_file, &interp,
-			    NULL, NULL, NULL, &lddata);
+			    NULL, NULL, NULL, &lddata, NULL);
 			Ehdr32to64(&ehdr32, &ehdr);
 
 			if (uphdr_vaddr32 == (Elf32_Addr)-1)
@@ -936,9 +1010,9 @@ brand_solaris_elfexec(vnode_t *vp, execa_t *uap, uarg_t *args,
 
 	/*
 	 * Third, the /proc aux vectors set up by elfexec() point to
-	 * brand emulation library and it's linker.  Copy these to the
+	 * brand emulation library and its linker.  Copy these to the
 	 * /proc brand specific aux vector, and update the regular
-	 * /proc aux vectors to point to the executable (and it's
+	 * /proc aux vectors to point to the executable (and its
 	 * linker).  This will enable debuggers to access the
 	 * executable via the usual /proc or elf notes aux vectors.
 	 *
@@ -1080,72 +1154,49 @@ brand_solaris_freelwp(klwp_t *l, struct brand *pbrand)
 }
 
 /*ARGSUSED*/
-int
+void
 brand_solaris_initlwp(klwp_t *l, struct brand *pbrand)
 {
 	ASSERT(l->lwp_procp->p_brand == pbrand);
 	ASSERT(l->lwp_procp->p_brand_data != NULL);
 	ASSERT(l->lwp_brand == NULL);
 	l->lwp_brand = (void *)-1;
-	return (0);
 }
 
 /*ARGSUSED*/
 void
 brand_solaris_lwpexit(klwp_t *l, struct brand *pbrand)
 {
-	proc_t  *p = l->lwp_procp;
-
 	ASSERT(l->lwp_procp->p_brand == pbrand);
 	ASSERT(l->lwp_procp->p_brand_data != NULL);
 	ASSERT(l->lwp_brand != NULL);
-
-	/*
-	 * We should never be called for the last thread in a process.
-	 * (That case is handled by brand_solaris_proc_exit().)
-	 * Therefore this lwp must be exiting from a multi-threaded
-	 * process.
-	 */
-	ASSERT(p->p_tlist != p->p_tlist->t_forw);
-
-	l->lwp_brand = NULL;
 }
 
 /*ARGSUSED*/
 void
-brand_solaris_proc_exit(struct proc *p, klwp_t *l, struct brand *pbrand)
+brand_solaris_proc_exit(struct proc *p, struct brand *pbrand)
 {
 	ASSERT(p->p_brand == pbrand);
 	ASSERT(p->p_brand_data != NULL);
 
 	/*
-	 * When called from proc_exit(), we know that process is
-	 * single-threaded and free our lwp brand data.
-	 * otherwise just free p_brand_data and return.
+	 * Nothing to do here. The proc brand data must remain in place
+	 * until the remaining LWP has been cleaned up via the b_freelwp
+	 * hook; it is then freed by brand_clearbrand() when the process
+	 * is reaped.
 	 */
-	if (l != NULL) {
-		ASSERT(p->p_tlist == p->p_tlist->t_forw);
-		ASSERT(p->p_tlist->t_lwp == l);
-		(void) brand_solaris_freelwp(l, pbrand);
-	}
-
-	/* upon exit, free our proc brand data */
-	kmem_free(p->p_brand_data, sizeof (brand_proc_data_t));
-	p->p_brand_data = NULL;
 }
 
 void
 brand_solaris_setbrand(proc_t *p, struct brand *pbrand)
 {
+	ASSERT(MUTEX_HELD(&p->p_lock));
 	ASSERT(p->p_brand == pbrand);
-	ASSERT(p->p_brand_data == NULL);
 
 	/*
-	 * We should only be called from exec(), when we know the process
-	 * is single-threaded.
+	 * The proc brand data was allocated by brand_setbrand() before
+	 * this hook was called, whether branding is occurring as part of
+	 * fork() or exec().
 	 */
-	ASSERT(p->p_tlist == p->p_tlist->t_forw);
-
-	p->p_brand_data = kmem_zalloc(sizeof (brand_proc_data_t), KM_SLEEP);
-	(void) brand_solaris_initlwp(p->p_tlist->t_lwp, pbrand);
+	ASSERT(p->p_brand_data != NULL);
 }

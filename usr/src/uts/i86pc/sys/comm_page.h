@@ -28,6 +28,8 @@
 extern "C" {
 #endif
 
+#define	COMM_PAGE_ALIGN	0x4000
+
 #ifndef _ASM
 
 /*

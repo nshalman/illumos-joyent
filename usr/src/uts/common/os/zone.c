@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2015, Joyent Inc. All rights reserved.
+ * Copyright 2019 Joyent, Inc.
  * Copyright (c) 2016 by Delphix. All rights reserved.
  * Copyright 2018 OmniOS Community Edition (OmniOSce) Association.
  */
@@ -2546,7 +2546,7 @@ zone_set_brand(zone_t *zone, const char *brand)
 
 	/* set up the brand specific data */
 	zone->zone_brand = bp;
-	ZBROP(zone)->b_init_brand_data(zone);
+	ZBROP(zone)->b_init_brand_data(zone, &zone_status_lock);
 
 	mutex_exit(&zone_status_lock);
 	return (0);

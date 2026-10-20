@@ -21,7 +21,8 @@
 
 /*
  * Copyright (c) 1988, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2013, Joyent, Inc. All rights reserved.
+ * Copyright 2016, Joyent, Inc.
+ * Copyright 2026 OmniOS Community Edition (OmniOSce) Association.
  * Copyright 2026 Oxide Computer Company
  */
 
@@ -87,6 +88,7 @@ int64_t cfork(int, int, kspawn_param_t *, int);
 static int getproc(proc_t **, pid_t, uint_t, kspawn_param_t *);
 #define	GETPROC_USER	0x0
 #define	GETPROC_KERNEL	0x1
+#define	GETPROC_ZSCHED	0x2
 
 static void fork_fail(proc_t *, bool);
 static void forklwp_fail(proc_t *);
@@ -1100,7 +1102,11 @@ getproc(proc_t **cpp, pid_t pid, uint_t flags, kspawn_param_t *ksp)
 	if (zone_status_get(curproc->p_zone) >= ZONE_IS_SHUTTING_DOWN)
 		return (-1);	/* no point in starting new processes */
 
-	pp = (flags & GETPROC_KERNEL) ? &p0 : curproc;
+	if (flags & GETPROC_ZSCHED) {
+		pp = curproc->p_zone->zone_zsched;
+	} else {
+		pp = (flags & GETPROC_KERNEL) ? &p0 : curproc;
+	}
 	task = pp->p_task;
 	proj = task->tk_proj;
 	zone = pp->p_zone;
@@ -1160,6 +1166,9 @@ getproc(proc_t **cpp, pid_t pid, uint_t flags, kspawn_param_t *ksp)
 	cp->p_zone = pp->p_zone;
 	cp->p_t1_lgrpid = LGRP_NONE;
 	cp->p_tr_lgrpid = LGRP_NONE;
+
+	/* Default to native brand initially */
+	cp->p_brand = &native_brand;
 
 	if ((newpid = pid_allocate(cp, pid, PID_ALLOC_PROC)) == -1) {
 		if (nproc == v.v_proc) {
@@ -1233,9 +1242,6 @@ getproc(proc_t **cpp, pid_t pid, uint_t flags, kspawn_param_t *ksp)
 		cp->p_flag |= SSPAWNING;
 	cp->p_sessp = pp->p_sessp;
 	sess_hold(pp);
-	cp->p_brand = pp->p_brand;
-	if (PROC_IS_BRANDED(pp))
-		BROP(pp)->b_copy_procdata(cp, pp);
 	cp->p_bssbase = pp->p_bssbase;
 	cp->p_brkbase = pp->p_brkbase;
 	cp->p_brksize = pp->p_brksize;
@@ -1314,6 +1320,18 @@ getproc(proc_t **cpp, pid_t pid, uint_t flags, kspawn_param_t *ksp)
 		task_attach(pp->p_task, cp);
 	mutex_exit(&cp->p_lock);
 	mutex_exit(&pidlock);
+
+	if (PROC_IS_BRANDED(pp)) {
+		/*
+		 * The only reason why process branding should fail is when
+		 * the procedure is complicated by multiple LWPs on the scene.
+		 * With an LWP count of 0, this newly allocated process has no
+		 * reason to fail branding.
+		 */
+		VERIFY0(brand_setbrand(cp, B_TRUE));
+
+		BROP(pp)->b_copy_procdata(cp, pp);
+	}
 
 	avl_create(&cp->p_ct_held, contract_compar, sizeof (contract_t),
 	    offsetof(contract_t, ct_ctlist));

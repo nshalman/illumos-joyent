@@ -529,6 +529,37 @@ noprod_sys_syscall:
 
 	incq	%gs:CPU_STATS_SYS_SYSCALL
 
+	/*
+	 * If our LWP has an alternate system call handler, run that instead of
+	 * the regular system call path.
+	 */
+	movq	LWP_BRAND_SYSCALL(%r14), %rdi
+	testq	%rdi, %rdi
+	jz	_syscall_no_brand
+
+	pushq	%rax
+	subq	$8, %rsp	/* align stack for call to C */
+	INDIRECT_CALL_REG(rdi)
+	addq	$8, %rsp
+
+	/*
+	 * If the alternate handler returns non-zero, the normal system call
+	 * processing is resumed.
+	 */
+	testl	%eax, %eax
+	popq	%rax
+	jnz	_syscall_no_brand
+
+	/*
+	 * For branded syscalls which were handled in-kernel, shuffle the
+	 * register state as would be done by the native handler before jumping
+	 * to the post-syscall logic.
+	 */
+	movq	REGOFF_RAX(%rsp), %r12
+	movq	REGOFF_RDX(%rsp), %r13
+	jmp	_syscall_after_brand
+
+_syscall_no_brand:
 	movw	%ax, T_SYSNUM(%r15)
 	movzbl	T_PRE_SYS(%r15), %ebx
 	ORL_SYSCALLTRACE(%ebx)
@@ -564,6 +595,8 @@ _syscall_invoke:
 	shrq	$32, %r13	/* upper 32-bits into %edx */
 	movl	%r12d, %r12d	/* lower 32-bits into %eax */
 5:
+
+_syscall_after_brand:
 	/*
 	 * Optimistically assume that there's no post-syscall
 	 * work to do.  (This is to avoid having to call syscall_mstate()
@@ -826,11 +859,46 @@ _syscall32_save:
 	incq	 %gs:CPU_STATS_SYS_SYSCALL
 
 	/*
+	 * If our lwp has an alternate system call handler, run that instead
+	 * of the regular system call path.
+	 */
+	movq	LWP_BRAND_SYSCALL(%r14), %rax
+	testq	%rax, %rax
+	jz	_syscall32_no_brand
+
+	movb	$LWP_SYS, LWP_STATE(%r14)
+	INDIRECT_CALL_REG(rax)
+
+	/*
+	 * If the alternate handler returns non-zero, the normal system call
+	 * processing is resumed.
+	 */
+	testl	%eax, %eax
+	jnz	_syscall32_no_brand
+
+	/*
+	 * For branded syscalls which were handled in-kernel, shuffle the
+	 * register state as would be done by the native handler before jumping
+	 * to the post-syscall logic.
+	 */
+	movl	REGOFF_RAX(%rsp), %r12d
+	movl	REGOFF_RDX(%rsp), %r13d
+	jmp	_syscall32_after_brand
+
+_syscall32_no_brand:
+	/*
 	 * Make some space for MAXSYSARGS (currently 8) 32-bit args placed
 	 * into 64-bit (long) arg slots, maintaining 16 byte alignment.  Or
 	 * more succinctly:
 	 *
 	 *	SA(MAXSYSARGS * sizeof (long)) == 64
+	 *
+	 * Note, this space is used both to copy in the arguments from user
+	 * land, but also to as part of the old UNIX style syscall_ap() method.
+	 * syscall_entry expects that we do not change the values of this space
+	 * that we give it. However, this means that when we end up in the more
+	 * recent model of passing the arguments based on the calling
+	 * conventions, we'll need to save an additional 16 bytes of stack.
 	 */
 #define	SYS_DROP	64			/* drop for args */
 	subq	$SYS_DROP, %rsp
@@ -858,12 +926,16 @@ _syscall32_save:
 	 */
 
 	movq	%rax, %rbx
-	movl	0(%rsp), %edi
-	movl	8(%rsp), %esi
-	movl	0x10(%rsp), %edx
-	movl	0x18(%rsp), %ecx
-	movl	0x20(%rsp), %r8d
-	movl	0x28(%rsp), %r9d
+	movl	0x0(%rsp), %edi		/* arg0 */
+	movl	0x8(%rsp), %esi		/* arg1 */
+	movl	0x10(%rsp), %edx	/* arg2 */
+	movl	0x38(%rsp), %eax	/* arg7 load */
+	movl	0x18(%rsp), %ecx	/* arg3 */
+	pushq	%rax			/* arg7 saved to stack */
+	movl	0x28(%rsp), %r8d	/* arg4 */
+	movl	0x38(%rsp), %eax	/* arg6 load */
+	movl	0x30(%rsp), %r9d	/* arg5 */
+	pushq	%rax			/* arg6 saved to stack */
 
 	movq	SY_CALLC(%rbx), %rax
 	INDIRECT_CALL_REG(rax)
@@ -881,6 +953,8 @@ _syscall32_save:
 	movq	%rax, %r13
 	shrq	$32, %r13	/* upper 32-bits into %edx */
 	movl	%eax, %r12d	/* lower 32-bits into %eax */
+
+_syscall32_after_brand:
 
 	/*
 	 * Optimistically assume that there's no post-syscall
@@ -1134,15 +1208,20 @@ _full_syscall_postsys32:
 	/*
 	 * Fetch the arguments copied onto the kernel stack and put
 	 * them in the right registers to invoke a C-style syscall handler.
-	 * %rax contains the handler address.
+	 * %rax contains the handler address. For the last two arguments, we
+	 * push them onto the stack -- we can't clobber the old arguments.
 	 */
 	movq	%rax, %rbx
-	movl	0(%rsp), %edi
-	movl	8(%rsp), %esi
-	movl	0x10(%rsp), %edx
-	movl	0x18(%rsp), %ecx
-	movl	0x20(%rsp), %r8d
-	movl	0x28(%rsp), %r9d
+	movl	0x0(%rsp), %edi		/* arg0 */
+	movl	0x8(%rsp), %esi		/* arg1 */
+	movl	0x10(%rsp), %edx	/* arg2 */
+	movl	0x38(%rsp), %eax	/* arg7 load */
+	movl	0x18(%rsp), %ecx	/* arg3 */
+	pushq	%rax			/* arg7 saved to stack */
+	movl	0x28(%rsp), %r8d	/* arg4 */
+	movl	0x38(%rsp), %eax	/* arg6 load */
+	movl	0x30(%rsp), %r9d	/* arg5 */
+	pushq	%rax			/* arg6 saved to stack */
 
 	movq	SY_CALLC(%rbx), %rax
 	INDIRECT_CALL_REG(rax)
@@ -1219,6 +1298,66 @@ _full_syscall_postsys32:
 	SET_SIZE(sys_sysenter)
 	SET_SIZE(_sys_sysenter_post_swapgs)
 	SET_SIZE(brand_sys_sysenter)
+
+/*
+ * System call via an int80.  This entry point is only used by the Linux
+ * application environment.  Unlike the other entry points, there is no
+ * default action to take if no callback is registered for this process.
+ */
+
+	ENTRY_NP(brand_sys_int80)
+	SWAPGS				/* kernel gsbase */
+	XPV_TRAP_POP
+	call	smap_enable
+
+	/*
+	 * We first attempt to call the "b_int80" handler from the "struct
+	 * brand_mach_ops" for this brand.  If no handler function is installed
+	 * for this brand, the BRAND_CALLBACK() macro returns here and we
+	 * check the lwp for a "lwp_brand_syscall" handler.
+	 */
+	BRAND_CALLBACK(BRAND_CB_INT80, BRAND_URET_FROM_INTR_STACK())
+
+	/*
+	 * Check to see if this lwp provides "lwp_brand_syscall".  If so, we
+	 * will route this int80 through the regular system call handling path.
+	 */
+	movq	%r15, %gs:CPU_RTMP_R15
+	movq	%gs:CPU_THREAD, %r15
+	movq	T_LWP(%r15), %r15
+	movq	LWP_BRAND_SYSCALL(%r15), %r15
+	testq	%r15, %r15
+	movq	%gs:CPU_RTMP_R15, %r15
+	jnz	nopop_syscall_int
+
+	/*
+	 * The brand provided neither a "b_int80", nor a "lwp_brand_syscall"
+	 * function, and has thus opted out of handling this trap.
+	 */
+	SWAPGS				/* user gsbase */
+	jmp	nopop_int80
+
+	ENTRY_NP(sys_int80)
+	/*
+	 * We hit an int80, but this process isn't of a brand with an int80
+	 * handler.  Bad process!  Make it look as if the INT failed.
+	 * Modify %rip to point before the INT, push the expected error
+	 * code and fake a GP fault. Note on 64-bit hypervisor we need
+	 * to undo the XPV_TRAP_POP and push rcx and r11 back on the stack
+	 * because gptrap will pop them again with its own XPV_TRAP_POP.
+	 */
+	XPV_TRAP_POP
+	call	smap_enable
+nopop_int80:
+	subq	$2, (%rsp)	/* int insn 2-bytes */
+	pushq	$_CONST(_MUL(T_INT80, GATE_DESC_SIZE) + 2)
+#if defined(__xpv)
+	push	%r11
+	push	%rcx
+#endif
+	jmp	gptrap			/ GP fault
+	SET_SIZE(sys_int80)
+	SET_SIZE(brand_sys_int80)
 
 /*
  * This is the destination of the "int $T_SYSCALLINT" interrupt gate, used by

@@ -59,7 +59,7 @@ shbinexec(
 	int setid,
 	caddr_t exec_file,
 	struct cred *cred,
-	int brand_action);
+	int *brand_action);
 
 #define	SHBIN_CNTL(x)	((x)&037)
 #define	SHBINMAGIC_LEN	4
@@ -161,11 +161,11 @@ shbinexec(
 	int setid,
 	caddr_t exec_file,
 	struct cred *cred,
-	int brand_action)
+	int *brand_action)
 {
 	_NOTE(ARGUNUSED(brand_action))
 	vnode_t *nvp;
-	int error = 0;
+	int error = 0, eba;
 	struct intpdata idata;
 	struct pathname intppn;
 	struct pathname resolvepn;
@@ -245,8 +245,9 @@ shbinexec(
 		args->fname = devfd;
 	}
 
+	eba = EBA_NONE;
 	error = gexec(&nvp, uap, args, &idata, ++level, execsz, exec_file, cred,
-	    EBA_NONE);
+	    &eba);
 
 	if (!error) {
 		/*

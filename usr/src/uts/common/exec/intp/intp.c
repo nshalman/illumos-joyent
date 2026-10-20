@@ -48,6 +48,7 @@
 #include <sys/kmem.h>
 #include <sys/note.h>
 #include <sys/sdt.h>
+#include <sys/brand.h>
 
 /*
  * This is the loadable module wrapper.
@@ -55,7 +56,7 @@
 #include <sys/modctl.h>
 
 extern int intpexec(struct vnode *, struct execa *, struct uarg *,
-    struct intpdata *, int, size_t *, int, caddr_t, struct cred *, int);
+    struct intpdata *, int, size_t *, int, caddr_t, struct cred *, int *);
 
 static struct execsw esw = {
 	intpmagicstr,
@@ -127,13 +128,20 @@ getintphead(struct vnode *vp, struct intpdata *idatap)
 	*cp = '\0';
 
 	/*
-	 * Locate the beginning and end of the interpreter name.
-	 * In addition to the name, one additional argument may
-	 * optionally be included here, to be prepended to the
-	 * arguments provided on the command line.  Thus, for
-	 * example, you can say
+	 * Locate the beginning and end of the interpreter name. Historically,
+	 * for illumos and its predecessors, in addition to the name, one
+	 * additional argument may optionally be included here, to be prepended
+	 * to the arguments provided on the command line. Thus, for example,
+	 * you can say
 	 *
-	 *	#! /usr/bin/awk -f
+	 * 	#! /usr/bin/awk -f
+	 *
+	 * However, handling of interpreter arguments varies across operating
+	 * systems and other systems allow more than one argument. In
+	 * particular, Linux allows more than one and delivers all arguments
+	 * as a single string (argv[1] is "-arg1 -arg2 ..."). We support this
+	 * style of argument handling as a brand-specific option (setting
+	 * b_intp_parse_arg to B_FALSE).
 	 */
 	for (cp = &linep[2]; *cp == ' '; cp++)
 		;
@@ -152,9 +160,12 @@ getintphead(struct vnode *vp, struct intpdata *idatap)
 			idatap->intp_arg[0] = NULL;
 		else {
 			idatap->intp_arg[0] = cp;
-			while (*cp && *cp != ' ')
-				cp++;
-			*cp = '\0';
+			if (!PROC_IS_BRANDED(curproc) ||
+			    BROP(curproc)->b_intp_parse_arg) {
+				while (*cp && *cp != ' ')
+					cp++;
+				*cp = '\0';
+			}
 		}
 	}
 	return (0);
@@ -189,9 +200,8 @@ intpexec(
 	int setid,
 	caddr_t exec_file,
 	struct cred *cred,
-	int brand_action)
+	int *brand_action)
 {
-	_NOTE(ARGUNUSED(brand_action))
 	vnode_t *nvp;
 	int error = 0;
 	struct intpdata idata;
@@ -282,7 +292,7 @@ intpexec(
 	}
 
 	error = gexec(&nvp, uap, args, &idata, ++level, execsz, exec_file, cred,
-	    EBA_NONE);
+	    brand_action);
 
 	if (!error) {
 		/*

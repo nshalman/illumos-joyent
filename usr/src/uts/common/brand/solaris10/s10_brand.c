@@ -46,45 +46,71 @@
 
 char *s10_emulation_table = NULL;
 
-void	s10_init_brand_data(zone_t *);
+void	s10_init_brand_data(zone_t *, kmutex_t *);
 void	s10_free_brand_data(zone_t *);
 void	s10_setbrand(proc_t *);
 int	s10_getattr(zone_t *, int, void *, size_t *);
 int	s10_setattr(zone_t *, int, void *, size_t);
 int	s10_brandsys(int, int64_t *, uintptr_t, uintptr_t, uintptr_t,
-		uintptr_t, uintptr_t, uintptr_t);
+		uintptr_t);
 void	s10_copy_procdata(proc_t *, proc_t *);
-void	s10_proc_exit(struct proc *, klwp_t *);
+void	s10_proc_exit(struct proc *);
 void	s10_exec();
-int	s10_initlwp(klwp_t *);
+void	s10_initlwp(klwp_t *, void *);
 void	s10_forklwp(klwp_t *, klwp_t *);
 void	s10_freelwp(klwp_t *);
 void	s10_lwpexit(klwp_t *);
 int	s10_elfexec(vnode_t *, execa_t *, uarg_t *, intpdata_t *, int,
-		size_t *, int, caddr_t, cred_t *, int);
+    size_t *, int, caddr_t, cred_t *, int *);
 void	s10_sigset_native_to_s10(sigset_t *);
 void	s10_sigset_s10_to_native(sigset_t *);
 
 /* s10 brand */
 struct brand_ops s10_brops = {
-	s10_init_brand_data,
-	s10_free_brand_data,
-	s10_brandsys,
-	s10_setbrand,
-	s10_getattr,
-	s10_setattr,
-	s10_copy_procdata,
-	s10_proc_exit,
-	s10_exec,
-	lwp_setrval,
-	s10_initlwp,
-	s10_forklwp,
-	s10_freelwp,
-	s10_lwpexit,
-	s10_elfexec,
-	s10_sigset_native_to_s10,
-	s10_sigset_s10_to_native,
-	S10_NSIG,
+	s10_init_brand_data,		/* b_init_brand_data */
+	s10_free_brand_data,		/* b_free_brand_data */
+	s10_brandsys,			/* b_brandsys */
+	s10_setbrand,			/* b_setbrand */
+	s10_getattr,			/* b_getattr */
+	s10_setattr,			/* b_setattr */
+	s10_copy_procdata,		/* b_copy_procdata */
+	s10_proc_exit,			/* b_proc_exit */
+	s10_exec,			/* b_exec */
+	lwp_setrval,			/* b_lwp_setrval */
+	NULL,				/* b_lwpdata_alloc */
+	NULL,				/* b_lwpdata_free */
+	s10_initlwp,			/* b_initlwp */
+	NULL,				/* b_initlwp_post */
+	s10_forklwp,			/* b_forklwp */
+	s10_freelwp,			/* b_freelwp */
+	s10_lwpexit,			/* b_lwpexit */
+	s10_elfexec,			/* b_elfexec */
+	s10_sigset_native_to_s10,	/* b_sigset_native_to_brand */
+	s10_sigset_s10_to_native,	/* b_sigset_brand_to_native */
+	NULL,				/* b_sigfd_translate */
+	S10_NSIG,			/* b_nsig */
+	NULL,				/* b_exit_with_sig */
+	NULL,				/* b_wait_filter */
+	NULL,				/* b_native_exec */
+	NULL,				/* b_map32limit */
+	NULL,				/* b_stop_notify */
+	NULL,				/* b_waitid_helper */
+	NULL,				/* b_sigcld_repost */
+	NULL,				/* b_issig_stop */
+	NULL,				/* b_sig_ignorable */
+	NULL,				/* b_savecontext */
+#if defined(_SYSCALL32_IMPL)
+	NULL,				/* b_savecontext32 */
+#endif
+	NULL,				/* b_restorecontext */
+	NULL,				/* b_sendsig_stack */
+	NULL,				/* b_sendsig */
+	NULL,				/* b_setid_clear */
+	NULL,				/* b_pagefault */
+	B_TRUE,				/* b_intp_parse_arg */
+	NULL,				/* b_clearbrand */
+	NULL,				/* b_rpc_statd */
+	NULL				/* b_acct_out */
 };
 
 #ifdef	sparc
@@ -100,9 +126,12 @@ struct brand_mach_ops s10_mops = {
 
 struct brand_mach_ops s10_mops = {
 	s10_brand_sysenter_callback,
+	NULL,
 	s10_brand_int91_callback,
 	s10_brand_syscall_callback,
-	s10_brand_syscall32_callback
+	s10_brand_syscall32_callback,
+	NULL,
+	NULL
 };
 
 #else	/* ! __amd64 */
@@ -110,7 +139,10 @@ struct brand_mach_ops s10_mops = {
 struct brand_mach_ops s10_mops = {
 	s10_brand_sysenter_callback,
 	NULL,
+	NULL,
 	s10_brand_syscall_callback,
+	NULL,
+	NULL,
 	NULL
 };
 #endif	/* __amd64 */
@@ -121,7 +153,8 @@ struct brand	s10_brand = {
 	BRAND_VER_1,
 	"solaris10",
 	&s10_brops,
-	&s10_mops
+	&s10_mops,
+	sizeof (brand_proc_data_t),
 };
 
 static struct modlbrand modlbrand = {
@@ -250,10 +283,10 @@ s10_native(void *cmd, void *args)
 	return (0);
 }
 
-/*ARGSUSED*/
+/* ARGSUSED5 */
 int
 s10_brandsys(int cmd, int64_t *rval, uintptr_t arg1, uintptr_t arg2,
-    uintptr_t arg3, uintptr_t arg4, uintptr_t arg5, uintptr_t arg6)
+    uintptr_t arg3, uintptr_t arg4)
 {
 	proc_t	*p = curproc;
 	int	res;
@@ -327,9 +360,9 @@ s10_copy_procdata(proc_t *child, proc_t *parent)
 }
 
 void
-s10_proc_exit(struct proc *p, klwp_t *l)
+s10_proc_exit(struct proc *p)
 {
-	brand_solaris_proc_exit(p, l, &s10_brand);
+	brand_solaris_proc_exit(p, &s10_brand);
 }
 
 void
@@ -338,10 +371,10 @@ s10_exec()
 	brand_solaris_exec(&s10_brand);
 }
 
-int
-s10_initlwp(klwp_t *l)
+void
+s10_initlwp(klwp_t *l, void *bd)
 {
-	return (brand_solaris_initlwp(l, &s10_brand));
+	brand_solaris_initlwp(l, &s10_brand);
 }
 
 void
@@ -381,7 +414,7 @@ s10_free_brand_data(zone_t *zone)
 }
 
 void
-s10_init_brand_data(zone_t *zone)
+s10_init_brand_data(zone_t *zone, kmutex_t *zsl)
 {
 	ASSERT(zone->zone_brand == &s10_brand);
 	ASSERT(zone->zone_brand_data == NULL);
@@ -391,11 +424,11 @@ s10_init_brand_data(zone_t *zone)
 int
 s10_elfexec(vnode_t *vp, execa_t *uap, uarg_t *args, intpdata_t *idatap,
     int level, size_t *execsz, int setid, caddr_t exec_file, cred_t *cred,
-    int brand_action)
+    int *brand_action)
 {
 	return (brand_solaris_elfexec(vp, uap, args, idatap, level, execsz,
 	    setid, exec_file, cred, brand_action, &s10_brand, S10_BRANDNAME,
-	    S10_LIB, S10_LIB32, S10_LINKER, S10_LINKER32));
+	    S10_LIB, S10_LIB32));
 }
 
 void

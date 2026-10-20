@@ -26,7 +26,7 @@
 /*	Copyright (c) 1984, 1986, 1987, 1988, 1989 AT&T	*/
 /*	   All Rights Reserved	*/
 /*
- * Copyright 2019, Joyent, Inc.
+ * Copyright 2019 Joyent, Inc.
  * Copyright 2023 Oxide Computer Company
  * Copyright 2026 Carsten Grzemba
  */
@@ -94,7 +94,6 @@ static size_t elfsize(const Ehdr *, uint_t, const caddr_t, uintptr_t *);
 static int mapelfexec(vnode_t *, Ehdr *, uint_t, caddr_t, Phdr **, Phdr **,
     Phdr **, Phdr **, Phdr *, caddr_t *, caddr_t *, intptr_t *, uintptr_t *,
     size_t, size_t *, size_t *);
-
 
 #ifdef _ELF32_COMPAT
 /* Link against the non-compat instances when compiling the 32-bit version. */
@@ -182,12 +181,16 @@ elf_ctx_resize_scratch(elf_core_ctx_t *ctx, size_t sz)
 #endif /* _ELF32_COMPAT */
 
 /*
- * Map in the executable pointed to by vp. Returns 0 on success.
+ * Map in the executable pointed to by vp. Returns 0 on success.  Note that
+ * this function currently has the maximum number of arguments allowed by
+ * modstubs on x86 (MAXNARG)!  Do _not_ add to this function signature without
+ * adding to MAXNARG.  (Better yet, do not add to this monster of a function
+ * signature!)
  */
 int
 mapexec_brand(vnode_t *vp, uarg_t *args, Ehdr *ehdr, Addr *uphdr_vaddr,
-    intptr_t *voffset, caddr_t exec_file, int *interp, caddr_t *bssbase,
-    caddr_t *brkbase, size_t *brksize, uintptr_t *lddatap)
+    intptr_t *voffset, caddr_t exec_file, char **interpp, caddr_t *bssbase,
+    caddr_t *brkbase, size_t *brksize, uintptr_t *lddatap, uintptr_t *minaddrp)
 {
 	size_t		len, phdrsize;
 	struct vattr	vat;
@@ -198,11 +201,15 @@ mapexec_brand(vnode_t *vp, uarg_t *args, Ehdr *ehdr, Addr *uphdr_vaddr,
 	Phdr		*junk = NULL;
 	Phdr		*dynphdr = NULL;
 	Phdr		*dtrphdr = NULL;
+	char		*interp = NULL;
 	uintptr_t	lddata, minaddr;
 	size_t		execsz;
 
 	if (lddatap != NULL)
 		*lddatap = 0;
+
+	if (minaddrp != NULL)
+		*minaddrp = (uintptr_t)NULL;
 
 	if (error = execpermissions(vp, &vat, args)) {
 		uprintf("%s: Cannot execute %s\n", exec_file, args->pathname);
@@ -235,24 +242,85 @@ mapexec_brand(vnode_t *vp, uarg_t *args, Ehdr *ehdr, Addr *uphdr_vaddr,
 		return (error);
 	}
 
+	if (minaddrp != NULL)
+		*minaddrp = minaddr;
+
 	/*
-	 * Inform our caller if the executable needs an interpreter.
+	 * If the executable requires an interpreter, determine its name.
 	 */
-	*interp = (dynphdr == NULL) ? 0 : 1;
+	if (dynphdr != NULL) {
+		ssize_t	resid;
+
+		if (dynphdr->p_filesz > MAXPATHLEN || dynphdr->p_filesz == 0) {
+			uprintf("%s: Invalid interpreter\n", exec_file);
+			kmem_free(phdrbase, phdrsize);
+			return (ENOEXEC);
+		}
+
+		interp = kmem_alloc(MAXPATHLEN, KM_SLEEP);
+
+		if ((error = vn_rdwr(UIO_READ, vp, interp,
+		    (ssize_t)dynphdr->p_filesz,
+		    (offset_t)dynphdr->p_offset, UIO_SYSSPACE, 0,
+		    (rlim64_t)0, CRED(), &resid)) != 0 || resid != 0 ||
+		    interp[dynphdr->p_filesz - 1] != '\0') {
+			uprintf("%s: Cannot obtain interpreter pathname\n",
+			    exec_file);
+			kmem_free(interp, MAXPATHLEN);
+			kmem_free(phdrbase, phdrsize);
+			return (error != 0 ? error : ENOEXEC);
+		}
+	}
 
 	/*
 	 * If this is a statically linked executable, voffset should indicate
 	 * the address of the executable itself (it normally holds the address
 	 * of the interpreter).
 	 */
-	if (ehdr->e_type == ET_EXEC && *interp == 0)
+	if (ehdr->e_type == ET_EXEC && interp == NULL)
 		*voffset = minaddr;
+
+	/*
+	 * If the caller has asked for the interpreter name, return it (it's
+	 * up to the caller to free it); if the caller hasn't asked for it,
+	 * free it ourselves.
+	 */
+	if (interpp != NULL) {
+		*interpp = interp;
+	} else if (interp != NULL) {
+		kmem_free(interp, MAXPATHLEN);
+	}
 
 	if (uphdr != NULL) {
 		*uphdr_vaddr = uphdr->p_vaddr;
 
 		if (uphdr->p_flags == 0)
 			kmem_free(uphdr, sizeof (Phdr));
+	} else if (ehdr->e_type == ET_DYN) {
+		/*
+		 * If we don't have a uphdr, we'll apply the logic found
+		 * in mapelfexec() and use the p_vaddr of the first PT_LOAD
+		 * section as the base address of the object.
+		 */
+		const Phdr *phdr = (Phdr *)phdrbase;
+		const uint_t hsize = ehdr->e_phentsize;
+		uint_t i;
+
+		for (i = nphdrs; i > 0; i--) {
+			if (phdr->p_type == PT_LOAD) {
+				*uphdr_vaddr = (uintptr_t)phdr->p_vaddr +
+				    ehdr->e_phoff;
+				break;
+			}
+
+			phdr = (Phdr *)((caddr_t)phdr + hsize);
+		}
+
+		/*
+		 * If we don't have a PT_LOAD segment, we should have returned
+		 * ENOEXEC when elfsize() returned 0, above.
+		 */
+		VERIFY(i > 0);
 	} else {
 		*uphdr_vaddr = (Addr)-1;
 	}
@@ -264,13 +332,13 @@ mapexec_brand(vnode_t *vp, uarg_t *args, Ehdr *ehdr, Addr *uphdr_vaddr,
 int
 elfexec(vnode_t *vp, execa_t *uap, uarg_t *args, intpdata_t *idatap,
     int level, size_t *execsz, int setid, caddr_t exec_file, cred_t *cred,
-    int brand_action)
+    int *brand_action)
 {
 	caddr_t		phdrbase = NULL;
 	caddr_t		bssbase = 0;
 	caddr_t		brkbase = 0;
 	size_t		brksize = 0;
-	size_t		dlnsize;
+	size_t		dlnsize, nsize = 0;
 	aux_entry_t	*aux;
 	int		error;
 	ssize_t		resid;
@@ -350,7 +418,9 @@ elfexec(vnode_t *vp, execa_t *uap, uarg_t *args, intpdata_t *idatap,
 		*execsz = btopr(SINCR) + btopr(SSIZE) + btopr(NCARGS32-1);
 	} else {
 		args->to_model = DATAMODEL_LP64;
-		args->stk_prot &= ~PROT_EXEC;
+		if (!args->stk_prot_override) {
+			args->stk_prot &= ~PROT_EXEC;
+		}
 #if defined(__x86)
 		args->dat_prot &= ~PROT_EXEC;
 #endif
@@ -362,11 +432,25 @@ elfexec(vnode_t *vp, execa_t *uap, uarg_t *args, intpdata_t *idatap,
 #endif	/* _LP64 */
 
 	/*
-	 * We delay invoking the brand callback until we've figured out
-	 * what kind of elf binary we're trying to run, 32-bit or 64-bit.
-	 * We do this because now the brand library can just check
-	 * args->to_model to see if the target is 32-bit or 64-bit without
-	 * having do duplicate all the code above.
+	 * We delay invoking the brand callback until we've figured out what
+	 * kind of elf binary we're trying to run, 32-bit or 64-bit.  We do this
+	 * because now the brand library can just check args->to_model to see if
+	 * the target is 32-bit or 64-bit without having do duplicate all the
+	 * code above.
+	 *
+	 * We also give the brand a chance to indicate that based on the ELF
+	 * OSABI of the target binary it should become unbranded and optionally
+	 * indicate that it should be treated as existing in a specific prefix.
+	 *
+	 * Note that if a brand opts to go down this route it does not actually
+	 * end up being debranded. In other words, future programs that exec
+	 * will still be considered for branding unless this escape hatch is
+	 * used. Consider the case of lx brand for example. If a user runs
+	 * /native/usr/sbin/dtrace -c /bin/ls, the isaexec and normal executable
+	 * of DTrace that's in /native will take this escape hatch and be run
+	 * and interpreted using the normal system call table; however, the
+	 * execution of a non-illumos binary in the form of /bin/ls will still
+	 * be branded and be subject to all of the normal actions of the brand.
 	 *
 	 * The level checks associated with brand handling below are used to
 	 * prevent a loop since the brand elfexec function typically comes back
@@ -374,8 +458,20 @@ elfexec(vnode_t *vp, execa_t *uap, uarg_t *args, intpdata_t *idatap,
 	 * handling in the #! interpreter code will increment the level before
 	 * calling gexec to run the final elfexec interpreter.
 	 */
+	if ((level <= INTP_MAXDEPTH) && (*brand_action != EBA_NATIVE) &&
+	    (PROC_IS_BRANDED(p)) && (BROP(p)->b_native_exec != NULL)) {
+		if (BROP(p)->b_native_exec(ehdrp->e_ident[EI_OSABI],
+		    &args->brand_nroot) == B_TRUE) {
+			ASSERT(ehdrp->e_ident[EI_OSABI]);
+			*brand_action = EBA_NATIVE;
+			/* Add one for the trailing '/' in the path */
+			if (args->brand_nroot != NULL)
+				nsize = strlen(args->brand_nroot) + 1;
+		}
+	}
+
 	if ((level <= INTP_MAXDEPTH) &&
-	    (brand_action != EBA_NATIVE) && (PROC_IS_BRANDED(p))) {
+	    (*brand_action != EBA_NATIVE) && (PROC_IS_BRANDED(p))) {
 		error = BROP(p)->b_elfexec(vp, uap, args,
 		    idatap, level + 1, execsz, setid, exec_file, cred,
 		    brand_action);
@@ -449,6 +545,7 @@ elfexec(vnode_t *vp, execa_t *uap, uarg_t *args, intpdata_t *idatap,
 		 *	AT_BASE
 		 *	AT_FLAGS
 		 *	AT_PAGESZ
+		 *	AT_RANDOM	(added in stk_copyout)
 		 *	AT_SUN_AUXFLAGS
 		 *	AT_SUN_HWCAP
 		 *	AT_SUN_HWCAP2
@@ -457,7 +554,7 @@ elfexec(vnode_t *vp, execa_t *uap, uarg_t *args, intpdata_t *idatap,
 		 *	AT_SUN_EXECNAME (added in stk_copyout)
 		 *	AT_NULL
 		 *
-		 * total == 10
+		 * total == 11
 		 */
 		if (hasintp && hasu) {
 			/*
@@ -472,7 +569,7 @@ elfexec(vnode_t *vp, execa_t *uap, uarg_t *args, intpdata_t *idatap,
 			 *
 			 * total = 5
 			 */
-			args->auxsize = (10 + 5) * sizeof (aux_entry_t);
+			args->auxsize = (11 + 5) * sizeof (aux_entry_t);
 		} else if (hasintp) {
 			/*
 			 * Has PT_INTERP but no PT_PHDR
@@ -482,9 +579,9 @@ elfexec(vnode_t *vp, execa_t *uap, uarg_t *args, intpdata_t *idatap,
 			 *
 			 * total = 2
 			 */
-			args->auxsize = (10 + 2) * sizeof (aux_entry_t);
+			args->auxsize = (11 + 2) * sizeof (aux_entry_t);
 		} else {
-			args->auxsize = 10 * sizeof (aux_entry_t);
+			args->auxsize = 11 * sizeof (aux_entry_t);
 		}
 	} else {
 		args->auxsize = 0;
@@ -498,6 +595,15 @@ elfexec(vnode_t *vp, execa_t *uap, uarg_t *args, intpdata_t *idatap,
 		args->auxsize += sizeof (aux_entry_t);
 
 	/*
+	 * If this is a native binary that's been given a modified interpreter
+	 * root, inform it that the native system exists at that root.
+	 */
+	if (args->brand_nroot != NULL) {
+		args->auxsize += sizeof (aux_entry_t);
+	}
+
+
+	/*
 	 * On supported kernels (x86_64) make room in the auxv for the
 	 * AT_SUN_COMMPAGE entry.  This will go unpopulated on i86xpv systems
 	 * which do not provide such functionality.
@@ -509,13 +615,24 @@ elfexec(vnode_t *vp, execa_t *uap, uarg_t *args, intpdata_t *idatap,
 	args->auxsize += 3 * sizeof (aux_entry_t);
 #endif /* defined(__amd64) */
 
-	if ((brand_action != EBA_NATIVE) && (PROC_IS_BRANDED(p))) {
+	/*
+	 * If we have user credentials, we'll supply the following entries:
+	 *	AT_SUN_UID
+	 *	AT_SUN_RUID
+	 *	AT_SUN_GID
+	 *	AT_SUN_RGID
+	 */
+	if (cred != NULL) {
+		args->auxsize += 4 * sizeof (aux_entry_t);
+	}
+
+	if ((*brand_action != EBA_NATIVE) && (PROC_IS_BRANDED(p))) {
 		branded = 1;
 		/*
-		 * We will be adding 4 entries to the aux vectors.  One for
-		 * the the brandname and 3 for the brand specific aux vectors.
+		 * We will be adding 5 entries to the aux vectors.  One for
+		 * the brandname and 4 for the brand specific aux vectors.
 		 */
-		args->auxsize += 4 * sizeof (aux_entry_t);
+		args->auxsize += 5 * sizeof (aux_entry_t);
 	}
 
 	/* If the binary has an explicit ASLR flag, it must be honoured */
@@ -596,7 +713,8 @@ elfexec(vnode_t *vp, execa_t *uap, uarg_t *args, intpdata_t *idatap,
 	aux = bigwad->elfargs;
 	/*
 	 * Move args to the user's stack.
-	 * This can fill in the AT_SUN_PLATFORM and AT_SUN_EXECNAME aux entries.
+	 * This can fill in the AT_SUN_PLATFORM, AT_SUN_EXECNAME and AT_RANDOM
+	 * aux entries.
 	 */
 	if ((error = exec_args(uap, args, idatap, (void **)&aux)) != 0) {
 		if (error == -1) {
@@ -646,7 +764,7 @@ elfexec(vnode_t *vp, execa_t *uap, uarg_t *args, intpdata_t *idatap,
 		char		*p;
 		struct vnode	*nvp;
 
-		dlnsize = intphdr->p_filesz;
+		dlnsize = intphdr->p_filesz + nsize;
 
 		/*
 		 * Make sure none of the component pieces of dlnsize result in
@@ -657,10 +775,15 @@ elfexec(vnode_t *vp, execa_t *uap, uarg_t *args, intpdata_t *idatap,
 			goto bad;
 		}
 
+		if (nsize != 0) {
+			bcopy(args->brand_nroot, dlnp, nsize - 1);
+			dlnp[nsize - 1] = '/';
+		}
+
 		/*
 		 * Read in "interpreter" pathname.
 		 */
-		if ((error = vn_rdwr(UIO_READ, vp, dlnp,
+		if ((error = vn_rdwr(UIO_READ, vp, dlnp + nsize,
 		    (ssize_t)intphdr->p_filesz, (offset_t)intphdr->p_offset,
 		    UIO_SYSSPACE, 0, (rlim64_t)0, CRED(), &resid)) != 0) {
 			uprintf("%s: Cannot obtain interpreter pathname\n",
@@ -843,8 +966,8 @@ elfexec(vnode_t *vp, execa_t *uap, uarg_t *args, intpdata_t *idatap,
 #endif /* defined(__amd64) */
 
 		/*
-		 * Note: AT_SUN_PLATFORM and AT_SUN_EXECNAME were filled in via
-		 * exec_args()
+		 * Note: AT_SUN_PLATFORM, AT_SUN_EXECNAME and AT_RANDOM were
+		 * filled in via exec_args()
 		 */
 		ADDAUX(aux, AT_BASE, voffset)
 		ADDAUX(aux, AT_FLAGS, at_flags)
@@ -872,7 +995,7 @@ elfexec(vnode_t *vp, execa_t *uap, uarg_t *args, intpdata_t *idatap,
 		 * malicious user within the zone from crafting a wrapper to
 		 * run native suid commands with unsecure libraries interposed.
 		 */
-		if ((brand_action == EBA_NATIVE) && (PROC_IS_BRANDED(p) &&
+		if ((*brand_action == EBA_NATIVE) && (PROC_IS_BRANDED(p) &&
 		    (setid &= ~EXECSETID_SETID) != 0))
 			auxf &= ~AF_SUN_SETUGID;
 
@@ -885,6 +1008,17 @@ elfexec(vnode_t *vp, execa_t *uap, uarg_t *args, intpdata_t *idatap,
 		    ((char *)&aux->a_type -
 		    (char *)bigwad->elfargs));
 		ADDAUX(aux, AT_SUN_AUXFLAGS, auxf);
+
+		/*
+		 * Record information about the real and effective user and
+		 * group IDs.
+		 */
+		if (cred != NULL) {
+			ADDAUX(aux, AT_SUN_UID, crgetuid(cred));
+			ADDAUX(aux, AT_SUN_RUID, crgetruid(cred));
+			ADDAUX(aux, AT_SUN_GID, crgetgid(cred));
+			ADDAUX(aux, AT_SUN_RGID, crgetrgid(cred));
+		}
 
 		/*
 		 * Hardware capability flag word (performance hints)
@@ -913,6 +1047,7 @@ elfexec(vnode_t *vp, execa_t *uap, uarg_t *args, intpdata_t *idatap,
 			ADDAUX(aux, AT_SUN_BRAND_AUX1, 0)
 			ADDAUX(aux, AT_SUN_BRAND_AUX2, 0)
 			ADDAUX(aux, AT_SUN_BRAND_AUX3, 0)
+			ADDAUX(aux, AT_SUN_BRAND_AUX4, 0)
 		}
 
 		/*
@@ -1120,10 +1255,10 @@ getelfhead(vnode_t *vp, cred_t *credp, Ehdr *ehdr, uint_t *nshdrs,
 	 * We got here by the first two bytes in ident,
 	 * now read the entire ELF header.
 	 */
-	if ((error = vn_rdwr(UIO_READ, vp, (caddr_t)ehdr,
-	    sizeof (Ehdr), (offset_t)0, UIO_SYSSPACE, 0,
-	    (rlim64_t)0, credp, &resid)) != 0)
+	if ((error = vn_rdwr(UIO_READ, vp, (caddr_t)ehdr, sizeof (Ehdr),
+	    (offset_t)0, UIO_SYSSPACE, 0, (rlim64_t)0, credp, &resid)) != 0) {
 		return (error);
+	}
 
 	/*
 	 * Since a separate version is compiled for handling 32-bit and
@@ -1132,8 +1267,9 @@ getelfhead(vnode_t *vp, cred_t *credp, Ehdr *ehdr, uint_t *nshdrs,
 	 */
 	if (resid != 0 ||
 	    ehdr->e_ident[EI_MAG2] != ELFMAG2 ||
-	    ehdr->e_ident[EI_MAG3] != ELFMAG3)
+	    ehdr->e_ident[EI_MAG3] != ELFMAG3) {
 		return (ENOEXEC);
+	}
 
 	if ((ehdr->e_type != ET_EXEC && ehdr->e_type != ET_DYN) ||
 #if defined(_ILP32) || defined(_ELF32_COMPAT)
@@ -1142,8 +1278,9 @@ getelfhead(vnode_t *vp, cred_t *credp, Ehdr *ehdr, uint_t *nshdrs,
 	    ehdr->e_ident[EI_CLASS] != ELFCLASS64 ||
 #endif
 	    !elfheadcheck(ehdr->e_ident[EI_DATA], ehdr->e_machine,
-	    ehdr->e_flags))
+	    ehdr->e_flags)) {
 		return (EINVAL);
+	}
 
 	*nshdrs = ehdr->e_shnum;
 	*shstrndx = ehdr->e_shstrndx;
@@ -1163,9 +1300,8 @@ getelfhead(vnode_t *vp, cred_t *credp, Ehdr *ehdr, uint_t *nshdrs,
 
 		if ((error = vn_rdwr(UIO_READ, vp, (caddr_t)&shdr,
 		    sizeof (shdr), (offset_t)ehdr->e_shoff, UIO_SYSSPACE, 0,
-		    (rlim64_t)0, credp, NULL)) != 0) {
+		    (rlim64_t)0, credp, NULL)) != 0)
 			return (error);
-		}
 
 		if (*nshdrs == 0)
 			*nshdrs = shdr.sh_size;
@@ -1336,7 +1472,7 @@ mapelfexec(
 	size_t *brksize)
 {
 	Phdr *phdr;
-	int error, page, prot;
+	int error, page, prot, lastprot = 0;
 	caddr_t addr = NULL;
 	caddr_t minaddr = (caddr_t)UINTPTR_MAX;
 	uint_t i;
@@ -1344,9 +1480,11 @@ mapelfexec(
 	boolean_t ptload = B_FALSE;
 	off_t offset;
 	const uint_t hsize = ehdr->e_phentsize;
+	uintptr_t lastaddr = 0;
 	extern int use_brk_lpg;
 
 	if (ehdr->e_type == ET_DYN) {
+		caddr_t vaddr;
 		secflagset_t flags = 0;
 		/*
 		 * Obtain the virtual address of a hole in the
@@ -1358,23 +1496,65 @@ mapelfexec(
 		map_addr(&addr, len, (offset_t)0, 1, flags);
 		if (addr == NULL)
 			return (ENOMEM);
-		*voffset = (intptr_t)addr;
 
 		/*
-		 * Calculate the minimum vaddr so it can be subtracted out.
-		 * According to the ELF specification, since PT_LOAD sections
-		 * must be sorted by increasing p_vaddr values, this is
-		 * guaranteed to be the first PT_LOAD section.
+		 * Despite the fact that mmapobj(2) refuses to load them, we
+		 * need to support executing ET_DYN objects that have a
+		 * non-NULL p_vaddr.  When found in the wild, these objects
+		 * are likely to be due to an old (and largely obviated) Linux
+		 * facility, prelink(8), that rewrites shared objects to
+		 * prefer specific (disjoint) virtual address ranges.  (Yes,
+		 * this is putatively for performance -- and yes, it has
+		 * limited applicability, many edge conditions and grisly
+		 * failure modes; even for Linux, it's insane.)  As ELF
+		 * mandates that the PT_LOAD segments be in p_vaddr order, we
+		 * find the lowest p_vaddr by finding the first PT_LOAD
+		 * segment.
 		 */
 		phdr = (Phdr *)phdrbase;
 		for (i = nphdrs; i > 0; i--) {
 			if (phdr->p_type == PT_LOAD) {
-				*voffset -= (uintptr_t)phdr->p_vaddr;
+				addr = (caddr_t)(uintptr_t)phdr->p_vaddr;
 				break;
 			}
 			phdr = (Phdr *)((caddr_t)phdr + hsize);
 		}
 
+		/*
+		 * We have a non-zero p_vaddr in the first PT_LOAD segment --
+		 * presumably because we're directly executing a prelink(8)'d
+		 * ld-linux.so.  While we could correctly execute such an
+		 * object without locating it at its desired p_vaddr (it is,
+		 * after all, still relocatable), our inner antiquarian
+		 * derives a perverse pleasure in accommodating the steampunk
+		 * prelink(8) contraption -- goggles on!
+		 */
+		if ((vaddr = addr) != NULL) {
+			if (as_gap(curproc->p_as, len, &addr, &len,
+			    AH_LO, NULL) == -1 || addr != vaddr) {
+				addr = NULL;
+			}
+		}
+
+		if (addr == NULL) {
+			/*
+			 * We either have a NULL p_vaddr (the common case, by
+			 * many orders of magnitude) or we have a non-NULL
+			 * p_vaddr and we were unable to obtain the specified
+			 * VA range (presumably because it's an illegal
+			 * address).  Either way, obtain an address in which
+			 * to map the interpreter.
+			 */
+			map_addr(&addr, len, (offset_t)0, 1, 0);
+			if (addr == NULL)
+				return (ENOMEM);
+		}
+
+		/*
+		 * Our voffset is the difference between where we landed and
+		 * where we wanted to be.
+		 */
+		*voffset = (uintptr_t)addr - (uintptr_t)vaddr;
 	} else {
 		*voffset = 0;
 	}
@@ -1437,6 +1617,41 @@ mapelfexec(
 			 */
 			if (addr < minaddr)
 				minaddr = addr;
+
+			/*
+			 * Segments need not correspond to page boundaries:
+			 * they are permitted to share a page.  If two PT_LOAD
+			 * segments share the same page, and the permissions
+			 * of the segments differ, the behavior is historically
+			 * that the permissions of the latter segment are used
+			 * for the page that the two segments share.  This is
+			 * also historically a non-issue:  binaries generated
+			 * by most anything will make sure that two PT_LOAD
+			 * segments with differing permissions don't actually
+			 * share any pages.  However, there exist some crazy
+			 * things out there (including at least an obscure
+			 * Portuguese teaching language called G-Portugol) that
+			 * actually do the wrong thing and expect it to work:
+			 * they have a segment with execute permission share
+			 * a page with a subsequent segment that does not
+			 * have execute permissions and expect the resulting
+			 * shared page to in fact be executable.  To accommodate
+			 * such broken link editors, we take advantage of a
+			 * latitude explicitly granted to the loader:  it is
+			 * permitted to make _any_ PT_LOAD segment executable
+			 * (provided that it is readable or writable).  If we
+			 * see that we're sharing a page and that the previous
+			 * page was executable, we will add execute permissions
+			 * to our segment.
+			 */
+			if (btop(lastaddr) == btop((uintptr_t)addr) &&
+			    (phdr->p_flags & (PF_R | PF_W)) &&
+			    (lastprot & PROT_EXEC)) {
+				prot |= PROT_EXEC;
+			}
+
+			lastaddr = (uintptr_t)addr + phdr->p_filesz;
+			lastprot = prot;
 
 			zfodsz = (size_t)phdr->p_memsz - phdr->p_filesz;
 
@@ -1522,8 +1737,22 @@ mapelfexec(
 			break;
 
 		case PT_INTERP:
-			if (ptload)
-				goto bad;
+			/*
+			 * The ELF specification is unequivocal about the
+			 * PT_INTERP program header with respect to any PT_LOAD
+			 * program header:  "If it is present, it must precede
+			 * any loadable segment entry." Linux, however, makes
+			 * no attempt to enforce this -- which has allowed some
+			 * binary editing tools to get away with generating
+			 * invalid ELF binaries in the respect that PT_INTERP
+			 * occurs after the first PT_LOAD program header.  This
+			 * is unfortunate (and of course, disappointing) but
+			 * it's no worse than that: there is no reason that we
+			 * can't process the PT_INTERP entry (if present) after
+			 * one or more PT_LOAD entries.  We therefore
+			 * deliberately do not check ptload here and always
+			 * store dyphdr to be the PT_INTERP program header.
+			 */
 			*intphdr = phdr;
 			break;
 
@@ -1630,6 +1859,7 @@ elfnote(vnode_t *vp, offset_t *offsetp, int type, int descsz, void *desc,
 	return (0);
 }
 
+
 /*
  * Copy the section data from one vnode to the section of another vnode.
  */
@@ -1677,26 +1907,39 @@ elf_copy_scn(elf_core_ctx_t *ctx, const Shdr *src, vnode_t *src_vp, Shdr *dst)
 }
 
 /*
+ * The design of this check is intentional.
+ * In particular, we want to capture any sections that begin with '.debug_' for
+ * a few reasons:
+ *
+ * 1) Various revisions to the DWARF spec end up changing the set of section
+ *    headers that exist. This ensures that we don't need to change the kernel
+ *    to get a new version.
+ *
+ * 2) Other software uses .debug_ sections for things which aren't DWARF. This
+ *    allows them to be captured as well.
+ */
+#define	IS_DEBUGSECTION(name) (strncmp(name, ".debug_", strlen(".debug_")) == 0)
+
+/*
  * Walk sections for a given ELF object, counting (or copying) those of
  * interest (CTF, symtab, strtab, .debug_*).
  */
-static int
+static uint_t
 elf_process_obj_scns(elf_core_ctx_t *ctx, vnode_t *mvp, caddr_t saddr,
     Shdr *v, uint_t idx, const uint_t remain, shstrtab_t *shstrtab,
-    uint_t *countp)
+    int *errp)
 {
 	Ehdr ehdr;
 	const core_content_t content = ctx->ecc_content;
 	cred_t *credp = ctx->ecc_credp;
 	Shdr *ctf = NULL, *symtab = NULL, *strtab = NULL;
 	uintptr_t off = 0;
-	uint_t nshdrs, shstrndx, nphdrs, count, extra;
+	uint_t nshdrs, shstrndx, nphdrs, ndebug, count = 0, extra;
 	u_offset_t *doffp = &ctx->ecc_doffset;
 	boolean_t ctf_link = B_FALSE;
 	caddr_t shbase;
 	size_t shsize, shstrsize;
 	char *shstrbase;
-	int error = 0;
 	const boolean_t justcounting = (v == NULL);
 
 	/*
@@ -1704,8 +1947,6 @@ elf_process_obj_scns(elf_core_ctx_t *ctx, vnode_t *mvp, caddr_t saddr,
 	 * exceeding it.
 	 */
 	ASSERT3U(remain, <, UINT_MAX);
-
-	*countp = count = 0;
 
 	if ((content &
 	    (CC_CONTENT_CTF | CC_CONTENT_SYMTAB | CC_CONTENT_DEBUG)) == 0) {
@@ -1720,6 +1961,7 @@ elf_process_obj_scns(elf_core_ctx_t *ctx, vnode_t *mvp, caddr_t saddr,
 
 	/* Starting at index 1 skips SHT_NULL which is expected at index 0 */
 	off = ehdr.e_shentsize;
+	ndebug = 0;
 	for (uint_t i = 1; i < nshdrs; i++, off += ehdr.e_shentsize) {
 		Shdr *shdr, *symchk = NULL, *strchk;
 		const char *name;
@@ -1746,51 +1988,8 @@ elf_process_obj_scns(elf_core_ctx_t *ctx, vnode_t *mvp, caddr_t saddr,
 		    strcmp(name, shstrtab_data[STR_SYMTAB]) == 0) {
 			symchk = shdr;
 		} else if ((content & CC_CONTENT_DEBUG) != 0 &&
-		    strncmp(name, ".debug_", strlen(".debug_")) == 0) {
-			/*
-			 * The design of the above check is intentional. In
-			 * particular, we want to capture any sections that
-			 * begin with '.debug_' for a few reasons:
-			 *
-			 * 1) Various revisions to the DWARF spec end up
-			 * changing the set of section headers that exist. This
-			 * ensures that we don't need to change the kernel to
-			 * get a new version.
-			 *
-			 * 2) Other software uses .debug_ sections for things
-			 * which aren't DWARF. This allows them to be captured
-			 * as well.
-			 */
-			count++;
-
-			if (count > remain) {
-				error = ENOMEM;
-				goto done;
-			}
-
-			if (justcounting)
-				continue;
-
-			elf_ctx_resize_scratch(ctx, shdr->sh_size);
-
-			if (!shstrtab_ndx(shstrtab, name, &v[idx].sh_name)) {
-				error = ENOMEM;
-				goto done;
-			}
-
-			v[idx].sh_addr = (Addr)(uintptr_t)saddr;
-			v[idx].sh_type = shdr->sh_type;
-			v[idx].sh_addralign = shdr->sh_addralign;
-			*doffp = roundup(*doffp, v[idx].sh_addralign);
-			v[idx].sh_offset = *doffp;
-			v[idx].sh_size = shdr->sh_size;
-			v[idx].sh_link = 0;
-			v[idx].sh_entsize = shdr->sh_entsize;
-			v[idx].sh_info = shdr->sh_info;
-
-			elf_copy_scn(ctx, shdr, mvp, &v[idx]);
-			idx++;
-
+		    IS_DEBUGSECTION(name)) {
+			ndebug++;
 			continue;
 		} else {
 			continue;
@@ -1823,16 +2022,16 @@ elf_process_obj_scns(elf_core_ctx_t *ctx, vnode_t *mvp, caddr_t saddr,
 		extra += 1;
 	if (symtab != NULL)
 		extra += 2;
-
+	extra += ndebug;
 	if (remain < extra || count > remain - extra) {
-		error = ENOMEM;
+		*errp = ENOMEM;
 		goto done;
 	}
-
 	count += extra;
-
-	if (justcounting)
+	if (justcounting || count == 0 || count > remain) {
+		count = MIN(count, remain);
 		goto done;
+	}
 
 	/* output CTF section */
 	if (ctf != NULL) {
@@ -1840,7 +2039,7 @@ elf_process_obj_scns(elf_core_ctx_t *ctx, vnode_t *mvp, caddr_t saddr,
 
 		if (!shstrtab_ndx(shstrtab,
 		    shstrtab_data[STR_CTF], &v[idx].sh_name)) {
-			error = ENOMEM;
+			*errp = ENOMEM;
 			goto done;
 		}
 		v[idx].sh_addr = (Addr)(uintptr_t)saddr;
@@ -1883,12 +2082,12 @@ elf_process_obj_scns(elf_core_ctx_t *ctx, vnode_t *mvp, caddr_t saddr,
 
 		if (!shstrtab_ndx(shstrtab,
 		    shstrtab_data[symtab_type], &symtab_name)) {
-			error = ENOMEM;
+			*errp = ENOMEM;
 			goto done;
 		}
 		if (!shstrtab_ndx(shstrtab,
 		    shstrtab_data[strtab_type], &strtab_name)) {
-			error = ENOMEM;
+			*errp = ENOMEM;
 			goto done;
 		}
 
@@ -1923,14 +2122,52 @@ elf_process_obj_scns(elf_core_ctx_t *ctx, vnode_t *mvp, caddr_t saddr,
 		idx++;
 	}
 
+	if (ndebug == 0)
+		goto done;
+
+	/* output DEBUG sections */
+	off = 0;
+	for (uint_t i = 1; i < nshdrs; i++, off += ehdr.e_shentsize) {
+		const char *name;
+		Shdr *shdr;
+
+		shdr = (Shdr *)(shbase + off);
+		if (shdr->sh_name >= shstrsize || shdr->sh_type == SHT_NULL)
+			continue;
+
+		name = shstrbase + shdr->sh_name;
+
+		if (!IS_DEBUGSECTION(name))
+			continue;
+
+		elf_ctx_resize_scratch(ctx, shdr->sh_size);
+
+		if (!shstrtab_ndx(shstrtab, name, &v[idx].sh_name)) {
+			*errp = ENOMEM;
+			goto done;
+		}
+
+		v[idx].sh_addr = (Addr)(uintptr_t)saddr;
+		v[idx].sh_type = shdr->sh_type;
+		v[idx].sh_addralign = shdr->sh_addralign;
+		*doffp = roundup(*doffp, v[idx].sh_addralign);
+		v[idx].sh_offset = *doffp;
+		v[idx].sh_size = shdr->sh_size;
+		v[idx].sh_link = 0;
+		v[idx].sh_entsize = shdr->sh_entsize;
+		v[idx].sh_info = shdr->sh_info;
+
+		elf_copy_scn(ctx, shdr, mvp, &v[idx]);
+		idx++;
+
+		if (--ndebug == 0)
+			break;
+	}
+
 done:
 	kmem_free(shstrbase, shstrsize);
 	kmem_free(shbase, shsize);
-
-	if (error == 0)
-		*countp = count;
-
-	return (error);
+	return (count);
 }
 
 /*
@@ -2007,8 +2244,8 @@ elf_process_scns(elf_core_ctx_t *ctx, Shdr *v, const uint_t nv, uint_t *nshdrsp)
 		if ((prot & (PROT_WRITE | PROT_EXEC)) != PROT_EXEC)
 			continue;
 
-		error = elf_process_obj_scns(ctx, mvp, saddr, v, idx, remain,
-		    &shstrtab, &count);
+		count = elf_process_obj_scns(ctx, mvp, saddr, v, idx, remain,
+		    &shstrtab, &error);
 		if (error != 0)
 			goto done;
 
@@ -2132,8 +2369,9 @@ top:
 	 * we overflow the 16 bits allotted to the program header count in
 	 * the ELF header, we'll need that program header at index zero.
 	 */
-	if (nshdrs == 0 && nphdrs >= PN_XNUM)
+	if (nshdrs == 0 && nphdrs >= PN_XNUM) {
 		nshdrs = 1;
+	}
 
 	/*
 	 * Allocate a buffer which is sized adequately to hold the ehdr, phdrs
@@ -2575,7 +2813,7 @@ static struct modlexec modlexec = {
 extern int elf32exec(vnode_t *vp, execa_t *uap, uarg_t *args,
 			intpdata_t *idatap, int level, size_t *execsz,
 			int setid, caddr_t exec_file, cred_t *cred,
-			int brand_action);
+			int *brand_action);
 extern int elf32core(vnode_t *vp, proc_t *p, cred_t *credp,
 			rlim64_t rlimit, int sig, core_content_t content);
 

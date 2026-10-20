@@ -79,6 +79,9 @@ typedef struct {
 #define	AT_FLAGS	8	/* processor flags */
 #define	AT_ENTRY	9	/* a.out entry point */
 
+/* First introduced on Linux */
+#define	AT_RANDOM	25	/* address of 16 random bytes */
+
 /*
  * These relate to the original PPC ABI document; Linux reused
  * the values for other things (see below), so disambiguation of
@@ -91,19 +94,18 @@ typedef struct {
  * These are the values from LSB 1.3, the first five are also described
  * in the draft amd64 ABI.
  *
- * At the time of writing, Solaris doesn't place any of these values into
- * the aux vector, except AT_CLKTCK which is placed on the aux vector for
- * lx branded processes; also, we do similar things via AT_SUN_ values.
+ * At the time of writing, illumos doesn't place any of these values into the
+ * aux vector, except where noted. We do similar things via AT_SUN_ values.
  *
  * AT_NOTELF		10	program is not ELF?
- * AT_UID		11	real user id
- * AT_EUID		12	effective user id
- * AT_GID		13	real group id
- * AT_EGID		14	effective group id
+ * AT_UID		11	real user id (provided in LX)
+ * AT_EUID		12	effective user id (provided in LX)
+ * AT_GID		13	real group id (provided in LX)
+ * AT_EGID		14	effective group id (provided in LX)
  *
  * AT_PLATFORM		15
  * AT_HWCAP		16
- * AT_CLKTCK		17	c.f. _SC_CLK_TCK
+ * AT_CLKTCK		17	c.f. _SC_CLK_TCK (provided in LX)
  * AT_FPUCW		18
  *
  * AT_DCACHEBSIZE	19	(moved from 10)
@@ -111,6 +113,16 @@ typedef struct {
  * AT_UCACHEBSIZE	21	(moved from 12)
  *
  * AT_IGNOREPPC		22
+ *
+ * On Linux:
+ * AT_* values 18 through 22 are reserved
+ * AT_SECURE		23	secure mode boolean (provided in LX)
+ * AT_BASE_PLATFORM	24	string identifying real platform, may
+ *				differ from AT_PLATFORM.
+ * AT_HWCAP2		26	extension of AT_HWCAP
+ * AT_EXECFN		31	filename of program
+ * AT_SYSINFO		32
+ * AT_SYSINFO_EHDR	33	The vDSO location
  */
 
 /*
@@ -190,6 +202,8 @@ extern uint_t getisax(uint32_t *, uint_t);
 #define	AT_SUN_BRAND_AUX1	2020
 #define	AT_SUN_BRAND_AUX2	2021
 #define	AT_SUN_BRAND_AUX3	2022
+#define	AT_SUN_BRAND_AUX4	2025
+#define	AT_SUN_BRAND_NROOT	2024
 
 /*
  * Aux vector for comm page

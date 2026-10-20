@@ -21,6 +21,7 @@
 
 /*
  * Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright 2015 Joyent, Inc.
  * Copyright 2023 Oxide Computer Company
  *
  * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
@@ -92,10 +93,17 @@ struct	__ucontext {
 	 * UC_BRAND flag. Until such time, to help folks downstream who have the
 	 * lx brand, we leave them as is.
 	 */
-	long		uc_filler[3];
+	void		*uc_brand_data[3];	/* Was uc_filler[3] */
 	long		uc_xsave;
 	long		uc_filler1;
 };
+
+/*
+ * We deviate from upstream-gate here in that we use what was uc_filler[3] for
+ * brand data. In order to reduce changes elsewhere in code that computes the
+ * offset of uc_filler, we provide the following definition.
+ */
+#define	uc_filler	uc_brand_data
 
 #if defined(_SYSCALL32)
 
@@ -107,7 +115,7 @@ typedef struct ucontext32 {
 	sigset_t	uc_sigmask;
 	stack32_t	uc_stack;
 	mcontext32_t	uc_mcontext;
-	int32_t		uc_filler[3];
+	caddr32_t	uc_brand_data[3];
 	int32_t		uc_xsave;
 	int32_t		uc_filler1;
 } ucontext32_t;

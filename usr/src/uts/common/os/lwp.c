@@ -25,7 +25,7 @@
  */
 
 /*
- * Copyright (c) 2013, Joyent, Inc. All rights reserved.
+ * Copyright 2017, Joyent, Inc.
  * Copyright 2025 Oxide Computer Company
  */
 
@@ -115,7 +115,7 @@ lwp_create(void (*proc)(), caddr_t arg, size_t len, proc_t *p,
 	ret_tidhash_t *ret_tidhash = NULL;
 	int i;
 	int rctlfail = 0;
-	boolean_t branded = 0;
+	void *brand_data = NULL;
 	struct ctxop *ctx = NULL;
 
 	ASSERT(cid != sysdccid);	/* system threads must start in SYS */
@@ -282,6 +282,19 @@ lwp_create(void (*proc)(), caddr_t arg, size_t len, proc_t *p,
 	 * Allocate an lwp directory entry for the new lwp.
 	 */
 	lep = kmem_zalloc(sizeof (*lep), KM_SLEEP);
+
+	/*
+	 * If necessary, speculatively allocate lwp brand data.  This is done
+	 * ahead of time so p_lock need not be dropped during lwp branding.
+	 */
+	if (PROC_IS_BRANDED(p) && BROP(p)->b_lwpdata_alloc != NULL) {
+		if ((brand_data = BROP(p)->b_lwpdata_alloc(p)) == NULL) {
+			mutex_enter(&p->p_lock);
+			err = 1;
+			atomic_inc_32(&p->p_zone->zone_ffmisc);
+			goto error;
+		}
+	}
 
 	mutex_enter(&p->p_lock);
 grow:
@@ -630,18 +643,6 @@ grow:
 		} while (lwp_hash_lookup(p, t->t_tid) != NULL);
 	}
 
-	/*
-	 * If this is a branded process, let the brand do any necessary lwp
-	 * initialization.
-	 */
-	if (PROC_IS_BRANDED(p)) {
-		if (BROP(p)->b_initlwp(lwp)) {
-			err = 1;
-			atomic_inc_32(&p->p_zone->zone_ffmisc);
-			goto error;
-		}
-		branded = 1;
-	}
 
 	if (t->t_tid == 1) {
 		kpreempt_disable();
@@ -696,6 +697,24 @@ grow:
 	t->t_post_sys = 1;
 
 	/*
+	 * Perform lwp branding
+	 *
+	 * The b_initlwp hook is _not_ allowed to drop p->p_lock as it must be
+	 * continuously held between when the tidhash is sized and when the lwp
+	 * is inserted into it.  Operations requiring p->p_lock to be
+	 * temporarily dropped can be performed in b_initlwp_post.
+	 */
+	if (PROC_IS_BRANDED(p)) {
+		BROP(p)->b_initlwp(lwp, brand_data);
+		/*
+		 * The b_initlwp hook is expected to consume any preallocated
+		 * brand_data in a way that prepares it for deallocation by the
+		 * b_freelwp hook.
+		 */
+		brand_data = NULL;
+	}
+
+	/*
 	 * Insert the new thread into the list of all threads.
 	 */
 	if ((tx = p->p_tlist) == NULL) {
@@ -717,6 +736,13 @@ grow:
 	lep->le_lwpid = t->t_tid;
 	lep->le_start = t->t_start;
 	lwp_hash_in(p, lep, p->p_tidhash, p->p_tidhash_sz, 1);
+
+	/*
+	 * Complete lwp branding
+	 */
+	if (PROC_IS_BRANDED(p) && BROP(p)->b_initlwp_post != NULL) {
+		BROP(p)->b_initlwp_post(lwp);
+	}
 
 	lwp_fp_init(lwp);
 
@@ -755,8 +781,9 @@ error:
 		if (cid != NOCLASS && bufp != NULL)
 			CL_FREE(cid, bufp);
 
-		if (branded)
-			BROP(p)->b_freelwp(lwp);
+		if (brand_data != NULL) {
+			BROP(p)->b_lwpdata_free(brand_data);
+		}
 
 		mutex_exit(&p->p_lock);
 		t->t_state = TS_FREE;
@@ -893,13 +920,6 @@ lwp_exit(void)
 	if (t->t_upimutex != NULL)
 		upimutex_cleanup();
 
-	/*
-	 * Perform any brand specific exit processing, then release any
-	 * brand data associated with the lwp
-	 */
-	if (PROC_IS_BRANDED(p))
-		BROP(p)->b_lwpexit(lwp);
-
 	lwp_pcb_exit();
 
 	mutex_enter(&p->p_lock);
@@ -941,6 +961,18 @@ lwp_exit(void)
 	}
 
 	DTRACE_PROC(lwp__exit);
+
+	/*
+	 * Perform any brand specific exit processing, then release any
+	 * brand data associated with the lwp
+	 */
+	if (PROC_IS_BRANDED(p)) {
+		mutex_exit(&p->p_lock);
+		BROP(p)->b_lwpexit(lwp);
+		BROP(p)->b_freelwp(lwp);
+		mutex_enter(&p->p_lock);
+		prbarrier(p);
+	}
 
 	/*
 	 * If the lwp is a detached lwp or if the process is exiting,

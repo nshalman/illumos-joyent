@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2016 Joyent, Inc.
  */
 
 #ifndef _SYS_MACHBRAND_H
@@ -32,20 +33,25 @@ extern "C" {
 #ifndef	_ASM
 
 #include <sys/model.h>
+#include <sys/thread.h>
 
 struct brand_mach_ops {
 	void	(*b_sysenter)(void);
+	void	(*b_int80)(void);
 	void	(*b_int91)(void);
 	void	(*b_syscall)(void);
 	void	(*b_syscall32)(void);
+	greg_t	(*b_fixsegreg)(greg_t, model_t);
+	uintptr_t (*b_fsbase)(klwp_t *, uintptr_t);
 };
 
 #endif	/* _ASM */
 
 #define	BRAND_CB_SYSENTER	0
-#define	BRAND_CB_INT91		1
-#define	BRAND_CB_SYSCALL	2
-#define	BRAND_CB_SYSCALL32	3
+#define	BRAND_CB_INT80		1
+#define	BRAND_CB_INT91		2
+#define	BRAND_CB_SYSCALL	3
+#define	BRAND_CB_SYSCALL32	4
 
 #ifdef	__cplusplus
 }

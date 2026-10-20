@@ -86,10 +86,10 @@ char *jexec_arg = "-jar";
 static int
 javaexec(vnode_t *vp, struct execa *uap, struct uarg *args,
     struct intpdata *idatap, int level, size_t *execsz, int setid,
-    caddr_t execfile, cred_t *cred, int brand_action)
+    caddr_t execfile, cred_t *cred, int *brand_action)
 {
 	struct intpdata idata;
-	int error;
+	int error, eba;
 	ssize_t resid;
 	vnode_t *nvp;
 	off_t xoff, xoff_end;
@@ -161,8 +161,9 @@ javaexec(vnode_t *vp, struct execa *uap, struct uarg *args,
 	args->pathname = resolvepn.pn_path;
 	/* don't free resolvepn until we are done with args */
 	pn_free(&lookpn);
-	error = gexec(&nvp, uap, args, &idata, level + 1, execsz, execfile,
-	    cred, EBA_NONE);
+	eba = EBA_NONE;
+	error = gexec(&nvp, uap, args, &idata, level + 1, execsz,
+	    execfile, cred, &eba);
 
 	if (!error) {
 		/*

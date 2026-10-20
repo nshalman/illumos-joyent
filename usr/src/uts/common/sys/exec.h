@@ -109,10 +109,13 @@ typedef struct uarg {
 	vnode_t	*ex_vp;
 	char	*emulator;
 	char	*brandname;
+	const char *brand_nroot;
 	char	*auxp_auxflags; /* addr of auxflags auxv on the user stack */
 	char	*auxp_brand; /* address of first brand auxv on user stack */
 	cred_t	*pfcred;
 	boolean_t scrubenv;
+	uintptr_t maxstack;
+	boolean_t stk_prot_override;
 	uintptr_t commpage;
 } uarg_t;
 
@@ -183,7 +186,7 @@ struct execsw {
 	int	(*exec_func)(struct vnode *vp, struct execa *uap,
 		    struct uarg *args, struct intpdata *idata, int level,
 		    size_t *execsz, int setid, caddr_t exec_file,
-		    struct cred *cred, int brand_action);
+		    struct cred *cred, int *brand_action);
 	int	(*exec_core)(struct vnode *vp, struct proc *p,
 		    struct cred *cred, rlim64_t rlimit, int sig,
 		    core_content_t content);
@@ -211,7 +214,7 @@ extern int exec_common(const char *, const char **, const char **, vnode_t *,
     int, uio_seg_t);
 extern int gexec(vnode_t **vp, struct execa *uap, struct uarg *args,
     struct intpdata *idata, int level, size_t *execsz, caddr_t exec_file,
-    struct cred *cred, int brand_action);
+    struct cred *cred, int *brand_action);
 extern struct execsw *allocate_execsw(char *name, char *magic,
     size_t magic_size);
 extern struct execsw *findexecsw(char *magic);
@@ -236,18 +239,20 @@ extern void exec_set_sp(size_t);
  * when compiling the 32-bit compatability elf code in the elfexec module.
  */
 extern int elfexec(vnode_t *, execa_t *, uarg_t *, intpdata_t *, int,
-    size_t *, int, caddr_t, cred_t *, int);
+    size_t *, int, caddr_t, cred_t *, int *);
 extern int mapexec_brand(vnode_t *, uarg_t *, Ehdr *, Addr *,
-    intptr_t *, caddr_t, int *, caddr_t *, caddr_t *, size_t *, uintptr_t *);
+    intptr_t *, caddr_t, char **, caddr_t *, caddr_t *, size_t *,
+    uintptr_t *, uintptr_t *);
 extern int elfreadhdr(vnode_t *, cred_t *, Ehdr *, uint_t *, caddr_t *,
     size_t *);
 #endif /* !_ELF32_COMPAT */
 
 #if defined(_LP64)
 extern int elf32exec(vnode_t *, execa_t *, uarg_t *, intpdata_t *, int,
-    size_t *, int, caddr_t, cred_t *, int);
+    size_t *, int, caddr_t, cred_t *, int *);
 extern int mapexec32_brand(vnode_t *, uarg_t *, Elf32_Ehdr *, Elf32_Addr *,
-    intptr_t *, caddr_t, int *, caddr_t *, caddr_t *, size_t *, uintptr_t *);
+    intptr_t *, caddr_t, char **, caddr_t *, caddr_t *, size_t *,
+    uintptr_t *, uintptr_t *);
 extern int elf32readhdr(vnode_t *, cred_t *, Elf32_Ehdr *, uint_t *, caddr_t *,
     size_t *);
 #endif  /* _LP64 */

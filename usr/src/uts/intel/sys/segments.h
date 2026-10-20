@@ -703,6 +703,8 @@ extern void _start(), cmnint();
 extern void achktrap(), mcetrap();
 extern void xmtrap();
 extern void fasttrap();
+extern void sys_int80();
+extern void brand_sys_int80();
 extern void dtrace_ret();
 
 /* KPTI trampolines */
@@ -718,6 +720,8 @@ extern void tr_overrun(), tr_resvtrap();
 extern void tr_achktrap(), tr_mcetrap();
 extern void tr_xmtrap();
 extern void tr_fasttrap();
+extern void tr_sys_int80();
+extern void tr_brand_sys_int80();
 extern void tr_dtrace_ret();
 
 #if !defined(__amd64)

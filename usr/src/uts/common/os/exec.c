@@ -24,10 +24,11 @@
  */
 
 /*	Copyright (c) 1988 AT&T	*/
-/*	  All Rights Reserved	*/
+/*	All Rights Reserved	*/
 /*
  * Copyright 2015 Garrett D'Amore <garrett@damore.org>
  * Copyright 2019 Joyent, Inc.
+ * Copyright 2026 OmniOS Community Edition (OmniOSce) Association.
  * Copyright 2026 Oxide Computer Company
  */
 
@@ -104,6 +105,7 @@ uint_t auxv_hwcap32_3 = 0;	/* 32-bit version of auxv_hwcap3 */
 #endif
 
 #define	PSUIDFLAGS		(SNOCD|SUGID)
+#define	RANDOM_LEN	16	/* 16 bytes for AT_RANDOM aux entry */
 
 /*
  * These are consumed within the specific exec modules, but are defined here
@@ -342,8 +344,10 @@ exec_common(const char *fname, const char **argp, const char **envp,
 	 * only if the pathname does not contain a "/" the resolved path
 	 * points to a file in the current working (attribute) directory.
 	 */
-	if ((p->p_user.u_cdir->v_flag & V_XATTRDIR) != 0 &&
+	mutex_enter(&p->p_lock);
+	if ((PTOU(p)->u_cdir->v_flag & V_XATTRDIR) != 0 &&
 	    strchr(resolvepn.pn_path, '/') == NULL) {
+		mutex_exit(&p->p_lock);
 		if (dir != NULL)
 			VN_RELE(dir);
 		error = EACCES;
@@ -352,6 +356,7 @@ exec_common(const char *fname, const char **argp, const char **envp,
 		VN_RELE(vp);
 		goto out;
 	}
+	mutex_exit(&p->p_lock);
 
 	bzero(exec_file, MAXCOMLEN+1);
 	(void) strncpy(exec_file, pn.pn_path, MAXCOMLEN);
@@ -400,14 +405,43 @@ exec_common(const char *fname, const char **argp, const char **envp,
 	ua.argp = argp;
 	ua.envp = envp;
 
-	/* If necessary, brand this process before we start the exec. */
-	if (brandme)
-		brand_setbrand(p);
+	/* If necessary, brand this process/lwp before we start the exec. */
+	if (brandme) {
+		void *brand_data = NULL;
+
+		/*
+		 * Process branding may fail if multiple LWPs are present and
+		 * holdlwps() cannot complete successfully.
+		 */
+		error = brand_setbrand(p, B_FALSE);
+
+		if (error == 0 && BROP(p)->b_lwpdata_alloc != NULL) {
+			brand_data = BROP(p)->b_lwpdata_alloc(p);
+			if (brand_data == NULL) {
+				error = 1;
+			}
+		}
+
+		if (error == 0) {
+			mutex_enter(&p->p_lock);
+			BROP(p)->b_initlwp(lwp, brand_data);
+			mutex_exit(&p->p_lock);
+		} else {
+			VN_RELE(vp);
+			if (dir != NULL) {
+				VN_RELE(dir);
+			}
+			pn_free(&resolvepn);
+			goto fail;
+		}
+	}
 
 	if ((error = gexec(&vp, &ua, &args, NULL, 0, &execsz,
-	    exec_file, p->p_cred, brand_action)) != 0) {
-		if (brandme)
+	    exec_file, p->p_cred, &brand_action)) != 0) {
+		if (brandme) {
+			BROP(p)->b_freelwp(lwp);
 			brand_clearbrand(p, B_FALSE);
+		}
 		VN_RELE(vp);
 		if (dir != NULL)
 			VN_RELE(dir);
@@ -463,6 +497,8 @@ exec_common(const char *fname, const char **argp, const char **envp,
 	 * pending held signals remain held, so don't clear t_hold.
 	 */
 	mutex_enter(&p->p_lock);
+	DTRACE_PROBE3(oldcontext__set, klwp_t *, lwp,
+	    uintptr_t, lwp->lwp_oldcontext, uintptr_t, 0);
 	lwp->lwp_oldcontext = 0;
 	lwp->lwp_ustack = 0;
 	lwp->lwp_old_stk_ctl = 0;
@@ -534,8 +570,10 @@ exec_common(const char *fname, const char **argp, const char **envp,
 	TRACE_2(TR_FAC_PROC, TR_PROC_EXEC, "proc_exec:p %p up %p", p, up);
 
 	/* Unbrand ourself if necessary. */
-	if (PROC_IS_BRANDED(p) && (brand_action == EBA_NATIVE))
+	if (PROC_IS_BRANDED(p) && (brand_action == EBA_NATIVE)) {
+		BROP(p)->b_freelwp(lwp);
 		brand_clearbrand(p, B_FALSE);
+	}
 
 	setregs(&args);
 
@@ -659,7 +697,7 @@ gexec(
 	size_t *execsz,
 	caddr_t exec_file,
 	struct cred *cred,
-	int brand_action)
+	int *brand_action)
 {
 	struct vnode *vp, *execvp = NULL;
 	proc_t *pp = ttoproc(curthread);
@@ -980,8 +1018,14 @@ gexec(
 			if (pp->p_plist || (pp->p_proc_flag & P_PR_TRACE))
 				args->traceinval = 1;
 		}
-		if (pp->p_proc_flag & P_PR_PTRACE)
+
+		/*
+		 * If legacy ptrace is enabled, generate the SIGTRAP.
+		 */
+		if (pp->p_proc_flag & P_PR_PTRACE) {
 			psignal(pp, SIGTRAP);
+		}
+
 		if (args->traceinval)
 			prinvalidate(&pp->p_user);
 	}
@@ -1645,6 +1689,25 @@ stk_add(uarg_t *args, const char *sp, enum uio_seg segflg)
 	return (0);
 }
 
+/*
+ * Add a fixed size byte array to the stack (only from kernel space).
+ */
+static int
+stk_byte_add(uarg_t *args, const uint8_t *sp, size_t len)
+{
+	if (STK_AVAIL(args) < sizeof (int))
+		return (E2BIG);
+	*--args->stk_offp = args->stk_strp - args->stk_base;
+
+	if (len > STK_AVAIL(args))
+		return (E2BIG);
+	bcopy(sp, args->stk_strp, len);
+
+	args->stk_strp += len;
+
+	return (0);
+}
+
 static int
 stk_getptr(uarg_t *args, char *src, char **dst)
 {
@@ -1686,6 +1749,7 @@ stk_copyin(execa_t *uap, uarg_t *args, intpdata_t *intp, void **auxvpp)
 	size_t size, pad;
 	char *argv = (char *)uap->argp;
 	char *envp = (char *)uap->envp;
+	uint8_t rdata[RANDOM_LEN];
 
 	/*
 	 * Copy interpreter's name and argument to argv[0] and argv[1].
@@ -1768,8 +1832,9 @@ stk_copyin(execa_t *uap, uarg_t *args, intpdata_t *intp, void **auxvpp)
 	args->ne = args->na - argc;
 
 	/*
-	 * Add AT_SUN_PLATFORM, AT_SUN_EXECNAME, AT_SUN_BRANDNAME, and
-	 * AT_SUN_EMULATOR strings to the stack.
+	 * Add AT_SUN_PLATFORM, AT_SUN_EXECNAME, AT_SUN_BRANDNAME,
+	 * AT_SUN_BRAND_NROOT, and AT_SUN_EMULATOR strings, as well as AT_RANDOM
+	 * array, to the stack.
 	 */
 	if (auxvpp != NULL && *auxvpp != NULL) {
 		if ((error = stk_add(args, platform, UIO_SYSSPACE)) != 0)
@@ -1781,6 +1846,20 @@ stk_copyin(execa_t *uap, uarg_t *args, intpdata_t *intp, void **auxvpp)
 			return (error);
 		if (args->emulator != NULL &&
 		    (error = stk_add(args, args->emulator, UIO_SYSSPACE)) != 0)
+			return (error);
+
+		/*
+		 * For the AT_RANDOM aux vector we provide 16 bytes of random
+		 * data.
+		 */
+		(void) random_get_pseudo_bytes(rdata, sizeof (rdata));
+
+		if ((error = stk_byte_add(args, rdata, sizeof (rdata))) != 0)
+			return (error);
+
+		if (args->brand_nroot != NULL &&
+		    (error = stk_add(args, args->brand_nroot,
+		    UIO_SYSSPACE)) != 0)
 			return (error);
 	}
 

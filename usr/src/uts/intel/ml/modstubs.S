@@ -48,7 +48,7 @@
  *	NOTE: Use NO_UNLOAD_STUBs if the module is NOT unloadable once it is
  *	      loaded.
  */
-#define	MAXNARG	10
+#define	MAXNARG	12
 
 /*
  * WARNING: there is no check for forgetting to write END_MODULE,
@@ -159,7 +159,7 @@ fcnname##_info:							\
 	pushq	%rcx
 	pushq	%r8
 	pushq	%r9
-	/* (next 4 args, if any, are already on the stack above %rbp) */
+	/* (next 6 args, if any, are already on the stack above %rbp) */
 	movq	%r15, %rdi
 	call	mod_hold_stub		/* mod_hold_stub(mod_stub_info *) */
 	cmpl	$-1, %eax		/* error? */
@@ -170,7 +170,7 @@ fcnname##_info:							\
 	jmp	.L2
 .L1:
 	/*
-	 * copy MAXNARG == 10 incoming arguments
+	 * copy MAXNARG == 12 incoming arguments
 	 */
 	popq	%r9
 	popq	%r8
@@ -194,9 +194,11 @@ fcnname##_info:							\
 	pushq	(%rsp, %r11, 8)
 	pushq	(%rsp, %r11, 8)
 	pushq	(%rsp, %r11, 8)
+	pushq	(%rsp, %r11, 8)
+	pushq	(%rsp, %r11, 8)
 	movq	(%r15), %rax
 	INDIRECT_CALL_REG(rax)		/* call the stub fn(arg, ..) */
-	addq	$0x20, %rsp		/* pop off last 4 args */
+	addq	$0x30, %rsp		/* pop off last 6 args */
 	pushq	%rax			/* save any return values */
 	pushq	%rdx
 	movq	%r15, %rdi

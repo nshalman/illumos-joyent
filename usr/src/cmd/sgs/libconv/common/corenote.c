@@ -26,6 +26,7 @@
 /*
  * Copyright 2012 DEY Storage Systems, Inc.  All rights reserved.
  * Copyright (c) 2018 Joyent, Inc.
+ * Copyright 2021 OmniOS Community Edition (OmniOSce) Association.
  * Copyright 2026 Oxide Computer Company
  */
 
@@ -80,7 +81,7 @@ const char *
 conv_cnote_auxv_type(Word type, Conv_fmt_flags_t fmt_flags,
     Conv_inv_buf_t *inv_buf)
 {
-	static const Msg	types_0_22[] = {
+	static const Msg	types_0_25[] = {
 		MSG_AUXV_AT_NULL,		MSG_AUXV_AT_IGNORE,
 		MSG_AUXV_AT_EXECFD,		MSG_AUXV_AT_PHDR,
 		MSG_AUXV_AT_PHENT,		MSG_AUXV_AT_PHNUM,
@@ -92,10 +93,11 @@ conv_cnote_auxv_type(Word type, Conv_fmt_flags_t fmt_flags,
 		MSG_AUXV_AT_HWCAP,		MSG_AUXV_AT_CLKTCK,
 		MSG_AUXV_AT_FPUCW,		MSG_AUXV_AT_DCACHEBSIZE,
 		MSG_AUXV_AT_ICACHEBSIZE,	MSG_AUXV_AT_UCACHEBSIZE,
-		MSG_AUXV_AT_IGNOREPPC
+		MSG_AUXV_AT_IGNOREPPC,		MSG_AUXV_AT_SECURE,
+		MSG_AUXV_AT_BASE_PLATFORM,	MSG_AUXV_AT_RANDOM
 	};
-	static const conv_ds_msg_t ds_types_0_22 = {
-	    CONV_DS_MSG_INIT(0, types_0_22) };
+	static const conv_ds_msg_t ds_types_0_25 = {
+	    CONV_DS_MSG_INIT(0, types_0_25) };
 
 	static const Msg	types_2000_2011[] = {
 		MSG_AUXV_AT_SUN_UID,		MSG_AUXV_AT_SUN_RUID,
@@ -114,7 +116,7 @@ conv_cnote_auxv_type(Word type, Conv_fmt_flags_t fmt_flags,
 		MSG_AUXV_AT_SUN_EMULATOR,	MSG_AUXV_AT_SUN_BRANDNAME,
 		MSG_AUXV_AT_SUN_BRAND_AUX1,	MSG_AUXV_AT_SUN_BRAND_AUX2,
 		MSG_AUXV_AT_SUN_BRAND_AUX3,	MSG_AUXV_AT_SUN_HWCAP2,
-		0,				0,
+		MSG_AUXV_AT_SUN_BRAND_NROOT,	MSG_AUXV_AT_SUN_BRAND_AUX4,
 		MSG_AUXV_AT_SUN_COMMPAGE,	MSG_AUXV_AT_SUN_FPTYPE,
 		MSG_AUXV_AT_SUN_FPSIZE,		MSG_AUXV_AT_SUN_HWCAP3
 	};
@@ -122,7 +124,7 @@ conv_cnote_auxv_type(Word type, Conv_fmt_flags_t fmt_flags,
 	    CONV_DS_MSG_INIT(2014, types_2014_2029) };
 
 	static const conv_ds_t	*ds[] = {
-		CONV_DS_ADDR(ds_types_0_22), CONV_DS_ADDR(ds_types_2000_2011),
+		CONV_DS_ADDR(ds_types_0_25), CONV_DS_ADDR(ds_types_2000_2011),
 		CONV_DS_ADDR(ds_types_2014_2029), NULL };
 
 	return (conv_map_ds(ELFOSABI_NONE, EM_NONE, type, ds, fmt_flags,
