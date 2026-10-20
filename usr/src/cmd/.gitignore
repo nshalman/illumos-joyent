@@ -11,6 +11,8 @@
 
 #
 # Copyright 2025 Oxide Computer Company
+# Copyright 2025 MNX Cloud, Inc.
+# Copyright 2025 Edgecast Cloud LLC.
 #
 
 
@@ -27,6 +29,7 @@ lp/filter/postscript/font/devpost/*.out
 
 ptools/*/amd64
 
+Adm/sun/issue
 Adm/sun/motd
 Adm/sun/smbpasswd
 abi/appcert/etc/etc.alt
@@ -118,6 +121,8 @@ allocate/sr0
 allocate/st0
 allocate/st1
 allocate/st_clean
+
+altexec/altexec
 
 amdzen/udf
 amdzen/usmn
@@ -403,6 +408,8 @@ cmd-inet/usr.sbin/wificonfig/wificonfig
 
 col/col
 
+column/column
+
 compress/compress
 
 connstat/connstat
@@ -583,6 +590,7 @@ dtrace/test/tst/common/usdt/tst.forker.exe
 dtrace/test/tst/common/usdt/tst.lazyprobe.exe
 dtrace/test/tst/common/ustack/tst.bigstack.exe
 dtrace/test/tst/common/ustack/tst.spin.exe
+dtrace/test/tst/common/ustack/tst.unpriv.exe
 dtrace/test/tst/i386/pid/err.uregswrite1.exe
 dtrace/test/tst/i386/pid/err.uregswrite2.exe
 dtrace/test/tst/i386/pid/tst.badinstr.exe
@@ -748,6 +756,9 @@ fs.d/fs.dfl
 fs.d/fsck
 fs.d/hsfs/labelit/labelit
 fs.d/hsfs/mount/mount
+fs.d/hyprlofs/hlcfg/hlcfg
+fs.d/hyprlofs/mount/mount
+fs.d/lxproc/mount
 fs.d/lofs/mount/mount
 fs.d/mntfs/mount
 fs.d/mnttab
@@ -1212,6 +1223,8 @@ luxadm/luxadm
 
 mach/mach
 
+machid/machid
+
 mail/mail
 mailwrapper/mailwrapper
 mailx/mailx
@@ -1329,6 +1342,8 @@ nice/nice
 
 nice/nice.xpg4
 
+nicstat/nicstat
+
 nl/nl
 
 nl/nl.xpg4
@@ -1392,6 +1407,13 @@ perl/contrib/Sun/Solaris/Lgrp/amd64/Lgrp.c
 perl/contrib/Sun/Solaris/Project/amd64/Project.c
 perl/contrib/Sun/Solaris/Task/amd64/Task.c
 perl/contrib/Sun/Solaris/Utils/amd64/Utils.c
+perl/contrib/Sun/Solaris/Intrs/i386/Intrs.c
+perl/contrib/Sun/Solaris/Kstat/i386/Kstat.c
+perl/contrib/Sun/Solaris/Lgrp/i386/Lgrp.c
+perl/contrib/Sun/Solaris/Project/i386/Project.c
+perl/contrib/Sun/Solaris/Task/i386/Task.c
+perl/contrib/Sun/Solaris/Utils/i386/Utils.c
+
 
 pfexec/pfexec
 pfexecd/pfexecd
@@ -2040,6 +2062,7 @@ stat/mpstat/dsr.c
 stat/mpstat/mnt.c
 stat/mpstat/timestamp.c
 stat/mpstat/walkers.c
+stat/vfsstat/vfsstat
 stat/vmstat/vmstat
 stat/vmstat/acquire.c
 stat/vmstat/acquire_iodevs.c
@@ -2048,6 +2071,7 @@ stat/vmstat/dsr.c
 stat/vmstat/mnt.c
 stat/vmstat/timestamp.c
 stat/vmstat/walkers.c
+stat/ziostat/ziostat
 
 stmfadm/stmfadm
 stmfproxy/aluaadm/aluaadm
@@ -2281,6 +2305,45 @@ vi/port/ex.xpg6
 vi/port/expreserve
 vi/port/exrecover
 
+vndadm/test/tst/ioctl/create.attach.exe
+vndadm/test/tst/ioctl/create.attachnolink.exe
+vndadm/test/tst/ioctl/create.badlinkname.exe
+vndadm/test/tst/ioctl/create.doublelink.exe
+vndadm/test/tst/ioctl/create.gioctlattach.exe
+vndadm/test/tst/ioctl/create.link.exe
+vndadm/test/tst/ioctl/create.linkexists.exe
+vndadm/test/tst/ioctl/create.ngioctlfault.exe
+vndadm/test/tst/ioctl/create.nopriv1.exe
+vndadm/test/tst/ioctl/create.nopriv2.exe
+vndadm/test/tst/ioctl/create.nopriv3.exe
+vndadm/test/tst/ioctl/create.nopriv4.exe
+vndadm/test/tst/ioctl/create.olink.exe
+vndadm/test/tst/ioctl/create.olinknopriv.exe
+vndadm/test/tst/ioctl/create.rmenolink.exe
+vndadm/test/tst/ioctl/tst.attachrdonly.exe
+vndadm/test/tst/ioctl/tst.badioctl.exe
+vndadm/test/tst/ioctl/tst.basicopenctl.exe
+vndadm/test/tst/ioctl/tst.gioctlfault.exe
+vndadm/test/tst/ioctl/tst.gioctlnattach.exe
+vndadm/test/tst/ioctl/tst.openctlbadflags.exe
+vndadm/test/tst/lib/create.badlink.exe
+vndadm/test/tst/lib/create.badpropid.exe
+vndadm/test/tst/lib/create.badpropsize.exe
+vndadm/test/tst/lib/create.badzone.exe
+vndadm/test/tst/lib/create.basic.exe
+vndadm/test/tst/lib/create.enomem.exe
+vndadm/test/tst/lib/create.frameioeagain.exe
+vndadm/test/tst/lib/create.open.exe
+vndadm/test/tst/lib/create.propiter.exe
+vndadm/test/tst/lib/create.proprdonly.exe
+vndadm/test/tst/lib/err.badclose.exe
+vndadm/test/tst/lib/tst.badopen.exe
+vndadm/test/tst/lib/tst.strerror.exe
+vndadm/test/tst/lib/tst.strsyserror.exe
+vndadm/vndadm
+
+vndstat/vndstat
+
 volcheck/volcheck
 
 volrmmount/volrmmount
@@ -2369,7 +2432,11 @@ zdump/zdump
 
 zfs/zfs
 
+zfscache/zfscache
+
 zhack/zhack
+
+zhyve/zhyve
 
 zic/tzselect
 zic/zic

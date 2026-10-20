@@ -763,6 +763,7 @@ usr/lib/libsff.so
 #
 lib/amd64/libvmm.so			i386
 lib/amd64/libvmmapi.so			i386
+usr/include/bhyve.h			i386
 usr/include/libppt.h			i386
 usr/include/libvmm.h			i386
 usr/include/vmmapi.h			i386
