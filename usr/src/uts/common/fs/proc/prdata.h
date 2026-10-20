@@ -27,7 +27,7 @@
 /*	  All Rights Reserved	*/
 
 /*
- * Copyright 2018 Joyent, Inc.
+ * Copyright 2019 Joyent, Inc.
  * Copyright 2020 OmniOS Community Edition (OmniOSce) Association.
  * Copyright 2023 Oxide Computer Company
  */
@@ -125,6 +125,8 @@ typedef enum prnodetype {
 #if defined(__i386) || defined(__amd64)
 	PR_LDT,			/* /proc/<pid>/ldt			*/
 #endif
+	PR_ARGV,		/* /proc/<pid>/argv			*/
+	PR_CMDLINE,		/* /proc/<pid>/cmdline			*/
 	PR_USAGE,		/* /proc/<pid>/usage			*/
 	PR_LUSAGE,		/* /proc/<pid>/lusage			*/
 	PR_PAGEDATA,		/* /proc/<pid>/pagedata			*/
@@ -356,6 +358,9 @@ extern	file_t	*pr_getf(proc_t *, uint_t, short *);
 extern	void	pr_releasef(file_t *);
 extern	void	pr_setfault(proc_t *, fltset_t *);
 extern	int	prusrio(proc_t *, enum uio_rw, struct uio *, int);
+extern	int	prreadargv(proc_t *, char *, size_t, size_t *);
+extern	int	prreadcmdline(proc_t *, char *, size_t, size_t *);
+extern	int	prreadenvv(proc_t *, char *, size_t, size_t *);
 extern	int	prwritectl(vnode_t *, struct uio *, cred_t *);
 extern	int	prlock(prnode_t *, int);
 extern	void	prunmark(proc_t *);

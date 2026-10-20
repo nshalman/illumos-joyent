@@ -21,6 +21,7 @@
 /*
  * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ * Copyright (c) 2014, Joyent, Inc.  All rights reserved.
  */
 
 #include <stdio.h>
@@ -35,6 +36,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <libproc.h>
+#include "ptools_common.h"
 
 /* evil knowledge of libc internals */
 #include "../../../lib/libc/inc/thr_uberdata.h"
@@ -170,7 +172,7 @@ lwp_iter(void *cd, const lwpstatus_t *lwpstatus)
 static int
 look(char *arg)
 {
-	char pathname[100];
+	char pathname[PATH_MAX];
 	struct stat statb;
 	int fd = -1;
 	int sig, gcode;
@@ -197,7 +199,8 @@ look(char *arg)
 	(void) memcpy(&psinfo, psinfop, sizeof (psinfo_t));
 	proc_unctrl_psinfo(&psinfo);
 
-	(void) sprintf(pathname, "/proc/%d/sigact", (int)psinfo.pr_pid);
+	(void) proc_snprintf(pathname, sizeof (pathname), "/proc/%d/sigact",
+	    (int)psinfo.pr_pid);
 	if ((fd = open(pathname, O_RDONLY)) < 0) {
 		perr("open sigact");
 		goto look_error;
@@ -211,7 +214,7 @@ look(char *arg)
 	action = malloc(maxsig * sizeof (struct sigaction));
 	if (action == NULL) {
 		(void) fprintf(stderr,
-		"%s: cannot malloc() space for %d sigaction structures\n",
+		    "%s: cannot malloc() space for %d sigaction structures\n",
 		    command, maxsig);
 		goto look_error;
 	}

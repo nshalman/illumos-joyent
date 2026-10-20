@@ -44,7 +44,7 @@
 .\" Portions Copyright (c) 1992, X/Open Company Limited All Rights Reserved
 .\" Copyright (c) 2009, Sun Microsystems, Inc. All Rights Reserved
 .\" Copyright (c) 2013 Gary Mills
-.\" Copyright (c) 2018, Joyent, Inc.
+.\" Copyright 2019 Joyent, Inc.
 .\" Copyright 2026 Oxide Computer Company
 .\"
 .Dd April 22, 2026
@@ -319,8 +319,10 @@ Under the
 .Fl f
 option,
 .Nm
-tries to determine the command name and arguments given when the process was
-created by examining the user block.
+uses the
+.Pa /proc/nnnnn/cmdline
+file to read the full process arguments.
+The process may have changed these since it was started.
 Failing this, the command name is printed, as it would have appeared without the
 .Fl f
 option, in square brackets.
@@ -432,10 +434,9 @@ The execution time for the lwp being reported.
 .It Sy CMD (all)
 The command name
 .Po
-the full command name and its arguments, up to a limit of 80 characters, are
-printed under the
+or, with the
 .Fl f
-option
+option, the full process arguments
 .Pc .
 .El
 .Pp
@@ -655,8 +656,11 @@ arguments as they might have been modified by the application.
 Applications cannot depend on being able to modify their argument list and
 having that modification be reflected in the output of
 .Nm .
-The illumos implementation limits the string to 80 bytes; the string is the
-version of the argument list as it was passed to the command when it started.
+However, the current implementation will display the full modified process
+arguments when given the
+.Fl f
+argument; otherwise this is the initial process arguments, but limited to 80
+bytes.
 .El
 .Pp
 The following names are recognized in the illumos implementation:

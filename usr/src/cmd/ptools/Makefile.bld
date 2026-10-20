@@ -22,6 +22,7 @@
 #
 # Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
+# Copyright 2015 Joyent, Inc.
 #
 # Copyright 2019 Joyent, Inc.
 
@@ -79,6 +80,12 @@ CERRWARN_pwait	+= -_smatch=off
 
 CERRWARN += $(CERRWARN_$(PROG))
 
+#
+# Common code definitions
+#
+COBJS =	ptools_common.o
+CINC = -I../../common
+
 # pargs depends on ../../common/elfcap components
 # pmadvise depends on pmap components
 
@@ -89,13 +96,31 @@ CPPFLAGS_pargs =	-I$(ELFCAP)
 OBJS_pargs =		elfcap.o
 SRCS_pargs =		$(ELFCAP)/elfcap.c
 
-CPPFLAGS_pmap =		-I$(PMAP)
-OBJS_pmap =		pmap_common.o
+CPPFLAGS_pmap =		-I$(PMAP) $(CINC)
+OBJS_pmap =		pmap_common.o $(COBJS)
 SRCS_pmap =		$(PMAP)/pmap_common.c
 
-CPPFLAGS_pmadvise =	-I$(PMAP)
-OBJS_pmadvise =		pmap_common.o
+CPPFLAGS_pmadvise =	-I$(PMAP) $(CINC)
+OBJS_pmadvise =		pmap_common.o $(COBJS)
 SRCS_pmadvise =		$(PMAP)/pmap_common.c
+
+CPPFLAGS_preap =	$(CINC)
+OBJS_preap =		$(COBJS)
+
+CPPFLAGS_psig =		$(CINC)
+OBJS_psig =		$(COBJS)
+
+CPPFLAGS_ptime =	$(CINC)
+OBJS_ptime =		$(COBJS)
+
+CPPFLAGS_ptree =	$(CINC)
+OBJS_ptree =		$(COBJS)
+
+CPPFLAGS_pwait =	$(CINC)
+OBJS_pwait =		$(COBJS)
+
+CPPFLAGS_pwdx =		$(CINC)
+OBJS_pwdx =		$(COBJS)
 
 LN_pargs =		penv pauxv
 
@@ -123,6 +148,10 @@ pmap_common.o:	$(PMAP)/pmap_common.c
 		$(POST_PROCESS_O)
 
 %.o:	../%.c
+	$(COMPILE.c) $<
+	$(POST_PROCESS_O)
+
+%.o:	../../common/%.c
 	$(COMPILE.c) $<
 	$(POST_PROCESS_O)
 

@@ -25,7 +25,7 @@
 # Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
 # Copyright 2018 Nexenta Systems, Inc.
 # Copyright 2022 Garrett D'Amore
-# Copyright 2020 Joyent, Inc.
+# Copyright 2021 Joyent, Inc.
 # Copyright 2016 OmniTI Computer Consulting, Inc.  All rights reserved.
 # Copyright 2016 Hans Rosenfeld <rosenfeld@grumpf.hope-2000.org>
 # Copyright 2026 Oxide Computer Company
@@ -1268,8 +1268,8 @@ SMBSRV_OBJS +=	$(SMBSRV_SHARED_OBJS)			\
 PCFS_OBJS +=	pc_alloc.o	pc_dir.o	pc_node.o	pc_subr.o \
 		pc_vfsops.o	pc_vnops.o
 
-PROC_OBJS +=	prcontrol.o	prioctl.o	prsubr.o	prusrio.o \
-		prvfsops.o	prvnops.o
+PROC_OBJS +=	prargv.o	prcontrol.o	prioctl.o	prsubr.o \
+		prusrio.o	prvfsops.o	prvnops.o
 
 MNTFS_OBJS +=	mntvfsops.o	mntvnops.o
 

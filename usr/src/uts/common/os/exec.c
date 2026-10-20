@@ -24,10 +24,11 @@
  */
 
 /*	Copyright (c) 1988 AT&T	*/
-/*	  All Rights Reserved	*/
+/*	All Rights Reserved	*/
 /*
  * Copyright 2015 Garrett D'Amore <garrett@damore.org>
  * Copyright 2019 Joyent, Inc.
+ * Copyright 2026 OmniOS Community Edition (OmniOSce) Association.
  * Copyright 2026 Oxide Computer Company
  */
 
@@ -1742,7 +1743,9 @@ stk_copyin(execa_t *uap, uarg_t *args, intpdata_t *intp, void **auxvpp)
 		}
 	}
 	argc = (int *)(args->stk_base + args->stk_size) - args->stk_offp;
-	args->arglen = args->stk_strp - args->stk_base;
+	args->argstrlen = args->stk_strp - args->stk_base;
+
+	const char *envstr = args->stk_strp;
 
 	/*
 	 * Add environ[] strings to the stack.
@@ -1764,6 +1767,8 @@ stk_copyin(execa_t *uap, uarg_t *args, intpdata_t *intp, void **auxvpp)
 			envp += ptrsize;
 		}
 	}
+
+	args->envstrlen = args->stk_strp - envstr;
 	args->na = (int *)(args->stk_base + args->stk_size) - args->stk_offp;
 	args->ne = args->na - argc;
 
@@ -1838,46 +1843,53 @@ stk_copyout(uarg_t *args, char *usrstack, void **auxvpp, user_t *up)
 	 */
 	if (stk_putptr(args, usp, (char *)(uintptr_t)argc))
 		return (-1);
+	usp += ptrsize;
 
 	/*
-	 * Add argc space (ptrsize) to usp and record argv for /proc.
+	 * For the benefit of /proc, record the user address of the argv[] array
+	 * as well as the start of the argv string space (argv[0]).
 	 */
-	up->u_argv = (uintptr_t)(usp += ptrsize);
+	up->u_argv = (uintptr_t)usp;
+	up->u_argvstrs = (uintptr_t)(&ustrp[*(offp - 1)]);
+	up->u_argvstrsize = args->argstrlen;
 
 	/*
-	 * Put the argv[] pointers on the stack.
+	 * Put the argv[] pointers on the stack, including a NULL terminator.
 	 */
 	for (i = 0; i < argc; i++, usp += ptrsize)
 		if (stk_putptr(args, usp, &ustrp[*--offp]))
 			return (-1);
+	usp += ptrsize;
 
 	/*
 	 * Copy arguments to u_psargs.
 	 */
-	pslen = MIN(args->arglen, PSARGSZ) - 1;
+	pslen = MIN(args->argstrlen, PSARGSZ) - 1;
 	for (i = 0; i < pslen; i++)
 		up->u_psargs[i] = (kstrp[i] == '\0' ? ' ' : kstrp[i]);
 	while (i < PSARGSZ)
 		up->u_psargs[i++] = '\0';
 
 	/*
-	 * Add space for argv[]'s NULL terminator (ptrsize) to usp and
-	 * record envp for /proc.
+	 * For the benefit of /proc, record the user address of the envp[] array
+	 * as well as the start of the envp string space (envp[0]).
 	 */
-	up->u_envp = (uintptr_t)(usp += ptrsize);
+	up->u_envp = (uintptr_t)usp;
+	up->u_envstrs = (uintptr_t)(&ustrp[*(offp - 1)]);
+	up->u_envstrsize = args->envstrlen;
 
 	/*
-	 * Put the envp[] pointers on the stack.
+	 * Put the envp[] pointers on the stack, including a NULL terminator.
 	 */
 	for (i = 0; i < envc; i++, usp += ptrsize)
 		if (stk_putptr(args, usp, &ustrp[*--offp]))
 			return (-1);
+	usp += ptrsize;
 
 	/*
-	 * Add space for envp[]'s NULL terminator (ptrsize) to usp and
-	 * remember where the stack ends, which is also where auxv begins.
+	 * Remember where the stack ends, which is also where auxv begins.
 	 */
-	args->stackend = usp += ptrsize;
+	args->stackend = usp;
 
 	/*
 	 * Put all the argv[], envp[], and auxv strings on the stack.
@@ -1888,7 +1900,7 @@ stk_copyout(uarg_t *args, char *usrstack, void **auxvpp, user_t *up)
 	/*
 	 * Fill in the aux vector now that we know the user stack addresses
 	 * for the AT_SUN_PLATFORM, AT_SUN_EXECNAME, AT_SUN_BRANDNAME and
-	 * AT_SUN_EMULATOR strings.
+	 * AT_SUN_EMULATOR strings, as well as the AT_RANDOM array.
 	 */
 	if (auxvpp != NULL && *auxvpp != NULL) {
 		if (args->to_model == DATAMODEL_NATIVE) {
@@ -1901,6 +1913,11 @@ stk_copyout(uarg_t *args, char *usrstack, void **auxvpp, user_t *up)
 			if (args->emulator != NULL)
 				ADDAUX(*a,
 				    AT_SUN_EMULATOR, (long)&ustrp[*--offp])
+			ADDAUX(*a, AT_RANDOM, (long)&ustrp[*--offp])
+			if (args->brand_nroot != NULL) {
+				ADDAUX(*a,
+				    AT_SUN_BRAND_NROOT, (long)&ustrp[*--offp])
+			}
 		} else {
 			auxv32_t **a = (auxv32_t **)auxvpp;
 			ADDAUX(*a,
@@ -1913,6 +1930,11 @@ stk_copyout(uarg_t *args, char *usrstack, void **auxvpp, user_t *up)
 			if (args->emulator != NULL)
 				ADDAUX(*a, AT_SUN_EMULATOR,
 				    (int)(uintptr_t)&ustrp[*--offp])
+			ADDAUX(*a, AT_RANDOM, (int)(uintptr_t)&ustrp[*--offp])
+			if (args->brand_nroot != NULL) {
+				ADDAUX(*a, AT_SUN_BRAND_NROOT,
+				    (int)(uintptr_t)&ustrp[*--offp])
+			}
 		}
 	}
 
@@ -2158,7 +2180,7 @@ exec_args(execa_t *uap, uarg_t *args, intpdata_t *intp, void **auxvpp)
 	delete_itimer_realprof();
 
 	if (AU_AUDITING())
-		audit_exec(args->stk_base, args->stk_base + args->arglen,
+		audit_exec(args->stk_base, args->stk_base + args->argstrlen,
 		    args->na - args->ne, args->ne, args->pfcred);
 
 	/*

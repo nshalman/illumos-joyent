@@ -38,6 +38,8 @@
 #include <poll.h>
 #include <procfs.h>
 #include <sys/resource.h>
+#include <limits.h>
+#include "ptools_common.h"
 
 static int count_my_files();
 static char *command;
@@ -48,6 +50,7 @@ static char *command;
 int
 main(int argc, char **argv)
 {
+	char buf[PATH_MAX];
 	unsigned long remain = 0;
 	struct pollfd *pollfd;
 	struct pollfd *pfd;
@@ -78,6 +81,8 @@ main(int argc, char **argv)
 		    "  -v: verbose; report terminations to standard out\n");
 		return (2);
 	}
+
+	(void) proc_snprintf(buf, sizeof (buf), "/proc/");
 
 	/* make sure we have enough file descriptors */
 	if (getrlimit(RLIMIT_NOFILE, &rlim) == 0) {
@@ -115,7 +120,7 @@ main(int argc, char **argv)
 		if (strchr(arg, '/') != NULL)
 			(void) strncpy(psinfofile, arg, sizeof (psinfofile));
 		else {
-			(void) strcpy(psinfofile, "/proc/");
+			(void) strcpy(psinfofile, buf);
 			(void) strncat(psinfofile, arg, sizeof (psinfofile)-6);
 		}
 		(void) strncat(psinfofile, "/psinfo",

@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 1989, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2018, Joyent, Inc.
+ * Copyright 2019 Joyent, Inc.
  * Copyright (c) 2017 by Delphix. All rights reserved.
  * Copyright 2020 OmniOS Community Edition (OmniOSce) Association.
  * Copyright 2022 MNX Cloud, Inc.
@@ -171,8 +171,12 @@ static prdirent_t piddir[] = {
 		"contracts" },
 	{ PR_SECFLAGS,	28 * sizeof (prdirent_t), sizeof (prdirent_t),
 		"secflags" },
+	{ PR_ARGV,	29 * sizeof (prdirent_t), sizeof (prdirent_t),
+		"argv" },
+	{ PR_CMDLINE,	30 * sizeof (prdirent_t), sizeof (prdirent_t),
+		"cmdline" },
 #if defined(__x86)
-	{ PR_LDT,	29 * sizeof (prdirent_t), sizeof (prdirent_t),
+	{ PR_LDT,	31 * sizeof (prdirent_t), sizeof (prdirent_t),
 		"ldt" },
 #endif
 };
@@ -593,6 +597,7 @@ static int pr_read_inval(), pr_read_as(), pr_read_status(),
 #if defined(__x86)
 	pr_read_ldt(),
 #endif
+	pr_read_argv(), pr_read_cmdline(),
 	pr_read_usage(), pr_read_lusage(), pr_read_pagedata(),
 	pr_read_watch(), pr_read_lwpstatus(), pr_read_lwpsinfo(),
 	pr_read_lwpusage(), pr_read_lwpname(),
@@ -623,6 +628,8 @@ static int (*pr_read_function[PR_NFILES])() = {
 #if defined(__x86)
 	pr_read_ldt,		/* /proc/<pid>/ldt			*/
 #endif
+	pr_read_argv,		/* /proc/<pid>/argv			*/
+	pr_read_cmdline,	/* /proc/<pid>/cmdline			*/
 	pr_read_usage,		/* /proc/<pid>/usage			*/
 	pr_read_lusage,		/* /proc/<pid>/lusage			*/
 	pr_read_pagedata,	/* /proc/<pid>/pagedata			*/
@@ -684,6 +691,76 @@ pr_uioread(void *base, long count, uio_t *uiop)
 		error = uiomove((char *)base + uiop->uio_offset,
 		    count, UIO_READ, uiop);
 	}
+
+	return (error);
+}
+
+static int
+pr_read_cmdline(prnode_t *pnp, uio_t *uiop)
+{
+	char *args;
+	int error;
+	size_t asz = PRMAXARGVLEN, sz;
+
+	/*
+	 * Allocate a scratch buffer for collection of the process arguments.
+	 */
+	args = kmem_alloc(asz, KM_SLEEP);
+
+	ASSERT(pnp->pr_type == PR_CMDLINE);
+
+	if ((error = prlock(pnp, ZNO)) != 0) {
+		kmem_free(args, asz);
+		return (error);
+	}
+
+	if ((error = prreadcmdline(pnp->pr_common->prc_proc, args, asz,
+	    &sz)) != 0) {
+		prunlock(pnp);
+		kmem_free(args, asz);
+		return (error);
+	}
+
+	prunlock(pnp);
+
+	error = pr_uioread(args, sz, uiop);
+
+	kmem_free(args, asz);
+
+	return (error);
+}
+
+static int
+pr_read_argv(prnode_t *pnp, uio_t *uiop)
+{
+	char *args;
+	int error;
+	size_t asz = PRMAXARGVLEN, sz;
+
+	/*
+	 * Allocate a scratch buffer for collection of the process arguments.
+	 */
+	args = kmem_alloc(asz, KM_SLEEP);
+
+	ASSERT(pnp->pr_type == PR_ARGV);
+
+	if ((error = prlock(pnp, ZNO)) != 0) {
+		kmem_free(args, asz);
+		return (error);
+	}
+
+	if ((error = prreadargv(pnp->pr_common->prc_proc, args, asz,
+	    &sz)) != 0) {
+		prunlock(pnp);
+		kmem_free(args, asz);
+		return (error);
+	}
+
+	prunlock(pnp);
+
+	error = pr_uioread(args, sz, uiop);
+
+	kmem_free(args, asz);
 
 	return (error);
 }
@@ -1945,6 +2022,8 @@ static int (*pr_read_function_32[PR_NFILES])() = {
 #if defined(__x86)
 	pr_read_ldt,		/* /proc/<pid>/ldt			*/
 #endif
+	pr_read_argv,		/* /proc/<pid>/argv			*/
+	pr_read_cmdline,	/* /proc/<pid>/cmdline			*/
 	pr_read_usage_32,	/* /proc/<pid>/usage			*/
 	pr_read_lusage_32,	/* /proc/<pid>/lusage			*/
 	pr_read_pagedata_32,	/* /proc/<pid>/pagedata			*/
@@ -2873,6 +2952,103 @@ prread(vnode_t *vp, uio_t *uiop, int ioflag, cred_t *cr, caller_context_t *ct)
 #endif
 }
 
+/*
+ * We make pr_write_psinfo_fname() somewhat simpler by asserting at compile
+ * time that PRFNSZ has the same definition as MAXCOMLEN.
+ */
+#if PRFNSZ != MAXCOMLEN
+#error PRFNSZ/MAXCOMLEN mismatch
+#endif
+
+static int
+pr_write_psinfo_fname(prnode_t *pnp, uio_t *uiop)
+{
+	char fname[PRFNSZ];
+	int offset = offsetof(psinfo_t, pr_fname), error;
+
+#ifdef _SYSCALL32_IMPL
+	if (curproc->p_model != DATAMODEL_LP64)
+		offset = offsetof(psinfo32_t, pr_fname);
+#endif
+
+	/*
+	 * If this isn't a write to pr_fname (or if the size doesn't match
+	 * PRFNSZ) return.
+	 */
+	if (uiop->uio_offset != offset || uiop->uio_resid != PRFNSZ)
+		return (0);
+
+	if ((error = uiomove(fname, PRFNSZ, UIO_WRITE, uiop)) != 0)
+		return (error);
+
+	fname[PRFNSZ - 1] = '\0';
+
+	if ((error = prlock(pnp, ZNO)) != 0)
+		return (error);
+
+	bcopy(fname, pnp->pr_common->prc_proc->p_user.u_comm, PRFNSZ);
+
+	prunlock(pnp);
+
+	return (0);
+}
+
+/*
+ * We make pr_write_psinfo_psargs() somewhat simpler by asserting at compile
+ * time that PRARGSZ has the same definition as PSARGSZ.
+ */
+#if PRARGSZ != PSARGSZ
+#error PRARGSZ/PSARGSZ mismatch
+#endif
+
+static int
+pr_write_psinfo_psargs(prnode_t *pnp, uio_t *uiop)
+{
+	char psargs[PRARGSZ];
+	int offset = offsetof(psinfo_t, pr_psargs), error;
+
+#ifdef _SYSCALL32_IMPL
+	if (curproc->p_model != DATAMODEL_LP64)
+		offset = offsetof(psinfo32_t, pr_psargs);
+#endif
+
+	/*
+	 * If this isn't a write to pr_psargs (or if the size doesn't match
+	 * PRARGSZ) return.
+	 */
+	if (uiop->uio_offset != offset || uiop->uio_resid != PRARGSZ)
+		return (0);
+
+	if ((error = uiomove(psargs, PRARGSZ, UIO_WRITE, uiop)) != 0)
+		return (error);
+
+	psargs[PRARGSZ - 1] = '\0';
+
+	if ((error = prlock(pnp, ZNO)) != 0)
+		return (error);
+
+	bcopy(psargs, pnp->pr_common->prc_proc->p_user.u_psargs, PRARGSZ);
+
+	prunlock(pnp);
+
+	return (0);
+}
+
+int
+pr_write_psinfo(prnode_t *pnp, uio_t *uiop)
+{
+	int error;
+
+	if ((error = pr_write_psinfo_fname(pnp, uiop)) != 0)
+		return (error);
+
+	if ((error = pr_write_psinfo_psargs(pnp, uiop)) != 0)
+		return (error);
+
+	return (0);
+}
+
+
 /* Note we intentionally don't handle partial writes/updates. */
 static int
 pr_write_lwpname(prnode_t *pnp, uio_t *uiop)
@@ -2998,6 +3174,9 @@ prwrite(vnode_t *vp, uio_t *uiop, int ioflag, cred_t *cr, caller_context_t *ct)
 		if (error == EINTR)
 			uiop->uio_resid = resid;
 		return (error);
+
+	case PR_PSINFO:
+		return (pr_write_psinfo(pnp, uiop));
 
 	case PR_LWPNAME:
 		return (pr_write_lwpname(pnp, uiop));
@@ -3328,6 +3507,13 @@ prgetattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 	case PR_AUXV:
 		vap->va_size = __KERN_NAUXV_IMPL * PR_OBJSIZE(auxv32_t, auxv_t);
 		break;
+	case PR_ARGV:
+		if ((p->p_flag & SSYS) || p->p_as == &kas) {
+			vap->va_size = PSARGSZ;
+		} else {
+			vap->va_size = PRMAXARGVLEN;
+		}
+		break;
 #if defined(__x86)
 	case PR_LDT:
 		mutex_exit(&p->p_lock);
@@ -3450,6 +3636,7 @@ prgetattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 #endif
 	case PR_CTL:
 	case PR_LWPCTL:
+	case PR_CMDLINE:
 	default:
 		vap->va_size = 0;
 		break;
@@ -3504,6 +3691,8 @@ praccess(vnode_t *vp, int mode, int flags, cred_t *cr, caller_context_t *ct)
 	case PR_USAGE:
 	case PR_LUSAGE:
 	case PR_LWPUSAGE:
+	case PR_ARGV:
+	case PR_CMDLINE:
 		p = pr_p_lock(pnp);
 		mutex_exit(&pr_pidlock);
 		if (p == NULL)
@@ -3589,6 +3778,8 @@ static vnode_t *(*pr_lookup_function[PR_NFILES])() = {
 #if defined(__x86)
 	pr_lookup_notdir,	/* /proc/<pid>/ldt			*/
 #endif
+	pr_lookup_notdir,	/* /proc/<pid>/argv			*/
+	pr_lookup_notdir,	/* /proc/<pid>/cmdline			*/
 	pr_lookup_notdir,	/* /proc/<pid>/usage			*/
 	pr_lookup_notdir,	/* /proc/<pid>/lusage			*/
 	pr_lookup_notdir,	/* /proc/<pid>/pagedata			*/
@@ -4919,16 +5110,18 @@ prgetnode(vnode_t *dp, prnodetype_t type)
 		pnp->pr_mode = 0600;	/* read-write by owner only */
 		break;
 
+	case PR_PSINFO:
 	case PR_LWPNAME:
 		pnp->pr_mode = 0644;	/* readable by all + owner can write */
 		break;
 
-	case PR_PSINFO:
 	case PR_LPSINFO:
 	case PR_LWPSINFO:
 	case PR_USAGE:
 	case PR_LUSAGE:
 	case PR_LWPUSAGE:
+	case PR_ARGV:
+	case PR_CMDLINE:
 		pnp->pr_mode = 0444;	/* read-only by all */
 		break;
 
@@ -5036,6 +5229,8 @@ static int (*pr_readdir_function[PR_NFILES])() = {
 #if defined(__x86)
 	pr_readdir_notdir,	/* /proc/<pid>/ldt			*/
 #endif
+	pr_readdir_notdir,	/* /proc/<pid>/argv			*/
+	pr_readdir_notdir,	/* /proc/<pid>/cmdline			*/
 	pr_readdir_notdir,	/* /proc/<pid>/usage			*/
 	pr_readdir_notdir,	/* /proc/<pid>/lusage			*/
 	pr_readdir_notdir,	/* /proc/<pid>/pagedata			*/
@@ -5189,6 +5384,8 @@ pr_readdir_piddir(prnode_t *pnp, uio_t *uiop, int *eofp)
 			case PR_PROCDIR:
 			case PR_PSINFO:
 			case PR_USAGE:
+			case PR_ARGV:
+			case PR_CMDLINE:
 				break;
 			default:
 				continue;

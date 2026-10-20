@@ -713,6 +713,17 @@ indicates that the lwp stopped due to internal synchronization of lwps within
 the process.
 .Sy pr_what
 is unused in this case.
+.It Sy PR_BRAND
+indicates that the lwp stopped for a brand-specific reason.
+Interpretation of the value of
+.Sy pr_what
+depends on which zone brand is in use.
+It is not generally expected that an lwp stopped in this state will be
+restarted by native
+.\" mandoc(1) doesn't like .Xr macros referring to itself, so this is
+.\" a bit of a hack.
+.Nm Ns Pq 4
+consumers.
 .El
 .Pp
 .Sy pr_cursig
@@ -1024,6 +1035,20 @@ the right of the high-order bit (1.0 == 0x8000).
 .Sy pr_pctcpu
 is the summation over all lwps in the process.
 .Pp
+The
+.Sy pr_fname
+and
+.Sy pr_psargs
+are writable by the owner of the process.
+To write to them, the
+.Sy psinfo
+file should be open for writing and the desired value for the field should be
+written at the file offset that corresponds to the member of structure.
+No other entry may be written to; if a write is attempted to an offset that
+does not represent one of these two memers, or if the size of the write is not
+exactly the size of the member being written, no bytes will be written and
+zero will be returned.
+.Pp
 .Sy pr_lwp
 contains the
 .Xr ps 1
@@ -1178,6 +1203,15 @@ structures (see
 .In sys/auxv.h ) .
 The values are those that were passed by the operating system as startup
 information to the dynamic linker.
+.Ss argv
+Contains the concatenation of each of the argument strings, including their
+.Sy NUL
+terminators, in the argument vector
+.Pq Va argv
+for the process.
+If the process has modified either its argument vector, or the contents of
+any of the strings referenced by that vector, those changes will be visible
+here.
 .Ss ldt
 This file exists only on x86-based machines.
 It is non-empty only if the process has established a local descriptor table
@@ -3217,6 +3251,8 @@ process privileges
 process signal actions
 .It Pa /proc/ Ns Em pid Ns Pa /auxv
 process aux vector
+.It Pa /proc/ Ns Em pid Ns Pa /argv
+process argument vector
 .It Pa /proc/ Ns Em pid Ns Pa /ldt
 process
 .Sy LDT
