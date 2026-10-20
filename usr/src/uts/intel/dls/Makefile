@@ -52,7 +52,6 @@ INSTALL_TARGET	= $(BINARY) $(ROOTMODULE)
 #
 CFLAGS		+= $(CCVERBOSE)
 LDFLAGS		+= -N misc/mac
-INC_PATH	+= -I$(UTSBASE)/common/io/bpf
 
 #
 # For now, disable these warnings; maintainers should endeavor

@@ -60,7 +60,7 @@ INSTALL_TARGET	= $(BINARY) $(ROOTMODULE) $(ROOT_CONFFILE)
 #
 #
 CFLAGS		+= $(CCVERBOSE)
-LDFLAGS		+= -Nmisc/mac -Nmisc/dls -Ndrv/ipnet -Nmisc/neti
+LDFLAGS		+= -Nmisc/mac -Nmisc/dls -Ndrv/ipnet -Nmisc/neti -Ndrv/ip
 INC_PATH	+= -I$(UTSBASE)/common/io/bpf
 
 #

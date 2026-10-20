@@ -54,7 +54,6 @@ INSTALL_TARGET	= $(BINARY) $(ROOTMODULE)
 #
 CFLAGS		+= $(CCVERBOSE)
 LDFLAGS		+= -N misc/mac
-INC_PATH	+= -I$(UTSBASE)/common/io/bpf
 
 #
 #	Default build targets.

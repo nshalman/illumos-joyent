@@ -55,6 +55,8 @@ include $(UTSBASE)/intel/Makefile.intel
 ALL_TARGET	= $(BINARY) $(SRC_CONFFILE)
 INSTALL_TARGET	= $(BINARY) $(ROOTMODULE) $(ROOTLINK) $(ROOT_CONFFILE)
 
+INC_PATH	+= -I$(UTSBASE)/common/io/bpf
+
 #
 #	depends on ip and sockfs
 #

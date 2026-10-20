@@ -52,7 +52,6 @@ INSTALL_TARGET	= $(BINARY) $(ROOTMODULE) $(ROOT_CONFFILE)
 #
 CFLAGS		+= $(CCVERBOSE)
 LDFLAGS		+= -Ndrv/dld -Nmisc/dls -Nmisc/mac -Ndrv/ip
-INC_PATH        += -I$(UTSBASE)/common/io/bpf
 
 
 CERRWARN	+= -_gcc=-Wno-switch
