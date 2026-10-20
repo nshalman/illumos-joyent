@@ -178,6 +178,10 @@ $(OBJS_DIR)/%.o:		$(UTSBASE)/intel/io/intel_nb5000/%.c
 	$(COMPILE.c) -o $@ $<
 	$(CTFCONVERT_O)
 
+$(OBJS_DIR)/%.o:		$(UTSBASE)/intel/io/vmxnet/%.c
+	$(COMPILE.c) -o $@ $<
+	$(CTFCONVERT_O)
+
 $(OBJS_DIR)/%.o:		$(UTSBASE)/intel/io/intel_nhm/%.c
 	$(COMPILE.c) -o $@ $<
 	$(CTFCONVERT_O)
