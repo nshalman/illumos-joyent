@@ -223,10 +223,19 @@ mmopen(dev_t *devp, int flag, int typ, struct cred *cred)
 	case M_NULL:
 	case M_ZERO:
 	case M_FULL:
+		/* standard devices */
+		break;
+
 	case M_MEM:
 	case M_KMEM:
 	case M_ALLKMEM:
-		/* standard devices */
+		/*
+		 * These devices should never be visible in a zone, but if they
+		 * somehow do get created we refuse to allow the zone to use
+		 * them.
+		 */
+		if (crgetzoneid(cred) != GLOBAL_ZONEID)
+			return (EACCES);
 		break;
 
 	default:

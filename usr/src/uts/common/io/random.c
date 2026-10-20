@@ -291,6 +291,9 @@ rnd_write(dev_t dev, struct uio *uiop, cred_t *credp)
 		if ((error = uiomove(buf, bytes, UIO_WRITE, uiop)) != 0)
 			return (error);
 
+		if (crgetzone(credp) != global_zone)
+			continue;
+
 		switch (devno) {
 		case DEVRANDOM:
 			if ((error = random_add_entropy(buf, bytes, 0)) != 0)

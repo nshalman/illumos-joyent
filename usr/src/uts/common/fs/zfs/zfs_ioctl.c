@@ -38,6 +38,7 @@
  * Copyright 2017 RackTop Systems.
  * Copyright (c) 2017, Datto, Inc. All rights reserved.
  * Copyright 2021 The University of Queensland
+ * Copyright 2025 Edgecast Cloud LLC.
  * Copyright 2026 Oxide Computer Company
  */
 
@@ -1021,6 +1022,9 @@ static int
 zfs_secpolicy_recv(zfs_cmd_t *zc, nvlist_t *innvl, cred_t *cr)
 {
 	int error;
+
+	if (secpolicy_fs_import(cr) != 0)
+		return (set_errno(EPERM));
 
 	if ((error = zfs_secpolicy_write_perms(zc->zc_name,
 	    ZFS_DELEG_PERM_RECEIVE, cr)) != 0)
