@@ -92,7 +92,7 @@ ROOTTGTS_raw		= $(ROOTMOD)/$(MODULE)
 ROOTTGTS		= $(ROOTTGTS_$(MDBTGT))
 
 #
-# Python specific flags. To try and make life easier for folks how are
+# Python specific flags. To try and make life easier for folks who are
 # building with an LFS python, we attempt to use -isystem when it's
 # available.
 #

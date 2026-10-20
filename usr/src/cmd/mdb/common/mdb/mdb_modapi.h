@@ -83,11 +83,6 @@ extern "C" {
 #define	DCMD_HDRSPEC(fl)	(((fl) & DCMD_LOOPFIRST) || !((fl) & DCMD_LOOP))
 
 /*
- * Debugger tab command function flags
- */
-#define	DCMD_TAB_SPACE	0x01	/* Tab cb invoked with trailing space */
-
-/*
  * Debugger command function return values:
  */
 #define	DCMD_OK		0	/* Dcmd completed successfully */
@@ -116,10 +111,18 @@ typedef struct mdb_arg {
 	} a_un;
 } mdb_arg_t;
 
+#if (MDB_API_VERSION >= 4)
+/*
+ * Debugger tab command function flags
+ */
+#define	DCMD_TAB_SPACE	0x01	/* Tab cb invoked with trailing space */
+
 typedef struct mdb_tab_cookie mdb_tab_cookie_t;
-typedef int mdb_dcmd_f(uintptr_t, uint_t, int, const mdb_arg_t *);
 typedef int mdb_dcmd_tab_f(mdb_tab_cookie_t *, uint_t, int,
     const mdb_arg_t *);
+#endif /* MDB_API_VERSION >= 4 */
+
+typedef int mdb_dcmd_f(uintptr_t, uint_t, int, const mdb_arg_t *);
 
 typedef struct mdb_dcmd {
 	const char *dc_name;		/* Command name */
@@ -127,7 +130,9 @@ typedef struct mdb_dcmd {
 	const char *dc_descr;		/* Description */
 	mdb_dcmd_f *dc_funcp;		/* Command function */
 	void (*dc_help)(void);		/* Command help function (or NULL) */
+#if (MDB_API_VERSION >= 4)
 	mdb_dcmd_tab_f *dc_tabp;	/* Tab completion function */
+#endif
 } mdb_dcmd_t;
 
 #define	WALK_ERR	-1		/* Walk fatal error (terminate walk) */
@@ -354,6 +359,7 @@ typedef void (*mdb_callback_f)(void *);
 extern void *mdb_callback_add(int, mdb_callback_f, void *);
 extern void mdb_callback_remove(void *);
 
+#if (MDB_API_VERSION >= 4)
 #define	MDB_TABC_ALL_TYPES	0x1	/* Include array types in type output */
 #define	MDB_TABC_MEMBERS	0x2	/* Tab comp. types with members */
 #define	MDB_TABC_NOPOINT	0x4	/* Tab comp. everything but pointers */
@@ -378,6 +384,7 @@ extern int mdb_tab_typename(int *, const mdb_arg_t **, char *buf, size_t len);
  */
 extern int mdb_tab_complete_mt(mdb_tab_cookie_t *, uint_t, int,
     const mdb_arg_t *);
+#endif /* MDB_API_VERSION >= 4 */
 
 extern size_t strlcat(char *, const char *, size_t);
 extern char *strcat(char *, const char *);

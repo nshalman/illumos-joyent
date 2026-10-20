@@ -119,10 +119,6 @@
  */
 #define	NINTR		16
 
-#define	KILOS		10
-#define	MEGS		20
-#define	GIGS		30
-
 #ifndef STACK_BIAS
 #define	STACK_BIAS	0
 #endif
@@ -2219,24 +2215,24 @@ typedef struct datafmt {
 } datafmt_t;
 
 static datafmt_t kmemfmt[] = {
-	{ "cache                    ", "name                     ",
-	"-------------------------", "%-25s "				},
-	{ "   buf",	"  size",	"------",	"%6u "		},
-	{ "   buf",	"in use",	"------",	"%6u "		},
-	{ "   buf",	" total",	"------",	"%6u "		},
-	{ "   memory",	"   in use",	"----------",	"%10lu%c "	},
-	{ "    alloc",	"  succeed",	"---------",	"%9u "		},
-	{ "alloc",	" fail",	"-----",	"%5u "		},
+	{ "cache                         ", "name                          ",
+	"------------------------------", "%-30s "			},
+	{ "  buf",	" size",	"-----",	"%5H "		},
+	{ "      buf",	"   in use",	"---------",	"%9u "		},
+	{ "      buf",	"    total",	"---------",	"%9u "		},
+	{ "memory",	"in use",	"------",	"%6lH "		},
+	{ "     alloc",	"   succeed",	"----------",	"%10u "		},
+	{ "alloc",	" fail",	"-----",	"%5u"		},
 	{ NULL,		NULL,		NULL,		NULL		}
 };
 
 static datafmt_t vmemfmt[] = {
-	{ "vmem                     ", "name                     ",
-	"-------------------------", "%-*s "				},
-	{ "   memory",	"   in use",	"----------",	"%9llu%c "	},
-	{ "    memory",	"     total",	"-----------",	"%10llu%c "	},
-	{ "   memory",	"   import",	"----------",	"%9llu%c "	},
-	{ "    alloc",	"  succeed",	"---------",	"%9llu "	},
+	{ "vmem                          ", "name                          ",
+	"------------------------------", "%-*s "			},
+	{ "   memory",	"   in use",	"---------",	"%9llH "	},
+	{ "    memory",	"     total",	"----------",	"%10llH "	},
+	{ "   memory",	"   import",	"---------",	"%9llH "	},
+	{ "     alloc",	"   succeed",	"----------",	"%10llu "	},
 	{ "alloc",	" fail",	"-----",	"%5llu "	},
 	{ NULL,		NULL,		NULL,		NULL		}
 };
@@ -2288,15 +2284,9 @@ typedef struct kmastat_vmem {
 	int kv_fail;
 } kmastat_vmem_t;
 
-typedef struct kmastat_args {
-	kmastat_vmem_t **ka_kvpp;
-	uint_t ka_shift;
-} kmastat_args_t;
-
 static int
-kmastat_cache(uintptr_t addr, const kmem_cache_t *cp, kmastat_args_t *kap)
+kmastat_cache(uintptr_t addr, const kmem_cache_t *cp, kmastat_vmem_t **kvpp)
 {
-	kmastat_vmem_t **kvpp = kap->ka_kvpp;
 	kmastat_vmem_t *kv;
 	datafmt_t *dfp = kmemfmt;
 	int magsize;
@@ -2337,9 +2327,7 @@ out:
 	mdb_printf((dfp++)->fmt, cp->cache_bufsize);
 	mdb_printf((dfp++)->fmt, total - avail);
 	mdb_printf((dfp++)->fmt, total);
-	mdb_printf((dfp++)->fmt, meminuse >> kap->ka_shift,
-	    kap->ka_shift == GIGS ? 'G' : kap->ka_shift == MEGS ? 'M' :
-	    kap->ka_shift == KILOS ? 'K' : 'B');
+	mdb_printf((dfp++)->fmt, meminuse);
 	mdb_printf((dfp++)->fmt, alloc);
 	mdb_printf((dfp++)->fmt, cp->cache_alloc_fail);
 	mdb_printf("\n");
@@ -2348,9 +2336,8 @@ out:
 }
 
 static int
-kmastat_vmem_totals(uintptr_t addr, const vmem_t *v, kmastat_args_t *kap)
+kmastat_vmem_totals(uintptr_t addr, const vmem_t *v, kmastat_vmem_t *kv)
 {
-	kmastat_vmem_t *kv = *kap->ka_kvpp;
 	size_t len;
 
 	while (kv != NULL && kv->kv_addr != addr)
@@ -2359,20 +2346,18 @@ kmastat_vmem_totals(uintptr_t addr, const vmem_t *v, kmastat_args_t *kap)
 	if (kv == NULL || kv->kv_alloc == 0)
 		return (WALK_NEXT);
 
-	len = MIN(17, strlen(v->vm_name));
+	len = MIN(22, strlen(v->vm_name));
 
-	mdb_printf("Total [%s]%*s %6s %6s %6s %10lu%c %9u %5u\n", v->vm_name,
-	    17 - len, "", "", "", "",
-	    kv->kv_meminuse >> kap->ka_shift,
-	    kap->ka_shift == GIGS ? 'G' : kap->ka_shift == MEGS ? 'M' :
-	    kap->ka_shift == KILOS ? 'K' : 'B', kv->kv_alloc, kv->kv_fail);
+	mdb_printf("Total [%s]%*s %5s %9s %9s %6lH %10u %5u\n", v->vm_name,
+	    22 - len, "", "", "", "",
+	    kv->kv_meminuse, kv->kv_alloc, kv->kv_fail);
 
 	return (WALK_NEXT);
 }
 
 /*ARGSUSED*/
 static int
-kmastat_vmem(uintptr_t addr, const vmem_t *v, const uint_t *shiftp)
+kmastat_vmem(uintptr_t addr, const vmem_t *v, const void *ignored)
 {
 	datafmt_t *dfp = vmemfmt;
 	const vmem_kstat_t *vkp = &v->vm_kstat;
@@ -2390,16 +2375,10 @@ kmastat_vmem(uintptr_t addr, const vmem_t *v, const uint_t *shiftp)
 	}
 
 	mdb_printf("%*s", ident, "");
-	mdb_printf((dfp++)->fmt, 25 - ident, v->vm_name);
-	mdb_printf((dfp++)->fmt, vkp->vk_mem_inuse.value.ui64 >> *shiftp,
-	    *shiftp == GIGS ? 'G' : *shiftp == MEGS ? 'M' :
-	    *shiftp == KILOS ? 'K' : 'B');
-	mdb_printf((dfp++)->fmt, vkp->vk_mem_total.value.ui64 >> *shiftp,
-	    *shiftp == GIGS ? 'G' : *shiftp == MEGS ? 'M' :
-	    *shiftp == KILOS ? 'K' : 'B');
-	mdb_printf((dfp++)->fmt, vkp->vk_mem_import.value.ui64 >> *shiftp,
-	    *shiftp == GIGS ? 'G' : *shiftp == MEGS ? 'M' :
-	    *shiftp == KILOS ? 'K' : 'B');
+	mdb_printf((dfp++)->fmt, 30 - ident, v->vm_name);
+	mdb_printf((dfp++)->fmt, vkp->vk_mem_inuse.value.ui64);
+	mdb_printf((dfp++)->fmt, vkp->vk_mem_total.value.ui64);
+	mdb_printf((dfp++)->fmt, vkp->vk_mem_import.value.ui64);
 	mdb_printf((dfp++)->fmt, vkp->vk_alloc.value.ui64);
 	mdb_printf((dfp++)->fmt, vkp->vk_fail.value.ui64);
 
@@ -2414,44 +2393,35 @@ kmastat(uintptr_t addr, uint_t flags, int argc, const mdb_arg_t *argv)
 {
 	kmastat_vmem_t *kv = NULL;
 	datafmt_t *dfp;
-	kmastat_args_t ka;
-
-	ka.ka_shift = 0;
-	if (mdb_getopts(argc, argv,
-	    'k', MDB_OPT_SETBITS, KILOS, &ka.ka_shift,
-	    'm', MDB_OPT_SETBITS, MEGS, &ka.ka_shift,
-	    'g', MDB_OPT_SETBITS, GIGS, &ka.ka_shift, NULL) != argc)
-		return (DCMD_USAGE);
 
 	for (dfp = kmemfmt; dfp->hdr1 != NULL; dfp++)
-		mdb_printf("%s ", dfp->hdr1);
+		mdb_printf("%s%s", dfp == kmemfmt ? "" : " ", dfp->hdr1);
 	mdb_printf("\n");
 
 	for (dfp = kmemfmt; dfp->hdr1 != NULL; dfp++)
-		mdb_printf("%s ", dfp->hdr2);
+		mdb_printf("%s%s", dfp == kmemfmt ? "" : " ", dfp->hdr2);
 	mdb_printf("\n");
 
 	for (dfp = kmemfmt; dfp->hdr1 != NULL; dfp++)
-		mdb_printf("%s ", dfp->dashes);
+		mdb_printf("%s%s", dfp == kmemfmt ? "" : " ", dfp->dashes);
 	mdb_printf("\n");
 
-	ka.ka_kvpp = &kv;
-	if (mdb_walk("kmem_cache", (mdb_walk_cb_t)kmastat_cache, &ka) == -1) {
+	if (mdb_walk("kmem_cache", (mdb_walk_cb_t)kmastat_cache, &kv) == -1) {
 		mdb_warn("can't walk 'kmem_cache'");
 		return (DCMD_ERR);
 	}
 
 	for (dfp = kmemfmt; dfp->hdr1 != NULL; dfp++)
-		mdb_printf("%s ", dfp->dashes);
+		mdb_printf("%s%s", dfp == kmemfmt ? "" : " ", dfp->dashes);
 	mdb_printf("\n");
 
-	if (mdb_walk("vmem", (mdb_walk_cb_t)kmastat_vmem_totals, &ka) == -1) {
+	if (mdb_walk("vmem", (mdb_walk_cb_t)kmastat_vmem_totals, kv) == -1) {
 		mdb_warn("can't walk 'vmem'");
 		return (DCMD_ERR);
 	}
 
 	for (dfp = kmemfmt; dfp->hdr1 != NULL; dfp++)
-		mdb_printf("%s ", dfp->dashes);
+		mdb_printf("%s%s", dfp == kmemfmt ? "" : " ", dfp->dashes);
 	mdb_printf("\n");
 
 	mdb_printf("\n");
@@ -2468,7 +2438,7 @@ kmastat(uintptr_t addr, uint_t flags, int argc, const mdb_arg_t *argv)
 		mdb_printf("%s ", dfp->dashes);
 	mdb_printf("\n");
 
-	if (mdb_walk("vmem", (mdb_walk_cb_t)kmastat_vmem, &ka.ka_shift) == -1) {
+	if (mdb_walk("vmem", (mdb_walk_cb_t)kmastat_vmem, NULL) == -1) {
 		mdb_warn("can't walk 'vmem'");
 		return (DCMD_ERR);
 	}
@@ -4587,6 +4557,8 @@ static const mdb_dcmd_t dcmds[] = {
 	/* from zone.c */
 	{ "zid2zone", ":", "find the zone_t with the given zone id",
 		zid2zone },
+	{ "zdid2zone", ":", "find the zone_t with the given zone debug id",
+		zdid2zone },
 	{ "zone", "?[-r [-v]]", "display kernel zone(s)", zoneprt },
 	{ "zsd", ":[-v] [zsd_key]", "display zone-specific-data entries for "
 	    "selected zones", zsd },

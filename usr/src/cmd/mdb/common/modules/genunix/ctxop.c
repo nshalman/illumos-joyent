@@ -27,8 +27,9 @@
  * Copyright 2018 Joyent, Inc.
  */
 
-#include <mdb/mdb_modapi.h>
+#include <sys/mdb_modapi.h>
 #include <mdb/mdb_ctf.h>
+#include <sys/thread.h>
 #include "ctxop.h"
 
 struct ctxop_walk_state {

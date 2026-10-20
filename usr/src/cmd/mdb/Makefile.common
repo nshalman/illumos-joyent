@@ -112,6 +112,7 @@ COMMON_MODULES_KVM = \
 	stmf_sbd \
 	ufs \
 	usba \
+	xhci \
 	zfs
 
 include $(SRC)/Makefile.master
