@@ -742,6 +742,65 @@ Pname_to_loadobj(struct ps_prochandle *P, const char *name)
 	return (Plmid_to_loadobj(P, PR_LMID_EVERY, name));
 }
 
+/*
+ * We've been given a file_info_t which doesn't have any CTF. However, it may
+ * have information that's in a format that we could convert if on the fly.
+ * We'll first try to convert the alternate debug file, if present, and then
+ * move onto the default file. The reason we prefer the alternate debug file is
+ * that if both exist, then it likely has any usable debugging information.
+ */
+static ctf_file_t *
+Pconvert_file_ctf(file_info_t *fptr)
+{
+	int err;
+	ctf_convert_t *cch;
+	ctf_file_t *fp;
+	char errmsg[1024];
+
+	/*
+	 * Provide an opt in.
+	 */
+	if (getenv("LIBPROC_CTFCONVERT") == NULL)
+		return (NULL);
+
+	/*
+	 * If we've already attempted to call this, then that's it. No reason to
+	 * pretend we'll be more successful again another time.
+	 */
+	if (fptr->file_cvt == B_TRUE)
+		return (NULL);
+
+	cch = ctf_convert_init(&err);
+	if (cch == NULL)
+		return (NULL);
+
+	fptr->file_cvt = B_TRUE;
+
+	fp = NULL;
+	if (fptr->file_dbgelf != NULL) {
+		fp = ctf_elfconvert(cch, fptr->file_fd, fptr->file_dbgelf, &err,
+		    errmsg, sizeof (errmsg));
+		if (fp == NULL) {
+			Pdprintf("failed to convert %s: %s\n", fptr->file_pname,
+			    err == ECTF_CONVBKERR ? errmsg : ctf_errmsg(err));
+		}
+	}
+	if (fp == NULL) {
+		fp = ctf_elfconvert(cch, fptr->file_fd, fptr->file_elf, &err,
+		    errmsg, sizeof (errmsg));
+		if (fp == NULL) {
+			Pdprintf("failed to convert %s: %s\n", fptr->file_pname,
+			    err == ECTF_CONVBKERR ? errmsg : ctf_errmsg(err));
+		}
+	}
+	if (fp != NULL) {
+		fptr->file_ctfp = fp;
+	}
+
+	ctf_convert_fini(cch);
+	return (NULL);
+}
+
 ctf_file_t *
 Pbuild_file_ctf(struct ps_prochandle *P, file_info_t *fptr)
 {
@@ -754,8 +813,9 @@ Pbuild_file_ctf(struct ps_prochandle *P, file_info_t *fptr)
 
 	Pbuild_file_symtab(P, fptr);
 
-	if (fptr->file_ctf_size == 0)
-		return (NULL);
+	if (fptr->file_ctf_size == 0) {
+		return (Pconvert_file_ctf(fptr));
+	}
 
 	symp = fptr->file_ctf_dyn ? &fptr->file_dynsym : &fptr->file_symtab;
 	if (symp->sym_data_pri == NULL)

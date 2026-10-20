@@ -28,6 +28,7 @@
 #define	_UTILS_H
 
 #include <stdarg.h>
+#include <ctf_headers.h>
 
 #ifdef	__cplusplus
 extern "C" {

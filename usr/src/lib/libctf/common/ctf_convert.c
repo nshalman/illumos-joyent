@@ -112,7 +112,7 @@ ctf_has_c_source(Elf *elf, char *errmsg, size_t errlen)
 	return (ret);
 }
 
-static ctf_file_t *
+ctf_file_t *
 ctf_elfconvert(ctf_convert_t *cch, int fd, Elf *elf, int *errp, char *errbuf,
     size_t errlen)
 {
