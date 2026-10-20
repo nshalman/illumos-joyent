@@ -40,8 +40,7 @@ ROOTMANIFESTDIR = $(ROOTSVCNETWORK)
 CPPFLAGS +=	-DOPENSSL_API_COMPAT=10101
 
 LDLIBS +=	-ldladm -ldlpi
-NATIVE_LIBS +=	libcrypto.so
-all install := LDLIBS += -lcrypto
+all install := LDLIBS += -lsunw_crypto
 
 SMOFF += all_func_returns
 

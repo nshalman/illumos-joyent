@@ -36,10 +36,8 @@ KMFINC=		-I../../../include -I../../../ber_der/inc
 BERLIB=		-lkmf -lkmfberder
 BERLIB64=	$(BERLIB)
 
-OPENSSLLIBS=	$(BERLIB) -lcrypto -lcryptoutil -lc
-OPENSSLLIBS64=	$(BERLIB64) -lcrypto -lcryptoutil -lc
-
-NATIVE_LIBS +=	libcrypto.so
+OPENSSLLIBS=	$(BERLIB) -lsunw_crypto -lcryptoutil -lc
+OPENSSLLIBS64=	$(BERLIB64) -lsunw_crypto -lcryptoutil -lc
 
 SRCDIR=		../common
 INCDIR=		../../include

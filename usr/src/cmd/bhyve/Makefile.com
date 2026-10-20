@@ -104,7 +104,7 @@ CSTD=		$(CSTD_GNU99)
 $(PROG) := LDLIBS += \
 	-l9p \
 	-lcmdutils \
-	-lcrypto \
+	-lsunw_crypto \
 	-ldladm \
 	-ldlpi \
 	-lidspace \
@@ -117,7 +117,7 @@ $(PROG) := LDLIBS += \
 	-luuid \
 	-lvmmapi \
 	-lz
-NATIVE_LIBS += libz.so libcrypto.so
+NATIVE_LIBS += libz.so libsunw_crypto.so
 $(PROG) := LDFLAGS += $(ZASLR)
 $(PROG) := LDFLAGS += -Wl,-L$(ROOT)/usr/lib/scsi/$(MACH64)
 $(PROG) := LDFLAGS += -Wl,-R/usr/lib/scsi/$(MACH64)
