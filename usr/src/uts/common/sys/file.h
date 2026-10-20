@@ -28,6 +28,7 @@
 
 /* Copyright (c) 2013, OmniTI Computer Consulting, Inc. All rights reserved. */
 /* Copyright 2020 Joyent, Inc. */
+/* Copyright 2021 OmniOS Community Edition (OmniOSce) Association. */
 /* Copyright 2026 Oxide Computer Company */
 
 #ifndef _SYS_FILE_H
