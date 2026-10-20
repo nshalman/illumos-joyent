@@ -25,13 +25,6 @@
 
 FSTYPE=		nfs
 LIBPROG=	mount
-ROOTFS_PROG=	$(LIBPROG)
-
-# duplicate ROOTLIBFSTYPE value needed for installation rule
-# we must define this before including Makefile.fstype
-ROOTLIBFSTYPE = $(ROOT)/usr/lib/fs/$(FSTYPE)
-$(ROOTLIBFSTYPE)/%:	$(ROOTLIBFSTYPE) %
-	$(RM) $@; $(SYMLINK) ../../../../etc/fs/$(FSTYPE)/$(LIBPROG) $@
 
 include		../../Makefile.fstype
 
@@ -69,7 +62,7 @@ CLOBBERFILES	+= $(LIBPROG)
 
 .KEEP_STATE:
 
-all:	$(ROOTFS_PROG)
+all:	$(LIBPROG)
 
 $(LIBPROG):	webnfs.h $(OBJS)
 		$(LINK.c) -o $@ $(OBJS) $(LDLIBS)
@@ -118,7 +111,9 @@ $(POFILE): $(SRCS) webnfs.h
 	sed "/^domain/d"        messages.po     > $@
 	$(RM) $(POFILE).i messages.po
 
-install:	$(ROOTETCPROG)
+install: all $(FSTYPEPROG)
+	$(RM) $(ROOTETCPROG)
+	$(SYMLINK) ../../../usr/lib/fs/$(FSTYPE)/$(LIBPROG) $(ROOTETCPROG)
 
 clean:
 	$(RM) $(OBJS) webnfs.x webnfs.h webnfs_xdr.c webnfs_client.c

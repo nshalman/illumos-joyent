@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright (c) 2014, 2016 by Delphix. All rights reserved.
  * Copyright 2018 Nexenta Systems, Inc.
  * Copyright 2022 RackTop Systems.
@@ -3204,9 +3205,16 @@ nfs_init(void)
 
 	ret = initprotofromsmf();
 	if (ret != SA_OK) {
-		(void) printf(dgettext(TEXT_DOMAIN,
-		    "NFS plugin problem with SMF repository: %s\n"),
-		    sa_errorstr(ret));
+		/*
+		 * This is a workaround.  See the comment in
+		 * cmd/fs.d/nfs/lib/smfcfg.c for an explanation.
+		 */
+		if (getzoneid() == GLOBAL_ZONEID ||
+		    ret != SCF_ERROR_NOT_FOUND) {
+			(void) printf(dgettext(TEXT_DOMAIN,
+			    "NFS plugin problem with SMF repository: %s\n"),
+			    sa_errorstr(ret));
+		}
 		ret = SA_OK;
 	}
 	add_defaults();
