@@ -284,7 +284,7 @@ entriesFromLDAPthread(void *voidarg) {
 
 	/* Lock to prevent removal */
 	(void) __nis_lock_db_table(arg->tableName, 1, 0,
-					"entriesFromLDAPthread");
+					(char *)"entriesFromLDAPthread");
 
 	/*
 	 * It's possible that the db_mindex for the table has changed,
@@ -316,7 +316,7 @@ entriesFromLDAPthread(void *voidarg) {
 	(void) entriesFromLDAPreal(arg);
 
 	(void) __nis_ulock_db_table(arg->tableName, 1, 0,
-					"entriesFromLDAPthread");
+					(char *)"entriesFromLDAPthread");
 
 	freeQuery(arg->q);
 	if (arg->dirObj != 0)
