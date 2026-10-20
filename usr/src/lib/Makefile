@@ -214,6 +214,7 @@ SUBDIRS +=				\
 	libsip		\
 	libsldap	\
 	libslp		\
+	libsmartsshd	\
 	libsmbfs	\
 	libsmbios	\
 	libsmedia	\
@@ -241,6 +242,7 @@ SUBDIRS +=				\
 	libxcurses2	\
 	libxnet		\
 	libxpio		\
+	libzdoor	\
 	libzfs		\
 	libzfsbootenv	\
 	libzfs_core	\
@@ -344,6 +346,7 @@ MSGSUBDIRS=		\
 	libshare	\
 	libsldap	\
 	libslp		\
+	libsmartsshd	\
 	libsmbfs	\
 	libsmedia	\
 	libtsol		\
@@ -352,6 +355,7 @@ MSGSUBDIRS=		\
 	libvscan	\
 	libzfs		\
 	libzonecfg	\
+	libzdoor	\
 	madv		\
 	mpss		\
 	pam_modules	\
