@@ -29,7 +29,7 @@
 
 /*
  * Copyright (c) 2012, 2016 by Delphix. All rights reserved.
- * Copyright 2015, Joyent, Inc.
+ * Copyright (c) 2017, Joyent, Inc.
  * Copyright 2026 Oxide Computer Company
  */
 
@@ -1317,8 +1317,8 @@ pcache_insert(pollstate_t *ps, file_t *fp, pollfd_t *pollfdp, int *fdcntp,
 	 * be OK too.
 	 */
 	ASSERT(curthread->t_pollcache == NULL);
-	error = VOP_POLL(fp->f_vnode, pollfdp->events, 0, &pollfdp->revents,
-	    &memphp, NULL);
+	error = VOP_POLL(fp->f_vnode, pollfdp->events | ps->ps_implicit_ev, 0,
+	    &pollfdp->revents, &memphp, NULL);
 	if (error) {
 		return (error);
 	}
@@ -2028,7 +2028,8 @@ retry:
 			 * flag.
 			 */
 			ASSERT(curthread->t_pollcache == NULL);
-			error = VOP_POLL(fp->f_vnode, pollfdp[entry].events, 0,
+			error = VOP_POLL(fp->f_vnode,
+			    pollfdp[entry].events | ps->ps_implicit_ev, 0,
 			    &pollfdp[entry].revents, &php, NULL);
 			/*
 			 * releasef after completely done with this cached
@@ -2330,6 +2331,7 @@ pollstate_create()
 	} else {
 		ASSERT(ps->ps_depth == 0);
 		ASSERT(ps->ps_flags == 0);
+		ASSERT(ps->ps_implicit_ev == 0);
 		ASSERT(ps->ps_pc_stack[0] == 0);
 	}
 	return (ps);
@@ -3072,7 +3074,7 @@ plist_chkdupfd(file_t *fp, polldat_t *pdp, pollstate_t *psp, pollfd_t *pollfdp,
 				php = NULL;
 				ASSERT(curthread->t_pollcache == NULL);
 				error = VOP_POLL(fp->f_vnode,
-				    pollfdp[i].events, 0,
+				    pollfdp[i].events | psp->ps_implicit_ev, 0,
 				    &pollfdp[i].revents, &php, NULL);
 				if (error) {
 					return (error);

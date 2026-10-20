@@ -141,7 +141,7 @@ eventfd_read(dev_t dev, uio_t *uio, cred_t *cr __unused)
 	 * transitions from EVENTFD_VALMAX to a lower value.  At all other
 	 * times, it is already considered writable by poll.
 	 */
-	if (oval == EVENTFD_VALMAX) {
+	if (oval >= EVENTFD_VALMAX) {
 		pollwakeup(&state->efd_pollhd, POLLWRNORM | POLLOUT);
 	}
 
@@ -149,28 +149,31 @@ eventfd_read(dev_t dev, uio_t *uio, cred_t *cr __unused)
 }
 
 static int
-eventfd_write(dev_t dev, struct uio *uio, cred_t *cr __unused)
+eventfd_post(eventfd_state_t *state, uint64_t val, boolean_t is_async,
+    boolean_t file_nonblock)
 {
-	eventfd_state_t *state;
-	minor_t minor = getminor(dev);
-	uint64_t val, oval;
-	int err;
-
-	if (uio->uio_resid < sizeof (val))
-		return (EINVAL);
-
-	if ((err = uiomove(&val, sizeof (val), UIO_WRITE, uio)) != 0)
-		return (err);
-
-	if (val > EVENTFD_VALMAX)
-		return (EINVAL);
-
-	state = ddi_get_soft_state(eventfd_softstate, minor);
+	uint64_t oval;
+	boolean_t overflow = B_FALSE;
 
 	mutex_enter(&state->efd_lock);
 
 	while (val > EVENTFD_VALMAX - state->efd_value) {
-		if (uio->uio_fmode & (FNDELAY|FNONBLOCK)) {
+
+		/*
+		 * When called from (LX) AIO, expectations about overflow and
+		 * blocking are different than normal operation.  If the
+		 * incoming value would cause overflow, it is clamped to reach
+		 * the overflow value exactly.  This is added to the existing
+		 * value without blocking.  Any pollers of the eventfd will see
+		 * POLLERR asserted when this occurs.
+		 */
+		if (is_async) {
+			val = EVENTFD_VALOVERFLOW - state->efd_value;
+			overflow = B_TRUE;
+			break;
+		}
+
+		if (file_nonblock) {
 			mutex_exit(&state->efd_lock);
 			return (EAGAIN);
 		}
@@ -185,7 +188,7 @@ eventfd_write(dev_t dev, struct uio *uio, cred_t *cr __unused)
 	}
 
 	/*
-	 * We now know that we can add the value without overflowing.
+	 * We now know that we can safely add the value.
 	 */
 	state->efd_value = (oval = state->efd_value) + val;
 
@@ -199,13 +202,41 @@ eventfd_write(dev_t dev, struct uio *uio, cred_t *cr __unused)
 	mutex_exit(&state->efd_lock);
 
 	/*
-	 * Notify pollers that something has changed.
+	 * Notify pollers that something has changed, or that eventfd has
+	 * transitioned into overflow.
 	 */
-	pollwakeup(&state->efd_pollhd, POLLRDNORM | POLLIN);
+	if (overflow && val != 0) {
+		pollwakeup(&state->efd_pollhd, POLLERR);
+	} else {
+		pollwakeup(&state->efd_pollhd, POLLRDNORM | POLLIN);
+	}
 
 	return (0);
 }
 
+static int
+eventfd_write(dev_t dev, struct uio *uio, cred_t *cr __unused)
+{
+	eventfd_state_t *state;
+	boolean_t file_nonblock;
+	uint64_t val;
+	int err;
+
+	if (uio->uio_resid < sizeof (val))
+		return (EINVAL);
+
+	if ((err = uiomove(&val, sizeof (val), UIO_WRITE, uio)) != 0)
+		return (err);
+
+	if (val > EVENTFD_VALMAX)
+		return (EINVAL);
+
+	file_nonblock = (uio->uio_fmode & (FNDELAY|FNONBLOCK)) != 0;
+	state = ddi_get_soft_state(eventfd_softstate, getminor(dev));
+	return (eventfd_post(state, val, B_FALSE, file_nonblock));
+}
+
+/*ARGSUSED*/
 static int
 eventfd_poll(dev_t dev, short events, int anyyet, short *reventsp,
     struct pollhead **phpp)
@@ -224,6 +255,9 @@ eventfd_poll(dev_t dev, short events, int anyyet, short *reventsp,
 	if (state->efd_value < EVENTFD_VALMAX)
 		revents |= POLLWRNORM | POLLOUT;
 
+	if (state->efd_value == EVENTFD_VALOVERFLOW)
+		revents |= POLLERR;
+
 	*reventsp = revents & events;
 	if ((*reventsp == 0 && !anyyet) || (events & POLLET)) {
 		*phpp = &state->efd_pollhd;
@@ -240,17 +274,28 @@ eventfd_ioctl(dev_t dev, int cmd, intptr_t arg __unused, int md __unused,
 {
 	eventfd_state_t *state;
 	minor_t minor = getminor(dev);
+	uint64_t *valp;
 
 	state = ddi_get_soft_state(eventfd_softstate, minor);
 
 	switch (cmd) {
-	case EVENTFDIOC_SEMAPHORE: {
+	case EVENTFDIOC_SEMAPHORE:
 		mutex_enter(&state->efd_lock);
 		state->efd_semaphore ^= 1;
 		mutex_exit(&state->efd_lock);
-
 		return (0);
-	}
+
+	case EVENTFDIOC_POST:
+		/*
+		 * This ioctl is expected to be kernel-internal, used only by
+		 * the AIO emulation in LX.
+		 */
+		if ((md & FKIOCTL) == 0) {
+			break;
+		}
+		valp = (uint64_t *)arg;
+		VERIFY(eventfd_post(state, *valp, B_TRUE, B_FALSE) == 0);
+		return (0);
 
 	default:
 		break;

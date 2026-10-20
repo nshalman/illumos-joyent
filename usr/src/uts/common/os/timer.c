@@ -82,6 +82,7 @@ timer_lock(proc_t *p, itimer_t *it)
  * waiters.  p_lock must be held on entry; it will not be dropped by
  * timer_unlock().
  */
+/* ARGSUSED */
 static void
 timer_unlock(proc_t *p, itimer_t *it)
 {
@@ -201,20 +202,20 @@ timer_delete_locked(proc_t *p, timer_t tid, itimer_t *it)
 static itimer_t *
 timer_grab(proc_t *p, timer_t tid)
 {
-	itimer_t **itp, *it;
+	itimer_t *it;
 
 	if (tid < 0) {
 		return (NULL);
 	}
 
 	mutex_enter(&p->p_lock);
-
-	if ((itp = p->p_itimer) == NULL || tid >= p->p_itimer_sz ||
-	    (it = itp[tid]) == NULL) {
+	if (p->p_itimer == NULL || tid >= p->p_itimer_sz ||
+	    (it = p->p_itimer[tid]) == NULL) {
 		mutex_exit(&p->p_lock);
 		return (NULL);
 	}
 
+	/* This may drop p_lock temporarily. */
 	timer_lock(p, it);
 
 	if (it->it_lock & ITLK_REMOVE) {
@@ -923,17 +924,20 @@ timer_lwpexit(void)
 	uint_t i;
 	proc_t *p = curproc;
 	klwp_t *lwp = ttolwp(curthread);
-	itimer_t *it, **itp;
+	itimer_t *it;
 
 	ASSERT(MUTEX_HELD(&p->p_lock));
 
-	if ((itp = p->p_itimer) == NULL)
+	if (p->p_itimer == NULL) {
 		return;
+	}
 
 	for (i = 0; i < p->p_itimer_sz; i++) {
-		if ((it = itp[i]) == NULL)
+		if ((it = p->p_itimer[i]) == NULL) {
 			continue;
+		}
 
+		/* This may drop p_lock temporarily. */
 		timer_lock(p, it);
 
 		if ((it->it_lock & ITLK_REMOVE) || it->it_lwp != lwp) {
@@ -967,17 +971,19 @@ timer_lwpbind()
 	uint_t i;
 	proc_t *p = curproc;
 	klwp_t *lwp = ttolwp(curthread);
-	itimer_t *it, **itp;
+	itimer_t *it;
 
 	ASSERT(MUTEX_HELD(&p->p_lock));
 
-	if ((itp = p->p_itimer) == NULL)
+	if (p->p_itimer == NULL) {
 		return;
+	}
 
 	for (i = 0; i < p->p_itimer_sz; i++) {
-		if ((it = itp[i]) == NULL)
+		if ((it = p->p_itimer[i]) == NULL)
 			continue;
 
+		/* This may drop p_lock temporarily. */
 		timer_lock(p, it);
 
 		if (!(it->it_lock & ITLK_REMOVE) && it->it_lwp == lwp) {
