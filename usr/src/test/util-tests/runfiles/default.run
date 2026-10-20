@@ -38,6 +38,7 @@ user = root
 [/opt/util-tests/tests/dladm/create-vnic]
 user = root
 
+[/opt/util-tests/tests/bunyan/bunyan]
 [/opt/util-tests/tests/dladm/set-linkprop]
 user = root
 
@@ -45,6 +46,9 @@ user = root
 user = root
 
 [/opt/util-tests/tests/dladm/show-overlay-exit]
+user = root
+
+[/opt/util-tests/tests/dladm/vnic-mtu]
 user = root
 
 [/opt/util-tests/tests/libsff/libsff]
@@ -72,6 +76,8 @@ user = root
 
 [/opt/util-tests/tests/mergeq/mqt]
 [/opt/util-tests/tests/mergeq/wqt]
+
+[/opt/util-tests/tests/dis/distest]
 
 [/opt/util-tests/tests/libnvpair_json]
 tests = ['json_00_blank', 'json_01_boolean', 'json_02_numbers',
@@ -123,9 +129,6 @@ tests = ['sed_addr', 'multi_test']
 [/opt/util-tests/tests/pcidbtest]
 [/opt/util-tests/tests/pcieadmtest]
 [/opt/util-tests/tests/pcieadm-priv]
-user = root
-
-[/opt/util-tests/tests/svr4pkg_test]
 user = root
 
 [/opt/util-tests/tests/ar/artest]

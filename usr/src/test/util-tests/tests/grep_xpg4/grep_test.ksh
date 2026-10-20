@@ -18,6 +18,8 @@
 #
 
 XGREP=${XGREP:=/usr/bin/grep}
+
+MY_TESTS=${MY_TESTS:=/opt/util-tests}
 FILEDIR=$MY_TESTS/tests/files/grep
 OUTFILE=/tmp/grep_test.out.$$
 FLAGSFILE=/tmp/grep_flags.$$

@@ -16,7 +16,9 @@
 # Copyright (c) 2017, Chris Fraire <cfraire@me.com>.
 # Copyright 2019 Joyent, Inc.
 # Copyright 2020 OmniOS Community Edition (OmniOSce) Association.
+# Copyright 2022 MNX Cloud, Inc.
 # Copyright 2026 Gordon W. Ross
+# Copyright 2026 Edgecast Cloud LLC.
 #
 
 from __future__ import print_function
@@ -52,6 +54,14 @@ TESTDIR = '/opt/zfs-tests/'
 KILL = '/usr/bin/kill'
 TRUE = '/usr/bin/true'
 SUDO = '/usr/bin/sudo'
+SU = '/usr/bin/su'
+
+# The location of sudo(1) varies by illumos distribution.
+if os.path.isfile('/usr/bin/sudo'):
+    SUDO = '/usr/bin/sudo'
+else:
+    SUDO = '/opt/tools/bin/sudo'
+
 
 # Exit codes as defined in stf/include/stf.shlib
 STF_PASS        = 0
@@ -232,7 +242,21 @@ User: %s
         and cleanup functions to run.
         """
         self.killed = True
-        do_sudo = len(self.user) != 0
+        cur_user = getpwuid(os.getuid()).pw_name
+
+        #
+        # The test runs in a child process of the process performing
+        # the kill and this child process may be owned by a different
+        # user (specified by self.user). If this is the case, and the
+        # parent process is not running as root, then sudo must be
+        # used. The verify_user function should prevent us from ever
+        # getting here on a system which doesn't have sudo.
+        #
+        if len(self.user) != 0 and self.user != cur_user and cur_user != 'root':
+            do_sudo = True
+        else:
+            do_sudo = False
+
         signal = '-TERM'
 
         # Negative PID sends signal to the entire process group.
@@ -249,15 +273,23 @@ User: %s
     def update_cmd_privs(self, cmd, user):
         """
         If a user has been specified to run this Cmd and we're not already
-        running as that user, prepend the appropriate sudo command to run
-        as that user.
-        """
-        me = getpwuid(os.getuid())
+        running as that user, prepend the appropriate sudo command to
+        run as that user. If running as root use su instead. The
+        verify_user function should prevent us from ever getting here
+        on a system which doesn't have sudo.
 
-        if not user or user == me.pw_name:
+        """
+
+        cur_user = getpwuid(os.getuid()).pw_name
+
+        if not user or user == cur_user:
             return cmd
 
-        ret = '%s -E -u %s %s' % (SUDO, user, cmd)
+        if cur_user == 'root':
+            ret = '%s %s -c %s' % (SU, user, cmd)
+        else:
+            ret = '%s -E -u %s %s' % (SUDO, user, cmd)
+
         return ret.split(' ')
 
     def collect_output(self, proc):
@@ -1006,13 +1038,27 @@ def verify_file(pathname):
 
 def verify_user(user, logger):
     """
-    Verify that the specified user exists on this system, and can execute
-    sudo without being prompted for a password.
+    Verify that the specified user exists on this system, and can
+    execute sudo without being prompted for a password. If the user
+    executing the test is the same as the requested user then this
+    check is skipped. If the user executing the test is root this
+    check is skipped as su can be used instead.
     """
+
     testcmd = [SUDO, '-n', '-u', user, TRUE]
 
     if user in Cmd.verified_users:
         return True
+
+    cur_user = getpwuid(os.getuid()).pw_name
+
+    if user == cur_user or cur_user == 'root':
+        Cmd.verified_users.append(user)
+        return True
+
+    if not os.path.isfile(SUDO):
+        logger.info("Warning: this test requires sudo but it doesn't exist.")
+        return False
 
     try:
         _ = getpwnam(user)

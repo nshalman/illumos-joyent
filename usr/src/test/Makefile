@@ -32,6 +32,7 @@ SUBDIRS = \
 	net-tests \
 	nvme-tests \
 	os-tests \
+	smartos-test \
 	smbclient-tests \
 	smbsrv-tests \
 	test-runner \

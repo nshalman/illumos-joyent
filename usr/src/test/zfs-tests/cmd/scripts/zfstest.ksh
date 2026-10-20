@@ -14,8 +14,10 @@
 #
 # Copyright (c) 2012, 2016 by Delphix. All rights reserved.
 # Copyright 2014, OmniTI Computer Consulting, Inc. All rights reserved.
+# Copyright 2019 Joyent, Inc.
 # Copyright 2021 Tintri by DDN, Inc. All rights reserved.
 # Copyright 2020 OmniOS Community Edition (OmniOSce) Association.
+# Copyright 2024 MNX Cloud, Inc.
 # Copyright 2026 Gordon W. Ross
 #
 
@@ -74,6 +76,8 @@ function find_runfile
 		distro=openindiana
 	elif grep -qs OmniOS /etc/release; then
 		distro=omnios
+	elif [[ 0 -ne $(grep -c SmartOS /etc/release 2>/dev/null) ]]; then
+		distro=smartos
 	fi
 
 	[[ -n $distro ]] && echo $COMMON,$STF_SUITE/runfiles/$distro.run

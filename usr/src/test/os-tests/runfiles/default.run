@@ -85,6 +85,10 @@ tests = ['spawn-syscall.32', 'spawn-syscall.64']
 user = root
 tests = ['sdevfs_eisdir']
 
+[/opt/os-tests/tests/tmpfs]
+user = root
+tests = ['tmpfs_badmount', 'tmpfs_enospc']
+
 [/opt/os-tests/tests/stress]
 user = root
 tests = ['dladm-kstat']
