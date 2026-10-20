@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2015, Joyent Inc. All rights reserved.
+ * Copyright 2019 Joyent, Inc.
  * Copyright (c) 2016 by Delphix. All rights reserved.
  * Copyright 2018 OmniOS Community Edition (OmniOSce) Association.
  */
@@ -374,6 +374,9 @@ rctl_hndl_t rc_zone_locked_mem;
 rctl_hndl_t rc_zone_max_swap;
 rctl_hndl_t rc_zone_max_lofi;
 rctl_hndl_t rc_zone_cpu_cap;
+rctl_hndl_t rc_zone_cpu_baseline;
+rctl_hndl_t rc_zone_cpu_burst_time;
+rctl_hndl_t rc_zone_zfs_io_pri;
 rctl_hndl_t rc_zone_nlwps;
 rctl_hndl_t rc_zone_nprocs;
 rctl_hndl_t rc_zone_shmmax;
@@ -1379,6 +1382,127 @@ static rctl_ops_t zone_cpu_cap_ops = {
 
 /*ARGSUSED*/
 static rctl_qty_t
+zone_cpu_base_get(rctl_t *rctl, struct proc *p)
+{
+	ASSERT(MUTEX_HELD(&p->p_lock));
+	return (cpucaps_zone_get_base(p->p_zone));
+}
+
+/*
+ * The zone cpu base is used to set the baseline CPU for the zone
+ * so we can track when the zone is bursting.
+ */
+/*ARGSUSED*/
+static int
+zone_cpu_base_set(rctl_t *rctl, struct proc *p, rctl_entity_p_t *e,
+    rctl_qty_t nv)
+{
+	zone_t *zone = e->rcep_p.zone;
+
+	ASSERT(MUTEX_HELD(&p->p_lock));
+	ASSERT(e->rcep_t == RCENTITY_ZONE);
+
+	if (zone == NULL)
+		return (0);
+
+	return (cpucaps_zone_set_base(zone, nv));
+}
+
+static rctl_ops_t zone_cpu_base_ops = {
+	rcop_no_action,
+	zone_cpu_base_get,
+	zone_cpu_base_set,
+	rcop_no_test
+};
+
+/*ARGSUSED*/
+static rctl_qty_t
+zone_cpu_burst_time_get(rctl_t *rctl, struct proc *p)
+{
+	ASSERT(MUTEX_HELD(&p->p_lock));
+	return (cpucaps_zone_get_burst_time(p->p_zone));
+}
+
+/*
+ * The zone cpu burst time is used to set the amount of time CPU(s) can be
+ * bursting for the zone.
+ */
+/*ARGSUSED*/
+static int
+zone_cpu_burst_time_set(rctl_t *rctl, struct proc *p, rctl_entity_p_t *e,
+    rctl_qty_t nv)
+{
+	zone_t *zone = e->rcep_p.zone;
+
+	ASSERT(MUTEX_HELD(&p->p_lock));
+	ASSERT(e->rcep_t == RCENTITY_ZONE);
+
+	if (zone == NULL)
+		return (0);
+
+	return (cpucaps_zone_set_burst_time(zone, nv));
+}
+
+static rctl_ops_t zone_cpu_burst_time_ops = {
+	rcop_no_action,
+	zone_cpu_burst_time_get,
+	zone_cpu_burst_time_set,
+	rcop_no_test
+};
+
+/*
+ * zone.zfs-io-pri resource control support (IO priority).
+ */
+/*ARGSUSED*/
+static rctl_qty_t
+zone_zfs_io_pri_get(rctl_t *rctl, struct proc *p)
+{
+	zone_persist_t *zp = &zone_pdata[p->p_zone->zone_id];
+	rctl_qty_t r = 0;
+
+	ASSERT(MUTEX_HELD(&p->p_lock));
+	mutex_enter(&zp->zpers_zfs_lock);
+	if (zp->zpers_zfsp != NULL)
+		r = (rctl_qty_t)zp->zpers_zfsp->zpers_zfs_io_pri;
+	mutex_exit(&zp->zpers_zfs_lock);
+
+	return (r);
+}
+
+/*ARGSUSED*/
+static int
+zone_zfs_io_pri_set(rctl_t *rctl, struct proc *p, rctl_entity_p_t *e,
+    rctl_qty_t nv)
+{
+	zone_t *zone = e->rcep_p.zone;
+	zone_persist_t *zp;
+
+	ASSERT(MUTEX_HELD(&p->p_lock));
+	ASSERT(e->rcep_t == RCENTITY_ZONE);
+
+	if (zone == NULL)
+		return (0);
+
+	/*
+	 * set priority to the new value.
+	 */
+	zp = &zone_pdata[zone->zone_id];
+	mutex_enter(&zp->zpers_zfs_lock);
+	if (zp->zpers_zfsp != NULL)
+		zp->zpers_zfsp->zpers_zfs_io_pri = (uint16_t)nv;
+	mutex_exit(&zp->zpers_zfs_lock);
+	return (0);
+}
+
+static rctl_ops_t zone_zfs_io_pri_ops = {
+	rcop_no_action,
+	zone_zfs_io_pri_get,
+	zone_zfs_io_pri_set,
+	rcop_no_test
+};
+
+/*ARGSUSED*/
+static rctl_qty_t
 zone_lwps_usage(rctl_t *r, proc_t *p)
 {
 	rctl_qty_t nlwps;
@@ -2208,6 +2332,21 @@ zone_init(void)
 	    RCTL_GLOBAL_NOBASIC | RCTL_GLOBAL_COUNT |RCTL_GLOBAL_SYSLOG_NEVER |
 	    RCTL_GLOBAL_INFINITE,
 	    MAXCAP, MAXCAP, &zone_cpu_cap_ops);
+
+	rc_zone_cpu_baseline = rctl_register("zone.cpu-baseline",
+	    RCENTITY_ZONE, RCTL_GLOBAL_SIGNAL_NEVER | RCTL_GLOBAL_DENY_NEVER |
+	    RCTL_GLOBAL_NOBASIC | RCTL_GLOBAL_COUNT | RCTL_GLOBAL_SYSLOG_NEVER,
+	    MAXCAP, MAXCAP, &zone_cpu_base_ops);
+
+	rc_zone_cpu_burst_time = rctl_register("zone.cpu-burst-time",
+	    RCENTITY_ZONE, RCTL_GLOBAL_SIGNAL_NEVER | RCTL_GLOBAL_DENY_NEVER |
+	    RCTL_GLOBAL_NOBASIC | RCTL_GLOBAL_COUNT | RCTL_GLOBAL_SYSLOG_NEVER,
+	    INT_MAX, INT_MAX, &zone_cpu_burst_time_ops);
+
+	rc_zone_zfs_io_pri = rctl_register("zone.zfs-io-priority",
+	    RCENTITY_ZONE, RCTL_GLOBAL_SIGNAL_NEVER | RCTL_GLOBAL_DENY_NEVER |
+	    RCTL_GLOBAL_NOBASIC | RCTL_GLOBAL_COUNT | RCTL_GLOBAL_SYSLOG_NEVER,
+	    16384, 16384, &zone_zfs_io_pri_ops);
 
 	rc_zone_nlwps = rctl_register("zone.max-lwps", RCENTITY_ZONE,
 	    RCTL_GLOBAL_NOACTION | RCTL_GLOBAL_NOBASIC | RCTL_GLOBAL_COUNT,

@@ -68,8 +68,6 @@ _info(struct modinfo *modinfop)
 	return (mod_info(&modlinkage, modinfop));
 }
 
-#define	RTGPPRIO0	100	/* Global priority for RT priority 0 */
-
 rtdpent_t	config_rt_dptbl[] = {
 
 /*   	prilevel    Time quantum */

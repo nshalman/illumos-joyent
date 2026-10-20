@@ -280,10 +280,11 @@ main(int argc, char *argv[])
 		    sizeof (hw_provider));
 		/*
 		 * If 0 bytes are returned (the system returns '1', for the \0),
-		 * we're probably on x86, default to "Unknown Hardware Vendor".
+		 * we're probably on x86, and there has been no si-hw-provider
+		 * set in /etc/bootrc, default to Joyent.
 		 */
 		if (ret <= 1) {
-			(void) strncpy(hw_provider, "Unknown Hardware Vendor",
+			(void) strncpy(hw_provider, "Joyent",
 			    sizeof (hw_provider));
 		}
 		(void) printf("System Configuration:  %s  %s\n", hw_provider,
