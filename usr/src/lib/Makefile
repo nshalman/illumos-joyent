@@ -97,6 +97,7 @@ SUBDIRS +=				\
 	libbrand	\
 	libbsdmalloc	\
 	libbsm		\
+	libbunyan	\
 	libc_db		\
 	libcfgadm	\
 	libcmdutils	\
@@ -374,6 +375,7 @@ HDRSUBDIRS=				\
 	libads		\
 	libbrand	\
 	libbsm		\
+	libbunyan	\
 	libc		\
 	libcmdutils	\
 	libcommputil	\

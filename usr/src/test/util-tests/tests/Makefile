@@ -22,6 +22,7 @@
 SUBDIRS =		\
 	ar		\
 	awk		\
+	bunyan		\
 	chown		\
 	cpio		\
 	cpmvln		\
