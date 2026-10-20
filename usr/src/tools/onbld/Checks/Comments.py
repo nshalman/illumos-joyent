@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!ON_PYTHON
 #
 # CDDL HEADER START
 #
@@ -42,7 +42,7 @@ from onbld.Checks.DbLookups import BugDB
 from onbld.Checks.SpellCheck import spellcheck_line
 
 
-bugre = re.compile(r'^(\d{2,7}) (.*)$')
+bugre = re.compile(r'^(\d{2,7}|[A-Z]{1,7}-\d{1,7}) (.*)$')
 
 
 def isBug(comment):

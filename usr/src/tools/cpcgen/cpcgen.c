@@ -10,7 +10,7 @@
  */
 
 /*
- * Copyright 2019, Joyent, Inc.
+ * Copyright 2019 Joyent, Inc.
  * Copyright 2021 Oxide Computer Company
  */
 
@@ -1837,7 +1837,7 @@ cpcgen_gen(int dirfd)
 			    "name");
 		}
 
-		if ((fd = openat(dirfd, tmpname, O_RDWR | O_CREAT, 0444)) < 0) {
+		if ((fd = openat(dirfd, tmpname, O_RDWR | O_CREAT, 0644)) < 0) {
 			err(EXIT_FAILURE, "failed to create temporary file %s",
 			    tmpname);
 		}

@@ -25,7 +25,7 @@
 # Copyright 2014 Garrett D'Amore <garrett@damore.org>
 # Copyright 2015 OmniTI Computer Consulting, Inc. All rights reserved.
 # Copyright 2016 Toomas Soome <tsoome@me.com>
-# Copyright 2018 Joyent, Inc.
+# Copyright 2019 Joyent, Inc.
 # Copyright 2019 OmniOS Community Edition (OmniOSce) Association.
 #
 
@@ -108,7 +108,7 @@ all: mapfiles closedbins sgs .WAIT $(SUBDIRS) pkg
 # packaging to be pulled from $(SRC) and $(CLOSED) and staged in
 # $(ROOT)/licenses.
 #
-install: install1 install2 _msg stage-licenses
+install: install1 install2 _msg
 	@cd msg; pwd; $(MAKE) _msg
 	@rm -rf "$(ROOT)/catalog"
 

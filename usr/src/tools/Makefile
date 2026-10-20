@@ -73,19 +73,20 @@ COMMON_SUBDIRS=		\
 #
 #  special versions of commands for use only in build
 #
-UNSHIPPED_SUBDIRS =		\
-	$(SGSMSG)		\
-	$(SGSLIBCONV)		\
-	$(SGSLIBELF)		\
-	$(SGSLIBLDDBG)		\
-	$(SGSLIBLD)		\
-	$(SGSLD)		\
-	geniconvtbl		\
-	localedef		\
-	mandoc			\
-	rpcgen			\
-	tic			\
-	vtfontcvt		\
+UNSHIPPED_SUBDIRS = \
+	$(SGSMSG) \
+	$(SGSLIBCONV) \
+	$(SGSLIBELF) \
+	$(SGSLIBLDDBG) \
+	$(SGSLIBLD) \
+	$(SGSLD) \
+	geniconvtbl \
+	localedef \
+	man \
+	mandoc \
+	rpcgen \
+	tic \
+	vtfontcvt \
 	zic
 
 i386_SUBDIRS=			\

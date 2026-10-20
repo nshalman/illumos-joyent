@@ -32,6 +32,8 @@
 # Copyright 2020 Peter Tribble
 # Copyright 2021 OmniOS Community Edition (OmniOSce) Association.
 # Copyright 2021 Joyent, Inc.
+# Copyright 2023 MNX Cloud, Inc.
+# Copyright 2026 Edgecast Cloud LLC.
 #
 
 #
@@ -291,7 +293,8 @@ PYSHEBANG=	$(PYTHON3)
 # rebuilds if the baked-in mtime != the mtime of the source file
 # (rather than only if it's less than), thus when installing python
 # files we must make certain to not adjust the mtime of the source
-# (.py) file.
+# (.py) file. As a part of this we also go through and change the #!
+# line in the python script to that of the actual python we are using.
 #
 INS.pyfile=	$(RM) $@; $(SED) \
 		-e "1s:^\#!@PYTHON@:\#!$(PYSHEBANG):" \

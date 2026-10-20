@@ -47,7 +47,15 @@ CFLAGS += -DMULTIARCH_TRIPLET=NULL
 LDCHECKS = $(ZASSERTDEFLIB) $(ZGUIDANCE) $(ZFATALWARNINGS)
 LDLIBS += $(ZLAZYLOAD) $(ZDIRECT) -lsqlite3 -lmd -lgcc -lm -lc
 LDFLAGS = $(MAPFILE.NES:%=-Wl,-M%)
+
+#
+# To allow linking to $(NATIVE_ADJUNCT) libraries on both multiarch (where
+# 64-bit libraries will be found in $(NATIVE_ADJUNCT)/lib/$(MACH64)) and 64-bit
+# images (where 64-bit libraries will be found in $(NATIVE_ADJUNCT)/lib/), we
+# set our library and run paths to both locations.
+#
 LDFLAGS += -L$(NATIVE_ADJUNCT)/lib -R$(NATIVE_ADJUNCT)/lib
+LDFLAGS += -L$(NATIVE_ADJUNCT)/lib/$(MACH64) -R$(NATIVE_ADJUNCT)/lib/$(MACH64)
 
 NATIVE_LIBS += libsqlite3.so libmd.so libm.so libc.so
 LDFLAGS += $(NATIVE_LIBS:%=$(ZASSERTDEFLIB)=%)
@@ -55,6 +63,7 @@ LDFLAGS += $(NATIVE_LIBS:%=$(ZASSERTDEFLIB)=%)
 CPPFLAGS += -nostdinc
 CPPFLAGS += -Isrc/
 CPPFLAGS += -I$(NATIVE_ADJUNCT)/include
+CPPFLAGS += -I/usr/include
 
 # no install.bin
 INS.file = $(RM) $@; $(CP) $< $(@D); $(CHMOD) $(FILEMODE) $@

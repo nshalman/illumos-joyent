@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!ON_PYTHON
 #
 # CDDL HEADER START
 #
@@ -26,16 +26,17 @@
 
 # Copyright 2010, Richard Lowe
 # Copyright 2018 OmniOS Community Edition (OmniOSce) Association.
+# Copyright (c) 2019, Joyent, Inc.
 # Copyright 2024 Oxide Computer Company
 
 #
 # Various database lookup classes/methods, i.e.:
-#     * monaco
-#     * bugs.opensolaris.org (b.o.o.)
 #     * redmine (illumos.org)
+#     * smartos
 #
 
 import re
+import json
 try:
 	from urllib.request import urlopen, Request
 	from urllib.error import HTTPError
@@ -67,9 +68,9 @@ class BugDB(object):
 	print r["6505625"]["synopsis"]
 	"""
 
-	VALID_DBS = ["illumos"]
+	VALID_DBS = ["illumos", "smartos"]
 
-	def __init__(self, priority = ["illumos"]):
+	def __init__(self, priority = VALID_DBS):
 		"""Create a BugDB object.
 
 		Keyword argument:
@@ -79,6 +80,24 @@ class BugDB(object):
 			if database not in self.VALID_DBS:
 				raise BugDBException(database)
 		self.__priority = priority
+
+	def __smartosbug(self, cr):
+		url = "http://smartos.org/bugview/json/%s" % cr
+		req = Request(url)
+
+		try:
+			data = urlopen(req)
+		except HTTPError as e:
+			if e.code == 404 or e.code == 403 or e.code == 400:
+				raise NonExistentBug(cr)
+			else:
+				raise
+
+		bug = json.load(data)
+
+		return {'cr_number': bug['id'],
+			'synopsis': bug['summary']
+		}
 
 
 	def __illbug(self, cr):
@@ -125,6 +144,12 @@ class BugDB(object):
 				for cr in crs:
 					try:
 						results[str(cr)] = self.__illbug(cr)
+					except NonExistentBug:
+						continue
+			elif database == "smartos":
+				for cr in crs:
+					try:
+						results[str(cr)] = self.__smartosbug(cr)
 					except NonExistentBug:
 						continue
 

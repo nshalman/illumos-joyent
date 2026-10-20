@@ -2877,7 +2877,12 @@ done
 #
 # Output directory.
 #
-WDIR=${WDIR:-$CWS/webrev}
+if [[ $SCM_MODE == "git" ]]; then
+	ws_top_dir=$(dirname $CWS)
+	WDIR=${WDIR:-$ws_top_dir/webrev}
+else
+	WDIR=${WDIR:-$CWS/webrev}
+fi
 
 #
 # Name of the webrev, derived from the workspace name or output directory;
