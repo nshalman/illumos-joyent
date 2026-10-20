@@ -23,6 +23,7 @@
  * Copyright (c) 2011, 2018 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
+ * Copyright 2019 Joyent, Inc.
  * Copyright (c) 2017, Intel Corporation.
  */
 
@@ -69,6 +70,11 @@ int zfs_metaslab_sm_blksz_with_log = (1 << 17);
  * Values should be greater than or equal to 100.
  */
 int zfs_condense_pct = 200;
+
+/*
+ * Never condense any space map.  This is for debugging/recovery only.
+ */
+int zfs_condense_never = 0;
 
 /*
  * Condensing a metaslab is not guaranteed to actually reduce the amount of
@@ -863,6 +869,7 @@ metaslab_group_activate(metaslab_group_t *mg)
 {
 	metaslab_class_t *mc = mg->mg_class;
 	metaslab_group_t *mgprev, *mgnext;
+	char kstat_name[KSTAT_STRLEN];
 
 	ASSERT3U(spa_config_held(mc->mc_spa, SCL_ALLOC, RW_WRITER), !=, 0);
 
@@ -887,6 +894,33 @@ metaslab_group_activate(metaslab_group_t *mg)
 		mgprev->mg_next = mg;
 		mgnext->mg_prev = mg;
 	}
+
+	/* Create a kstat to monitor the loading and unloading of metaslabs. */
+	(void) snprintf(kstat_name, sizeof (kstat_name), "%llx",
+	    (unsigned long long) mg->mg_vd->vdev_guid);
+
+	mutex_init(&mg->mg_kstat_lock, NULL, MUTEX_DEFAULT, NULL);
+	if ((mg->mg_kstat = kstat_create("zfs_metaslab_group", 0,
+	    kstat_name, "misc", KSTAT_TYPE_NAMED,
+	    sizeof (metaslab_group_kstat_t) / sizeof (kstat_named_t),
+	    KSTAT_FLAG_VIRTUAL)) != NULL) {
+
+		metaslab_group_kstat_t *mg_kstat = kmem_zalloc(
+		    sizeof (metaslab_group_kstat_t), KM_SLEEP);
+		kstat_named_init(&mg_kstat->mg_loads, "loads",
+		    KSTAT_DATA_UINT64);
+		kstat_named_init(&mg_kstat->mg_unloads, "unloads",
+		    KSTAT_DATA_UINT64);
+		kstat_named_init(&mg_kstat->mg_spa_name, "spa_name",
+		    KSTAT_DATA_STRING);
+		kstat_named_setstr(&mg_kstat->mg_spa_name,
+		    mg->mg_vd->vdev_spa->spa_name);
+
+		mg->mg_kstat->ks_data = mg_kstat;
+		mg->mg_kstat->ks_lock = &mg->mg_kstat_lock;
+		kstat_install(mg->mg_kstat);
+	}
+
 	mc->mc_rotor = mg;
 }
 
@@ -963,6 +997,14 @@ metaslab_group_passivate(metaslab_group_t *mg)
 
 	mg->mg_prev = NULL;
 	mg->mg_next = NULL;
+
+	if (mg->mg_kstat != NULL) {
+		metaslab_group_kstat_t *data = mg->mg_kstat->ks_data;
+
+		kstat_delete(mg->mg_kstat);
+		kmem_free(data, sizeof (metaslab_group_kstat_t));
+	}
+	mutex_destroy(&mg->mg_kstat_lock);
 }
 
 boolean_t
@@ -2400,6 +2442,7 @@ metaslab_load_impl(metaslab_t *msp)
 int
 metaslab_load(metaslab_t *msp)
 {
+	kstat_t *ksp;
 	ASSERT(MUTEX_HELD(&msp->ms_lock));
 
 	/*
@@ -2411,6 +2454,12 @@ metaslab_load(metaslab_t *msp)
 		return (0);
 	VERIFY(!msp->ms_loading);
 	ASSERT(!msp->ms_condensing);
+
+	ksp = msp->ms_group->mg_kstat;
+	if (ksp != NULL) {
+		metaslab_group_kstat_t *mg_ksp = ksp->ks_data;
+		atomic_inc_64(&mg_ksp->mg_loads.value.ui64);
+	}
 
 	/*
 	 * We set the loading flag BEFORE potentially dropping the lock to
@@ -4290,12 +4339,11 @@ metaslab_sync_done(metaslab_t *msp, uint64_t txg)
 
 	/*
 	 * If the metaslab is loaded and we've not tried to load or allocate
-	 * from it in 'metaslab_unload_delay' txgs, then unload it.
+	 * from it in 'metaslab_unload_delay' txgs, then we normally unload it.
 	 */
 	if (msp->ms_loaded &&
 	    msp->ms_disabled == 0 &&
 	    msp->ms_selected_txg + metaslab_unload_delay < txg) {
-
 		for (int t = 1; t < TXG_CONCURRENT_STATES; t++) {
 			VERIFY0(range_tree_space(
 			    msp->ms_allocating[(txg + t) & TXG_MASK]));
@@ -4539,8 +4587,6 @@ metaslab_block_alloc(metaslab_t *msp, uint64_t size, uint64_t txg)
 		range_tree_add(msp->ms_allocating[txg & TXG_MASK], start, size);
 		msp->ms_allocating_total += size;
 
-		/* Track the last successful allocation */
-		msp->ms_alloc_txg = txg;
 		metaslab_verify_space(msp, txg);
 	}
 

@@ -77,6 +77,11 @@ CPPFLAGS.first =	-I$(SRC)/lib/libfakekernel/common
 CPPFLAGS.first +=	-I$(SRC)/common/lz4
 CPPFLAGS +=	$(INCS)	-DDEBUG -D_FAKE_KERNEL
 
+# The following is needed to fix the SmartOS build; see OS-6582. We cannot do
+# a conditional appendage to INCS, since that breaks the lint build.
+CFLAGS += -isystem $(ROOT)/usr/include
+CFLAGS64 += -isystem $(ROOT)/usr/include
+
 CERRWARN +=	-_gcc=-Wno-parentheses
 CERRWARN +=	-_gcc=-Wno-switch
 CERRWARN +=	-_gcc=-Wno-type-limits
