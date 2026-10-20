@@ -19,18 +19,18 @@ rtld-sgs brand-native zone-kernel
 zfs-arc zfs-zone-io zone-kernel
 zfs-props zfs-zone-io zone-kernel
 zfs-zio zfs-zone-io zone-kernel
+zones-tools brand-native zone-kernel
 brand-events brand-native brand-ops zone-kernel
 brand-process brand-native brand-ops zone-kernel
+ipf-cfw brand-native zone-kernel zones-tools
+mdb brand-native zone-kernel zones-tools
 ptools brand-native brand-ops zone-kernel
 zfs-cli zfs-props zfs-zone-io zone-kernel
-zones-tools brand-native zone-kernel zone-memory
 datalink brand-native link-protection vnd zone-kernel
-ipf-cfw brand-native zone-kernel zone-memory zones-tools
-mdb brand-native zone-kernel zone-memory zones-tools
+dtrace brand-native brand-ops zone-kernel zones-tools
 vnd brand-native datalink link-protection zone-kernel
-dtrace brand-native brand-ops zone-kernel zone-memory zones-tools
-lx brand-events brand-native brand-net brand-nfs brand-ops brand-process bunyan hyprlofs inotify ptools zone-kernel zone-memory zones-tools
-brand-fs brand-events brand-native brand-net brand-nfs brand-ops brand-process bunyan hyprlofs inotify lx ptools zone-kernel zone-memory zones-tools
-platform-config bhyve brand-events brand-native brand-net brand-nfs brand-ops brand-process bunyan hyprlofs inotify lx ptools zone-kernel zone-memory zones-tools
-zfd brand-events brand-native brand-net brand-nfs brand-ops brand-process bunyan hyprlofs inotify lx net-misc ptools zone-brands zone-kernel zone-memory zones-admin zones-tools
-zones-admin brand-events brand-native brand-net brand-nfs brand-ops brand-process bunyan hyprlofs inotify lx net-misc ptools zfd zone-brands zone-kernel zone-memory zones-tools
+lx brand-events brand-native brand-net brand-nfs brand-ops brand-process bunyan hyprlofs inotify ptools zone-kernel zones-tools
+brand-fs brand-events brand-native brand-net brand-nfs brand-ops brand-process bunyan hyprlofs inotify lx ptools zone-kernel zones-tools
+platform-config bhyve brand-events brand-native brand-net brand-nfs brand-ops brand-process bunyan hyprlofs inotify lx ptools zone-brands zone-kernel zones-tools
+zfd brand-events brand-native brand-net brand-nfs brand-ops brand-process bunyan hyprlofs inotify lx net-misc overlay-svp ptools zone-brands zone-kernel zone-memory zones-admin zones-tools
+zones-admin brand-events brand-native brand-net brand-nfs brand-ops brand-process bunyan hyprlofs inotify lx net-misc overlay-svp ptools zfd zone-brands zone-kernel zone-memory zones-tools

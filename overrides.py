@@ -434,4 +434,11 @@ HUNK_OVERRIDES = [
     ('usr/src/lib/libzonecfg/common/mapfile-vers', r'zonecfg_getmcapent', 'zones-admin'),
     # rcapstat stops needing libzonecfg with zone-memory's rcap changes
     ('usr/src/cmd/rcap/rcapstat/Makefile', r'-lzonecfg', 'zone-memory'),
+    # lx's syscall interposer hook, used by the x86 syscall entry code
+    # (brand-x86, now brand-ops)
+    ('usr/src/uts/i86pc/ml/syscall_asm_amd64.S', r'.', 'brand-ops'),
+    ('usr/src/uts/i86pc/ml/offsets.in', r'lwp_brand_syscall', 'brand-ops'),
+    ('usr/src/uts/common/sys/klwp.h', r'lwp_brand_syscall', 'brand-ops'),
+    # libdtrace now links libzonecfg; the build-order line goes with it
+    ('usr/src/lib/Makefile', r'^libdtrace:', 'dtrace'),
 ]

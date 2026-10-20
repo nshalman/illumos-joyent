@@ -30,23 +30,25 @@ Features:
   OS-3558 lxbrand add support for full in-kernel syscall handling
   OS-3742 lxbrand add support for signalfd
   OS-4382 remove obsolete brand hooks added during lx development
+  OS-4961 lxbrand want fasttrap-like brand hook
   OS-5072 lxbrand support PT_GNU_STACK
   OS-5202 Support AT_SECURE & AT_*ID in LX
   OS-6211 support Linux accounting
   OS-6547 Implement KPTI
 
-Also includes the final state of fixes from 70 tickets: OS-2877,
+Also includes the final state of fixes from 74 tickets: OS-2877,
 OS-3149, OS-3215, OS-3223, OS-3382, OS-3438, OS-3513, OS-3517, OS-3545,
 OS-3554, OS-3561, OS-3600, OS-3611, OS-3615, OS-3685, OS-3696, OS-3712,
 OS-3733, OS-3735, OS-3794, OS-3820, OS-3834, OS-3868, OS-3871, OS-3901,
-OS-3920, OS-3926, OS-4047, OS-4119, OS-4129, OS-4151, OS-4188, OS-4303,
-OS-4364, OS-4368, OS-4437, OS-4460, OS-4534, OS-4818, OS-4824, OS-4825,
-OS-4930, OS-4937, OS-5015, OS-5189, OS-5192, OS-5293, OS-5322, OS-5354,
-OS-5462, OS-5761, OS-5805, OS-5991, OS-5992, OS-6018, OS-6158, OS-6993,
-OS-6994, OS-6995, OS-6996, OS-7931, OS-7932, OS-7934, OS-7960, OS-8258,
-OS-8747, OS-8748, 12349, 13925, 14823.
+OS-3920, OS-3926, OS-3937, OS-4047, OS-4119, OS-4129, OS-4151, OS-4188,
+OS-4303, OS-4364, OS-4368, OS-4437, OS-4460, OS-4534, OS-4818, OS-4824,
+OS-4825, OS-4930, OS-4937, OS-5015, OS-5189, OS-5192, OS-5293, OS-5322,
+OS-5354, OS-5462, OS-5612, OS-5761, OS-5805, OS-5991, OS-5992, OS-6018,
+OS-6158, OS-6993, OS-6994, OS-6995, OS-6996, OS-7598, OS-7621, OS-7931,
+OS-7932, OS-7934, OS-7960, OS-8258, OS-8747, OS-8748, 12349, 13925,
+14823.
 
-37 files (0 removed). This commit applies to illumos-gate on its own;
+39 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Patrick Mooney <pmooney@pfmooney.com>
@@ -86,9 +88,11 @@ Co-authored-by: John Levon <john.levon@joyent.com>
  usr/src/uts/common/sys/auxv.h                  |  30 ++-
  usr/src/uts/common/sys/brand.h                 | 102 ++++++++--
  usr/src/uts/common/sys/exec.h                  |  17 +-
+ usr/src/uts/common/sys/klwp.h                  |  11 +-
  usr/src/uts/common/syscall/brandsys.c          |   8 +-
  usr/src/uts/i86pc/ml/kpti_trampolines.S        |   2 +
- usr/src/uts/i86pc/ml/syscall_asm_amd64.S       | 102 ++++++++--
+ usr/src/uts/i86pc/ml/offsets.in                |   1 +
+ usr/src/uts/i86pc/ml/syscall_asm_amd64.S       | 165 ++++++++++++++--
  usr/src/uts/i86pc/sys/comm_page.h              |   2 +
  usr/src/uts/intel/ml/modstubs.S                |  10 +-
  usr/src/uts/intel/os/archdep.c                 |   2 +-
@@ -98,7 +102,7 @@ Co-authored-by: John Levon <john.levon@joyent.com>
  usr/src/uts/intel/sys/machbrand.h              |  12 +-
  usr/src/uts/intel/sys/segments.h               |   4 +
  usr/src/uts/intel/sys/ucontext.h               |  12 +-
- 37 files changed, 1156 insertions(+), 412 deletions(-)
+ 39 files changed, 1229 insertions(+), 414 deletions(-)
 
 ========================================================================
 [2/78] features/brand-process
@@ -2273,7 +2277,9 @@ Also includes the final state of fixes from 16 tickets: INTRO-118,
 OS-208, OS-279, OS-501, OS-506, OS-679, OS-2579, OS-2580, OS-2581,
 OS-2582, OS-2583, OS-2584, OS-2585, OS-3712, OS-5993, OS-6795.
 
-21 files (0 removed). This commit applies to illumos-gate on its own;
+Plus 1 commits without a ticket ID.
+
+22 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Bryan Cantrill <bryan@joyent.com>
@@ -2292,6 +2298,7 @@ Co-authored-by: John Levon <john.levon@joyent.com>
  usr/src/cmd/dtrace/test/tst/common/ustack/tst.unpriv.c    |  7 ++++
  usr/src/cmd/dtrace/test/tst/common/ustack/tst.unpriv.ksh  | 68 ++++++++++++++++++++++++++++++++
  usr/src/cmd/dtrace/test/tst/common/ustack/unpriv_helper.d |  4 ++
+ usr/src/lib/Makefile                                      |  2 +-
  usr/src/lib/libdtrace/Makefile.com                        |  2 +-
  usr/src/lib/libdtrace/common/dt_impl.h                    |  1 +
  usr/src/lib/libdtrace/common/dt_open.c                    | 27 ++++++++++---
@@ -2302,7 +2309,7 @@ Co-authored-by: John Levon <john.levon@joyent.com>
  usr/src/test/os-tests/tests/poll/Makefile                 |  2 +-
  usr/src/uts/common/dtrace/dtrace.c                        | 19 ++++++++-
  usr/src/uts/intel/dtrace/fasttrap_isa.c                   | 15 +++++++
- 21 files changed, 325 insertions(+), 33 deletions(-)
+ 22 files changed, 326 insertions(+), 34 deletions(-)
 
 ========================================================================
 [46/78] features/mdb
@@ -3607,7 +3614,7 @@ Features:
   OS-8682: Add net buffer size and panic-on-oops tunables to LX procfs.
   7029 want per-process exploit mitigation features (secflags) [missing manpage]
 
-Also includes the final state of fixes from 728 tickets: OS-1571,
+Also includes the final state of fixes from 724 tickets: OS-1571,
 OS-1682, OS-1694, OS-1966, OS-2810, OS-2837, OS-2840, OS-2863, OS-2873,
 OS-2877, OS-2879, OS-2885, OS-2897, OS-2982, OS-2983, OS-3006, OS-3024,
 OS-3026, OS-3038, OS-3073, OS-3087, OS-3099, OS-3101, OS-3103, OS-3107,
@@ -3631,78 +3638,78 @@ OS-3782, OS-3791, OS-3793, OS-3794, OS-3797, OS-3798, OS-3799, OS-3802,
 OS-3803, OS-3804, OS-3805, OS-3806, OS-3812, OS-3820, OS-3826, OS-3827,
 OS-3831, OS-3834, OS-3841, OS-3866, OS-3868, OS-3882, OS-3892, OS-3901,
 OS-3911, OS-3917, OS-3920, OS-3923, OS-3924, OS-3925, OS-3926, OS-3927,
-OS-3928, OS-3932, OS-3934, OS-3937, OS-3939, OS-3952, OS-3955, OS-3969,
-OS-3988, OS-3990, OS-3992, OS-3997, OS-4002, OS-4004, OS-4007, OS-4011,
-OS-4022, OS-4036, OS-4037, OS-4038, OS-4039, OS-4040, OS-4047, OS-4049,
-OS-4051, OS-4052, OS-4064, OS-4065, OS-4071, OS-4074, OS-4082, OS-4084,
-OS-4098, OS-4099, OS-4104, OS-4114, OS-4119, OS-4123, OS-4125, OS-4127,
-OS-4129, OS-4131, OS-4133, OS-4138, OS-4151, OS-4152, OS-4178, OS-4188,
-OS-4199, OS-4214, OS-4215, OS-4225, OS-4239, OS-4240, OS-4244, OS-4252,
-OS-4256, OS-4257, OS-4259, OS-4269, OS-4275, OS-4277, OS-4282, OS-4285,
-OS-4286, OS-4287, OS-4288, OS-4292, OS-4296, OS-4299, OS-4300, OS-4303,
-OS-4309, OS-4320, OS-4323, OS-4329, OS-4331, OS-4342, OS-4347, OS-4348,
-OS-4349, OS-4353, OS-4360, OS-4363, OS-4376, OS-4385, OS-4387, OS-4389,
-OS-4398, OS-4407, OS-4414, OS-4421, OS-4430, OS-4434, OS-4437, OS-4441,
-OS-4443, OS-4444, OS-4445, OS-4446, OS-4450, OS-4451, OS-4454, OS-4458,
-OS-4459, OS-4460, OS-4461, OS-4463, OS-4464, OS-4467, OS-4469, OS-4471,
-OS-4473, OS-4475, OS-4476, OS-4485, OS-4498, OS-4500, OS-4504, OS-4505,
-OS-4506, OS-4511, OS-4517, OS-4521, OS-4532, OS-4533, OS-4536, OS-4538,
-OS-4544, OS-4562, OS-4572, OS-4587, OS-4588, OS-4592, OS-4594, OS-4595,
-OS-4596, OS-4597, OS-4598, OS-4601, OS-4607, OS-4611, OS-4619, OS-4621,
-OS-4637, OS-4638, OS-4640, OS-4647, OS-4648, OS-4656, OS-4657, OS-4658,
-OS-4662, OS-4675, OS-4680, OS-4681, OS-4695, OS-4725, OS-4732, OS-4736,
-OS-4749, OS-4758, OS-4759, OS-4762, OS-4784, OS-4790, OS-4797, OS-4805,
-OS-4812, OS-4815, OS-4824, OS-4825, OS-4828, OS-4829, OS-4830, OS-4833,
-OS-4844, OS-4849, OS-4855, OS-4865, OS-4899, OS-4900, OS-4910, OS-4924,
-OS-4927, OS-4930, OS-4932, OS-4937, OS-4941, OS-4969, OS-4980, OS-4983,
-OS-4992, OS-4993, OS-4995, OS-5002, OS-5012, OS-5013, OS-5028, OS-5029,
-OS-5035, OS-5036, OS-5042, OS-5045, OS-5064, OS-5065, OS-5066, OS-5067,
-OS-5068, OS-5069, OS-5070, OS-5073, OS-5075, OS-5076, OS-5077, OS-5078,
-OS-5080, OS-5081, OS-5083, OS-5085, OS-5086, OS-5089, OS-5092, OS-5094,
-OS-5096, OS-5097, OS-5103, OS-5104, OS-5106, OS-5117, OS-5119, OS-5122,
-OS-5124, OS-5133, OS-5138, OS-5142, OS-5149, OS-5153, OS-5154, OS-5155,
-OS-5157, OS-5162, OS-5170, OS-5171, OS-5179, OS-5184, OS-5187, OS-5189,
-OS-5191, OS-5196, OS-5200, OS-5201, OS-5203, OS-5204, OS-5206, OS-5221,
-OS-5223, OS-5241, OS-5243, OS-5244, OS-5247, OS-5248, OS-5249, OS-5250,
-OS-5254, OS-5258, OS-5259, OS-5260, OS-5261, OS-5262, OS-5266, OS-5273,
-OS-5274, OS-5297, OS-5300, OS-5303, OS-5305, OS-5313, OS-5322, OS-5323,
-OS-5342, OS-5350, OS-5354, OS-5356, OS-5357, OS-5358, OS-5360, OS-5364,
-OS-5365, OS-5373, OS-5380, OS-5382, OS-5392, OS-5405, OS-5410, OS-5412,
-OS-5427, OS-5428, OS-5429, OS-5431, OS-5432, OS-5453, OS-5458, OS-5462,
-OS-5472, OS-5477, OS-5480, OS-5481, OS-5482, OS-5487, OS-5491, OS-5495,
-OS-5496, OS-5497, OS-5498, OS-5505, OS-5521, OS-5537, OS-5545, OS-5546,
-OS-5547, OS-5566, OS-5570, OS-5571, OS-5573, OS-5583, OS-5588, OS-5593,
-OS-5607, OS-5612, OS-5620, OS-5630, OS-5636, OS-5637, OS-5644, OS-5646,
-OS-5667, OS-5673, OS-5685, OS-5696, OS-5697, OS-5699, OS-5702, OS-5706,
-OS-5712, OS-5717, OS-5718, OS-5719, OS-5720, OS-5721, OS-5722, OS-5728,
-OS-5733, OS-5738, OS-5748, OS-5751, OS-5752, OS-5756, OS-5760, OS-5761,
-OS-5762, OS-5763, OS-5764, OS-5768, OS-5771, OS-5772, OS-5783, OS-5792,
-OS-5802, OS-5803, OS-5805, OS-5808, OS-5813, OS-5814, OS-5817, OS-5820,
-OS-5825, OS-5838, OS-5841, OS-5844, OS-5845, OS-5853, OS-5866, OS-5902,
-OS-5906, OS-5907, OS-5909, OS-5925, OS-5926, OS-5936, OS-5938, OS-5965,
-OS-5966, OS-5967, OS-5972, OS-5973, OS-5981, OS-5984, OS-5987, OS-5991,
-OS-5992, OS-5994, OS-5997, OS-6008, OS-6010, OS-6017, OS-6018, OS-6019,
-OS-6025, OS-6034, OS-6046, OS-6052, OS-6069, OS-6074, OS-6081, OS-6088,
-OS-6096, OS-6155, OS-6158, OS-6170, OS-6175, OS-6183, OS-6202, OS-6212,
-OS-6213, OS-6222, OS-6223, OS-6238, OS-6258, OS-6262, OS-6266, OS-6275,
-OS-6276, OS-6290, OS-6304, OS-6306, OS-6320, OS-6330, OS-6338, OS-6364,
-OS-6382, OS-6388, OS-6428, OS-6436, OS-6456, OS-6467, OS-6475, OS-6486,
-OS-6487, OS-6488, OS-6501, OS-6505, OS-6514, OS-6538, OS-6562, OS-6574,
-OS-6575, OS-6580, OS-6584, OS-6625, OS-6898, OS-6906, OS-6920, OS-6935,
-OS-6970, OS-7000, OS-7029, OS-7030, OS-7076, OS-7121, OS-7145, OS-7157,
-OS-7205, OS-7288, OS-7336, OS-7433, OS-7498, OS-7511, OS-7517, OS-7518,
-OS-7536, OS-7598, OS-7621, OS-7636, OS-7639, OS-7663, OS-7685, OS-7688,
-OS-7753, OS-7754, OS-7768, OS-7861, OS-7899, OS-7931, OS-7932, OS-7934,
-OS-7947, OS-7960, OS-7976, OS-7978, OS-7980, OS-7999, OS-8056, OS-8089,
-OS-8141, OS-8150, OS-8152, OS-8167, OS-8181, OS-8182, OS-8193, OS-8194,
-OS-8195, OS-8200, OS-8233, OS-8268, OS-8277, OS-8278, OS-8289, OS-8315,
-OS-8319, OS-8338, OS-8339, OS-8344, OS-8359, OS-8361, OS-8372, OS-8376,
-OS-8476, OS-8480, OS-8487, OS-8553, OS-8575, OS-8588, OS-8624, OS-8705,
-OS-8748, TOOLS-1603, 9027, 12789, 16344, 16538, 17297.
+OS-3928, OS-3932, OS-3934, OS-3939, OS-3952, OS-3955, OS-3969, OS-3988,
+OS-3990, OS-3992, OS-3997, OS-4002, OS-4004, OS-4007, OS-4011, OS-4022,
+OS-4036, OS-4037, OS-4038, OS-4039, OS-4040, OS-4047, OS-4049, OS-4051,
+OS-4052, OS-4064, OS-4065, OS-4071, OS-4074, OS-4082, OS-4084, OS-4098,
+OS-4099, OS-4104, OS-4114, OS-4119, OS-4123, OS-4125, OS-4127, OS-4129,
+OS-4131, OS-4133, OS-4138, OS-4151, OS-4152, OS-4178, OS-4188, OS-4199,
+OS-4214, OS-4215, OS-4225, OS-4239, OS-4240, OS-4244, OS-4252, OS-4256,
+OS-4257, OS-4259, OS-4269, OS-4275, OS-4277, OS-4282, OS-4285, OS-4286,
+OS-4287, OS-4288, OS-4292, OS-4296, OS-4299, OS-4300, OS-4303, OS-4309,
+OS-4320, OS-4323, OS-4329, OS-4331, OS-4342, OS-4347, OS-4348, OS-4349,
+OS-4353, OS-4360, OS-4363, OS-4376, OS-4385, OS-4387, OS-4389, OS-4398,
+OS-4407, OS-4414, OS-4421, OS-4430, OS-4434, OS-4437, OS-4441, OS-4443,
+OS-4444, OS-4445, OS-4446, OS-4450, OS-4451, OS-4454, OS-4458, OS-4459,
+OS-4460, OS-4461, OS-4463, OS-4464, OS-4467, OS-4469, OS-4471, OS-4473,
+OS-4475, OS-4476, OS-4485, OS-4498, OS-4500, OS-4504, OS-4505, OS-4506,
+OS-4511, OS-4517, OS-4521, OS-4532, OS-4533, OS-4536, OS-4538, OS-4544,
+OS-4562, OS-4572, OS-4587, OS-4588, OS-4592, OS-4594, OS-4595, OS-4596,
+OS-4597, OS-4598, OS-4601, OS-4607, OS-4611, OS-4619, OS-4621, OS-4637,
+OS-4638, OS-4640, OS-4647, OS-4648, OS-4656, OS-4657, OS-4658, OS-4662,
+OS-4675, OS-4680, OS-4681, OS-4695, OS-4725, OS-4732, OS-4736, OS-4749,
+OS-4758, OS-4759, OS-4762, OS-4784, OS-4790, OS-4797, OS-4805, OS-4812,
+OS-4815, OS-4824, OS-4825, OS-4828, OS-4829, OS-4830, OS-4833, OS-4844,
+OS-4849, OS-4855, OS-4865, OS-4899, OS-4900, OS-4910, OS-4924, OS-4927,
+OS-4930, OS-4932, OS-4937, OS-4941, OS-4969, OS-4980, OS-4983, OS-4992,
+OS-4993, OS-4995, OS-5002, OS-5012, OS-5013, OS-5028, OS-5029, OS-5035,
+OS-5036, OS-5042, OS-5045, OS-5064, OS-5065, OS-5066, OS-5067, OS-5068,
+OS-5069, OS-5070, OS-5073, OS-5075, OS-5076, OS-5077, OS-5078, OS-5080,
+OS-5081, OS-5083, OS-5085, OS-5086, OS-5089, OS-5092, OS-5094, OS-5096,
+OS-5097, OS-5103, OS-5104, OS-5106, OS-5117, OS-5119, OS-5122, OS-5124,
+OS-5133, OS-5138, OS-5142, OS-5149, OS-5153, OS-5154, OS-5155, OS-5157,
+OS-5162, OS-5170, OS-5171, OS-5179, OS-5184, OS-5187, OS-5189, OS-5191,
+OS-5196, OS-5200, OS-5201, OS-5203, OS-5204, OS-5206, OS-5221, OS-5223,
+OS-5241, OS-5243, OS-5244, OS-5247, OS-5248, OS-5249, OS-5250, OS-5254,
+OS-5258, OS-5259, OS-5260, OS-5261, OS-5262, OS-5266, OS-5273, OS-5274,
+OS-5297, OS-5300, OS-5303, OS-5305, OS-5313, OS-5322, OS-5323, OS-5342,
+OS-5350, OS-5354, OS-5356, OS-5357, OS-5358, OS-5360, OS-5364, OS-5365,
+OS-5373, OS-5380, OS-5382, OS-5392, OS-5405, OS-5410, OS-5412, OS-5427,
+OS-5428, OS-5429, OS-5431, OS-5432, OS-5453, OS-5458, OS-5462, OS-5472,
+OS-5477, OS-5480, OS-5481, OS-5482, OS-5487, OS-5491, OS-5495, OS-5496,
+OS-5497, OS-5498, OS-5505, OS-5521, OS-5537, OS-5545, OS-5546, OS-5547,
+OS-5566, OS-5570, OS-5571, OS-5573, OS-5583, OS-5588, OS-5593, OS-5607,
+OS-5620, OS-5630, OS-5636, OS-5637, OS-5644, OS-5646, OS-5667, OS-5673,
+OS-5685, OS-5696, OS-5697, OS-5699, OS-5702, OS-5706, OS-5712, OS-5717,
+OS-5718, OS-5719, OS-5720, OS-5721, OS-5722, OS-5728, OS-5733, OS-5738,
+OS-5748, OS-5751, OS-5752, OS-5756, OS-5760, OS-5761, OS-5762, OS-5763,
+OS-5764, OS-5768, OS-5771, OS-5772, OS-5783, OS-5792, OS-5802, OS-5803,
+OS-5805, OS-5808, OS-5813, OS-5814, OS-5817, OS-5820, OS-5825, OS-5838,
+OS-5841, OS-5844, OS-5845, OS-5853, OS-5866, OS-5902, OS-5906, OS-5907,
+OS-5909, OS-5925, OS-5926, OS-5936, OS-5938, OS-5965, OS-5966, OS-5967,
+OS-5972, OS-5973, OS-5981, OS-5984, OS-5987, OS-5991, OS-5992, OS-5994,
+OS-5997, OS-6008, OS-6010, OS-6017, OS-6018, OS-6019, OS-6025, OS-6034,
+OS-6046, OS-6052, OS-6069, OS-6074, OS-6081, OS-6088, OS-6096, OS-6155,
+OS-6158, OS-6170, OS-6175, OS-6183, OS-6202, OS-6212, OS-6213, OS-6222,
+OS-6223, OS-6238, OS-6258, OS-6262, OS-6266, OS-6275, OS-6276, OS-6290,
+OS-6304, OS-6306, OS-6320, OS-6330, OS-6338, OS-6364, OS-6382, OS-6388,
+OS-6428, OS-6436, OS-6456, OS-6467, OS-6475, OS-6486, OS-6487, OS-6488,
+OS-6501, OS-6505, OS-6514, OS-6538, OS-6562, OS-6574, OS-6575, OS-6580,
+OS-6584, OS-6625, OS-6898, OS-6906, OS-6920, OS-6935, OS-6970, OS-7000,
+OS-7029, OS-7030, OS-7076, OS-7121, OS-7145, OS-7157, OS-7205, OS-7288,
+OS-7336, OS-7433, OS-7498, OS-7511, OS-7517, OS-7518, OS-7536, OS-7636,
+OS-7639, OS-7663, OS-7685, OS-7688, OS-7753, OS-7754, OS-7768, OS-7861,
+OS-7899, OS-7931, OS-7932, OS-7934, OS-7947, OS-7960, OS-7976, OS-7978,
+OS-7980, OS-7999, OS-8056, OS-8089, OS-8141, OS-8150, OS-8152, OS-8167,
+OS-8181, OS-8182, OS-8193, OS-8194, OS-8195, OS-8200, OS-8233, OS-8268,
+OS-8277, OS-8278, OS-8289, OS-8315, OS-8319, OS-8338, OS-8339, OS-8344,
+OS-8359, OS-8361, OS-8372, OS-8376, OS-8476, OS-8480, OS-8487, OS-8553,
+OS-8575, OS-8588, OS-8624, OS-8705, OS-8748, TOOLS-1603, 9027, 12789,
+16344, 16538, 17297.
 
 Plus 7 commits without a ticket ID.
 
-325 files (0 removed). This commit applies to illumos-gate on its own;
+323 files (0 removed). This commit applies to illumos-gate on its own;
 files shared with other features carry only this feature's hunks.
 
 Co-authored-by: Jerry Jelinek <jerry.jelinek@joyent.com>
@@ -4014,7 +4021,6 @@ Co-authored-by: Toomas Soome <tsoome@me.com>
  usr/src/uts/common/sys/cpuvar.h                        |    1 +
  usr/src/uts/common/sys/file.h                          |   11 +
  usr/src/uts/common/sys/fs/fifonode.h                   |   16 +-
- usr/src/uts/common/sys/klwp.h                          |   11 +-
  usr/src/uts/common/sys/netconfig.h                     |    1 +
  usr/src/uts/common/sys/proc.h                          |    4 +-
  usr/src/uts/common/sys/procfs.h                        |    3 +-
@@ -4031,8 +4037,7 @@ Co-authored-by: Toomas Soome <tsoome@me.com>
  usr/src/uts/common/syscall/open.c                      |    8 +-
  usr/src/uts/common/syscall/poll.c                      |  348 +-
  usr/src/uts/common/syscall/stat.c                      |    2 +-
- usr/src/uts/i86pc/ml/offsets.in                        |    1 +
- usr/src/uts/i86pc/ml/syscall_asm_amd64.S               |   64 +
+ usr/src/uts/i86pc/ml/syscall_asm_amd64.S               |    1 +
  usr/src/uts/i86pc/os/trap.c                            |   12 +
  usr/src/uts/i86pc/sys/apic.h                           |    2 +-
  usr/src/uts/intel/Makefile                             |    4 +-
@@ -4061,7 +4066,7 @@ Co-authored-by: Toomas Soome <tsoome@me.com>
  usr/src/uts/intel/os/sendsig.c                         |   53 +-
  usr/src/uts/intel/syscall/getcontext.c                 |   72 +-
  usr/src/uts/sparc/syscall/getcontext.c                 |   31 +-
- 325 files changed, 102216 insertions(+), 459 deletions(-)
+ 323 files changed, 102143 insertions(+), 457 deletions(-)
 
 ========================================================================
 [66/78] features/sed
@@ -4492,7 +4497,7 @@ Co-authored-by: Josh Wilsdon <jwilsdon@joyent.com>
  usr/src/cmd/passwd/Makefile                       |  2 ++
  usr/src/cmd/stat/Makefile                         | 11 +++++--
  usr/src/head/Makefile                             |  4 ++-
- usr/src/lib/Makefile                              | 16 +++++-----
+ usr/src/lib/Makefile                              | 14 ++++-----
  usr/src/lib/libc/Makefile.targ                    | 21 +++++++++++++
  usr/src/lib/libc/amd64/Makefile                   | 13 ---------
  usr/src/lib/libc/i386/Makefile.com                | 16 ----------
@@ -4517,7 +4522,7 @@ Co-authored-by: Josh Wilsdon <jwilsdon@joyent.com>
  usr/src/uts/intel/core_pcbe/Makefile              |  4 +--
  usr/src/uts/intel/opteron_pcbe/Makefile           |  2 +-
  usr/src/uts/intel/p4_pcbe/Makefile                |  2 +-
- 37 files changed, 243 insertions(+), 89 deletions(-)
+ 37 files changed, 242 insertions(+), 88 deletions(-)
 
 ========================================================================
 [76/78] features/integration-pkg

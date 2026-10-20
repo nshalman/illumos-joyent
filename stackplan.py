@@ -25,6 +25,7 @@ EXTRA = [
     ('lx', 'hyprlofs'),             # uts/intel/Makefile.intel FS_KMODS
     ('platform-config', 'bhyve'),   # lib/brand/Makefile i386_SUBDIRS
     ('platform-config', 'lx'),
+    ('platform-config', 'zone-brands'),  # same line: bhyve, builder brands
 ]
 
 
