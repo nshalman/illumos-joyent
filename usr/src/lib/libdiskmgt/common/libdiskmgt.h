@@ -25,8 +25,8 @@
  */
 
 /*
- * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright 2017 Nexenta Systems, Inc.
+ * Copyright (c) 2017, Joyent, Inc. All rights reserved.
  * Copyright 2024 Sebastian Wiedenroth
  */
 

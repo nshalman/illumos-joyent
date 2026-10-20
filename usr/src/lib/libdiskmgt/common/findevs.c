@@ -27,6 +27,7 @@
 /*
  * Copyright (c) 2011 by Delphix. All rights reserved.
  * Copyright 2017 Nexenta Systems, Inc.
+ * Copyright 2017 Joyent, Inc.
  * Copyright 2021 Oxide Computer Company
  * Copyright 2024 Sebastian Wiedenroth
  */
@@ -70,6 +71,7 @@
 static char *ctrltypes[] = {
 	DDI_NT_FC_ATTACHMENT_POINT,
 	DDI_NT_NVME_ATTACHMENT_POINT,
+	DDI_NT_NVME_NEXUS,
 	DDI_NT_SATA_ATTACHMENT_POINT,
 	DDI_NT_SATA_NEXUS,
 	DDI_NT_SCSI_ATTACHMENT_POINT,
@@ -1074,8 +1076,10 @@ ctype(di_node_t node, di_minor_t minor)
 	    libdiskmgt_str_eq(name, "fp")))
 		return (DM_CTYPE_FIBRE);
 
-	if (libdiskmgt_str_eq(type, DDI_NT_NVME_ATTACHMENT_POINT))
+	if (libdiskmgt_str_eq(type, DDI_NT_NVME_NEXUS) ||
+	    libdiskmgt_str_eq(type, DDI_NT_NVME_ATTACHMENT_POINT)) {
 		return (DM_CTYPE_NVME);
+	}
 
 	if (libdiskmgt_str_eq(type, DDI_NT_SATA_NEXUS) ||
 	    libdiskmgt_str_eq(type, DDI_NT_SATA_ATTACHMENT_POINT))

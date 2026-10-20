@@ -3011,9 +3011,13 @@ sd_set_mmc_caps(sd_ssc_t *ssc)
 		 * according to the successful response to the page
 		 * 0x2A mode sense request.
 		 */
-		scsi_log(SD_DEVINFO(un), sd_label, CE_WARN,
-		    "sd_set_mmc_caps: Mode Sense returned "
-		    "invalid block descriptor length\n");
+		/*
+		 * The following warning occurs due to the KVM CD-ROM
+		 * mishandling the multi-media commands.  Ignore it.
+		 * scsi_log(SD_DEVINFO(un), sd_label, CE_WARN,
+		 *    "sd_set_mmc_caps: Mode Sense returned "
+		 *    "invalid block descriptor length\n");
+		 */
 		kmem_free(buf, BUFLEN_MODE_CDROM_CAP);
 		return;
 	}
@@ -3916,19 +3920,78 @@ static int
 sd_sdconf_id_match(struct sd_lun *un, char *id, int idlen)
 {
 	struct scsi_inquiry	*sd_inq;
-	int			rval = SD_SUCCESS;
+	int 			rval = SD_SUCCESS;
+	char			*p;
+	int			chk_vidlen = 0, chk_pidlen = 0;
+	int			has_tail = 0;
+	static const int	VSZ = sizeof (sd_inq->inq_vid);
+	static const int	PSZ = sizeof (sd_inq->inq_pid);
 
 	ASSERT(un != NULL);
 	sd_inq = un->un_sd->sd_inq;
 	ASSERT(id != NULL);
 
 	/*
-	 * We use the inq_vid as a pointer to a buffer containing the
-	 * vid and pid and use the entire vid/pid length of the table
-	 * entry for the comparison. This works because the inq_pid
-	 * data member follows inq_vid in the scsi_inquiry structure.
+	 * We would like to use the inq_vid as a pointer to a buffer
+	 * containing the vid and pid and use the entire vid/pid length of
+	 * the table entry for the comparison.  However, this does not work
+	 * because, while the inq_pid data member follows inq_vid in the
+	 * scsi_inquiry structure, we do not control the contents of this
+	 * buffer, and some broken devices violate SPC 4.3.1 and return
+	 * fields with null bytes in them.
 	 */
-	if (strncasecmp(sd_inq->inq_vid, id, idlen) != 0) {
+	chk_vidlen = MIN(VSZ, idlen);
+	p = id + chk_vidlen - 1;
+	while (*p == ' ' && chk_vidlen > 0) {
+		--p;
+		--chk_vidlen;
+	}
+
+	/*
+	 * If it's all spaces, check the whole thing.
+	 */
+	if (chk_vidlen == 0)
+		chk_vidlen = MIN(VSZ, idlen);
+
+	if (idlen > VSZ) {
+		chk_pidlen = idlen - VSZ;
+		p = id + idlen - 1;
+		while (*p == ' ' && chk_pidlen > 0) {
+			--p;
+			--chk_pidlen;
+		}
+		if (chk_pidlen == 0)
+			chk_pidlen = MIN(PSZ, idlen - VSZ);
+	}
+
+	/*
+	 * There's one more thing we need to do here.  If the user specified
+	 * an ID with trailing spaces, we need to make sure the inquiry
+	 * vid/pid has only spaces or NULs after the check length; otherwise, it
+	 * can't match.
+	 */
+	if (idlen > chk_vidlen && chk_vidlen < VSZ) {
+		for (p = sd_inq->inq_vid + chk_vidlen;
+		    p < sd_inq->inq_vid + VSZ; ++p) {
+			if (*p != ' ' && *p != '\0') {
+				++has_tail;
+				break;
+			}
+		}
+	}
+	if (idlen > chk_pidlen + VSZ && chk_pidlen < PSZ) {
+		for (p = sd_inq->inq_pid + chk_pidlen;
+		    p < sd_inq->inq_pid + PSZ; ++p) {
+			if (*p != ' ' && *p != '\0') {
+				++has_tail;
+				break;
+			}
+		}
+	}
+
+	if (has_tail || strncasecmp(sd_inq->inq_vid, id, chk_vidlen) != 0 ||
+	    (idlen > VSZ &&
+	    strncasecmp(sd_inq->inq_pid, id + VSZ, chk_pidlen) != 0)) {
 		/*
 		 * The user id string is compared to the inquiry vid/pid
 		 * using a case insensitive comparison and ignoring
@@ -6141,7 +6204,7 @@ sdpower(dev_info_t *devi, int component, int level)
 	time_t		intvlp;
 	struct pm_trans_data	sd_pm_tran_data;
 	uchar_t		save_state = SD_STATE_NORMAL;
-	int		sval;
+	int		sval, tursval = 0;
 	uchar_t		state_before_pm;
 	sd_ssc_t	*ssc;
 	int	last_power_level = SD_SPINDLE_UNINIT;
@@ -6425,13 +6488,26 @@ sdpower(dev_info_t *devi, int component, int level)
 	 * a deadlock on un_pm_busy_cv will occur.
 	 */
 	if (SD_PM_IS_IO_CAPABLE(un, level)) {
-		sval = sd_send_scsi_TEST_UNIT_READY(ssc,
+		tursval = sd_send_scsi_TEST_UNIT_READY(ssc,
 		    SD_DONT_RETRY_TUR | SD_BYPASS_PM);
-		if (sval != 0)
+		if (tursval != 0)
 			sd_ssc_assessment(ssc, SD_FMT_IGNORE);
 	}
 
-	if (un->un_f_power_condition_supported) {
+	/*
+	 * We've encountered certain classes of drives that pass a TUR, but fail
+	 * the START STOP UNIT when using power conditions, or worse leave the
+	 * drive in an unusable state despite passing SSU. Strictly speaking,
+	 * for SPC-4 or greater, no additional actions are required to make the
+	 * drive operational when a TUR passes. If we have something that
+	 * matches this condition, we continue on and presume the drive is
+	 * successfully powered on.
+	 */
+	if (un->un_f_power_condition_supported &&
+	    SD_SCSI_VERS_IS_GE_SPC_4(un) && SD_PM_IS_IO_CAPABLE(un, level) &&
+	    level == SD_SPINDLE_ACTIVE && tursval == 0) {
+		sval = 0;
+	} else if (un->un_f_power_condition_supported) {
 		char *pm_condition_name[] = {"STOPPED", "STANDBY",
 		    "IDLE", "ACTIVE"};
 		SD_TRACE(SD_LOG_IO_PM, un,
@@ -6451,6 +6527,7 @@ sdpower(dev_info_t *devi, int component, int level)
 			sd_ssc_assessment(ssc, SD_FMT_STATUS_CHECK);
 		else
 			sd_ssc_assessment(ssc, SD_FMT_IGNORE);
+
 	}
 
 	/* Command failed, check for media present. */
@@ -30378,7 +30455,7 @@ sd_set_unit_attributes(struct sd_lun *un, dev_info_t *devi)
 		if (SD_PM_CAPABLE_IS_UNDEFINED(pm_cap)) {
 			un->un_f_log_sense_supported = TRUE;
 			if (!un->un_f_power_condition_disabled &&
-			    SD_INQUIRY(un)->inq_ansi == 6) {
+			    SD_SCSI_VERS_IS_GE_SPC_4(un)) {
 				un->un_f_power_condition_supported = TRUE;
 			}
 		} else {
@@ -30396,7 +30473,7 @@ sd_set_unit_attributes(struct sd_lun *un, dev_info_t *devi)
 				/* SD_PM_CAPABLE_IS_TRUE case */
 				un->un_f_pm_supported = TRUE;
 				if (!un->un_f_power_condition_disabled &&
-				    SD_PM_CAPABLE_IS_SPC_4(pm_cap)) {
+				    (SD_PM_CAPABLE_IS_GE_SPC_4(pm_cap))) {
 					un->un_f_power_condition_supported =
 					    TRUE;
 				}

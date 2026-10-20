@@ -284,7 +284,7 @@ static adapter_info_t ixgbe_82599eb_cap = {
 	128,		/* default number of rx queues */
 	64,		/* maximum number of rx groups */
 	1,		/* minimum number of rx groups */
-	1,		/* default number of rx groups */
+	32,		/* default number of rx groups */
 	128,		/* maximum number of tx queues */
 	1,		/* minimum number of tx queues */
 	8,		/* default number of tx queues */
@@ -315,7 +315,7 @@ static adapter_info_t ixgbe_X540_cap = {
 	128,		/* default number of rx queues */
 	64,		/* maximum number of rx groups */
 	1,		/* minimum number of rx groups */
-	1,		/* default number of rx groups */
+	32,		/* default number of rx groups */
 	128,		/* maximum number of tx queues */
 	1,		/* minimum number of tx queues */
 	8,		/* default number of tx queues */
@@ -2267,6 +2267,7 @@ ixgbe_cbfunc(dev_info_t *dip, ddi_cb_action_t cbaction, void *cbarg,
     void *arg1, void *arg2)
 {
 	ixgbe_t *ixgbe = (ixgbe_t *)arg1;
+	int prev = ixgbe->intr_cnt;
 
 	switch (cbaction) {
 	/* IRM callback */
@@ -2280,7 +2281,8 @@ ixgbe_cbfunc(dev_info_t *dip, ddi_cb_action_t cbaction, void *cbarg,
 		if (ixgbe_intr_adjust(ixgbe, cbaction, count) !=
 		    DDI_SUCCESS) {
 			ixgbe_error(ixgbe,
-			    "IRM CB: Failed to adjust interrupts");
+			    "IRM CB: Failed to adjust interrupts [%d %d %d]",
+			    cbaction, count, prev);
 			goto cb_fail;
 		}
 		break;
