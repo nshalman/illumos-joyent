@@ -22,6 +22,7 @@
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2014 Nexenta Systems, Inc. All rights reserved.
+ * Copyright 2015, Joyent Inc. All rights reserved.
  * Copyright (c) 2015 by Delphix. All rights reserved.
  */
 
@@ -1205,6 +1206,7 @@ static int
 ready_func(int argc, char *argv[])
 {
 	zone_cmd_arg_t zarg;
+	boolean_t debug = B_FALSE;
 	int arg;
 
 	if (zonecfg_in_alt_root()) {
@@ -1213,11 +1215,14 @@ ready_func(int argc, char *argv[])
 	}
 
 	optind = 0;
-	if ((arg = getopt(argc, argv, "?")) != EOF) {
+	if ((arg = getopt(argc, argv, "?X")) != EOF) {
 		switch (arg) {
 		case '?':
 			sub_usage(SHELP_READY, CMD_READY);
 			return (optopt == '?' ? Z_OK : Z_USAGE);
+		case 'X':
+			debug = B_TRUE;
+			break;
 		default:
 			sub_usage(SHELP_READY, CMD_READY);
 			return (Z_USAGE);
@@ -1234,6 +1239,7 @@ ready_func(int argc, char *argv[])
 		return (Z_ERR);
 
 	zarg.cmd = Z_READY;
+	zarg.debug = debug;
 	if (zonecfg_call_zoneadmd(target_zone, &zarg, locale, B_TRUE) != 0) {
 		zerror(gettext("call to %s failed"), "zoneadmd");
 		return (Z_ERR);
@@ -1246,6 +1252,7 @@ boot_func(int argc, char *argv[])
 {
 	zone_cmd_arg_t zarg;
 	boolean_t force = B_FALSE;
+	boolean_t debug = B_FALSE;
 	int arg;
 
 	if (zonecfg_in_alt_root()) {
@@ -1272,7 +1279,7 @@ boot_func(int argc, char *argv[])
 	 *	zoneadm -z myzone boot -- -s -v -m verbose.
 	 */
 	optind = 0;
-	while ((arg = getopt(argc, argv, "?fs")) != EOF) {
+	while ((arg = getopt(argc, argv, "?fsX")) != EOF) {
 		switch (arg) {
 		case '?':
 			sub_usage(SHELP_BOOT, CMD_BOOT);
@@ -1283,6 +1290,9 @@ boot_func(int argc, char *argv[])
 			break;
 		case 'f':
 			force = B_TRUE;
+			break;
+		case 'X':
+			debug = B_TRUE;
 			break;
 		default:
 			sub_usage(SHELP_BOOT, CMD_BOOT);
@@ -1309,6 +1319,7 @@ boot_func(int argc, char *argv[])
 	if (verify_details(CMD_BOOT, argv) != Z_OK)
 		return (Z_ERR);
 	zarg.cmd = force ? Z_FORCEBOOT : Z_BOOT;
+	zarg.debug = debug;
 	if (zonecfg_call_zoneadmd(target_zone, &zarg, locale, B_TRUE) != 0) {
 		zerror(gettext("call to %s failed"), "zoneadmd");
 		return (Z_ERR);
@@ -1829,6 +1840,7 @@ static int
 halt_func(int argc, char *argv[])
 {
 	zone_cmd_arg_t zarg;
+	boolean_t debug = B_FALSE;
 	int arg;
 
 	if (zonecfg_in_alt_root()) {
@@ -1837,11 +1849,14 @@ halt_func(int argc, char *argv[])
 	}
 
 	optind = 0;
-	if ((arg = getopt(argc, argv, "?")) != EOF) {
+	if ((arg = getopt(argc, argv, "?X")) != EOF) {
 		switch (arg) {
 		case '?':
 			sub_usage(SHELP_HALT, CMD_HALT);
 			return (optopt == '?' ? Z_OK : Z_USAGE);
+		case 'X':
+			debug = B_TRUE;
+			break;
 		default:
 			sub_usage(SHELP_HALT, CMD_HALT);
 			return (Z_USAGE);
@@ -1867,6 +1882,7 @@ halt_func(int argc, char *argv[])
 		return (Z_ERR);
 
 	zarg.cmd = Z_HALT;
+	zarg.debug = debug;
 	return ((zonecfg_call_zoneadmd(target_zone, &zarg, locale,
 	    B_TRUE) == 0) ?  Z_OK : Z_ERR);
 }
@@ -1944,6 +1960,7 @@ static int
 reboot_func(int argc, char *argv[])
 {
 	zone_cmd_arg_t zarg;
+	boolean_t debug = B_FALSE;
 	int arg;
 
 	if (zonecfg_in_alt_root()) {
@@ -1952,11 +1969,14 @@ reboot_func(int argc, char *argv[])
 	}
 
 	optind = 0;
-	if ((arg = getopt(argc, argv, "?")) != EOF) {
+	if ((arg = getopt(argc, argv, "?X")) != EOF) {
 		switch (arg) {
 		case '?':
 			sub_usage(SHELP_REBOOT, CMD_REBOOT);
 			return (optopt == '?' ? Z_OK : Z_USAGE);
+		case 'X':
+			debug = B_TRUE;
+			break;
 		default:
 			sub_usage(SHELP_REBOOT, CMD_REBOOT);
 			return (Z_USAGE);
@@ -1991,6 +2011,7 @@ reboot_func(int argc, char *argv[])
 		return (Z_ERR);
 
 	zarg.cmd = Z_REBOOT;
+	zarg.debug = debug;
 	return ((zonecfg_call_zoneadmd(target_zone, &zarg, locale, B_TRUE) == 0)
 	    ? Z_OK : Z_ERR);
 }
@@ -2621,7 +2642,6 @@ verify_handle(int cmd_num, zone_dochandle_t handle, char *argv[])
 	dladm_handle_t dh;
 	dladm_status_t status;
 	datalink_id_t linkid;
-	char errmsg[DLADM_STRSIZE];
 
 	in_alt_root = zonecfg_in_alt_root();
 	if (in_alt_root)
@@ -2704,11 +2724,6 @@ verify_handle(int cmd_num, zone_dochandle_t handle, char *argv[])
 				dladm_close(dh);
 			}
 			if (status != DLADM_STATUS_OK) {
-				(void) fprintf(stderr,
-				    gettext("WARNING: skipping network "
-				    "interface '%s': %s\n"),
-				    nwiftab.zone_nwif_physical,
-				    dladm_status2str(status, errmsg));
 				break;
 			}
 			dl_owner_zid = ALL_ZONES;
@@ -3874,10 +3889,10 @@ cleanup_zonepath(char *zonepath, boolean_t all)
 			 * exist if the zone was force-attached after a
 			 * migration.
 			 */
-	char		*std_entries[] = {"dev", "lu", "root",
-			    "SUNWattached.xml", NULL};
-			/* (MAXPATHLEN * 3) is for the 3 std_entries dirs */
-	char		cmdbuf[sizeof (RMCOMMAND) + (MAXPATHLEN * 3) + 64];
+	char		*std_entries[] = {"dev", "lastexited", "logs", "lu",
+			    "root", "SUNWattached.xml", NULL};
+			/* (MAXPATHLEN * 5) is for the 5 std_entries dirs */
+	char		cmdbuf[sizeof (RMCOMMAND) + (MAXPATHLEN * 5) + 64];
 
 	/*
 	 * We shouldn't need these checks but lets be paranoid since we
@@ -5027,6 +5042,7 @@ uninstall_func(int argc, char *argv[])
 		if (zonecfg_ping_zoneadmd(target_zone) == Z_OK) {
 			zone_cmd_arg_t zarg;
 			zarg.cmd = Z_NOTE_UNINSTALLING;
+			zarg.debug = B_FALSE;
 			/* we don't care too much if this fails, just plow on */
 			(void) zonecfg_call_zoneadmd(target_zone, &zarg, locale,
 			    B_TRUE);
@@ -5142,6 +5158,7 @@ mount_func(int argc, char *argv[])
 		return (Z_ERR);
 
 	zarg.cmd = force ? Z_FORCEMOUNT : Z_MOUNT;
+	zarg.debug = B_FALSE;
 	zarg.bootbuf[0] = '\0';
 	if (zonecfg_call_zoneadmd(target_zone, &zarg, locale, B_TRUE) != 0) {
 		zerror(gettext("call to %s failed"), "zoneadmd");
@@ -5163,6 +5180,7 @@ unmount_func(int argc, char *argv[])
 		return (Z_ERR);
 
 	zarg.cmd = Z_UNMOUNT;
+	zarg.debug = B_FALSE;
 	if (zonecfg_call_zoneadmd(target_zone, &zarg, locale, B_TRUE) != 0) {
 		zerror(gettext("call to %s failed"), "zoneadmd");
 		return (Z_ERR);

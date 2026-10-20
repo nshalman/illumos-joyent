@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2015, Joyent Inc. All rights reserved.
+ * Copyright 2019 Joyent, Inc.
  * Copyright (c) 2016 by Delphix. All rights reserved.
  * Copyright 2018 OmniOS Community Edition (OmniOSce) Association.
  */
@@ -4299,8 +4299,9 @@ parse_rctls(caddr_t ubuf, size_t buflen, nvlist_t **nvlp)
 
 		error = EINVAL;
 		name = nvpair_name(nvp);
-		if (strncmp(nvpair_name(nvp), "zone.", sizeof ("zone.") - 1)
-		    != 0 || nvpair_type(nvp) != DATA_TYPE_NVLIST_ARRAY) {
+		if ((strncmp(name, "zone.", sizeof ("zone.") - 1) != 0 &&
+		    strncmp(name, "project.", sizeof ("project.") - 1) != 0) ||
+		    nvpair_type(nvp) != DATA_TYPE_NVLIST_ARRAY) {
 			goto out;
 		}
 		if ((hndl = rctl_hndl_lookup(name)) == -1) {
@@ -6619,6 +6620,7 @@ zone_ki_call_zoneadmd(struct zarg *zargp)
 	bcopy(zone->zone_name, zone_name, zone_namelen);
 	zoneid = zone->zone_id;
 	uniqid = zone->zone_uniqid;
+	arg.status = zone->zone_init_status;
 	/*
 	 * zoneadmd may be down, but at least we can empty out the zone.
 	 * We can ignore the return value of zone_empty() since we're called

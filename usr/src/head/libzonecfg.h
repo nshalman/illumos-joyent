@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2015, Joyent, Inc.
  */
 
 #ifndef _LIBZONECFG_H
@@ -230,10 +231,6 @@ struct zone_psettab {
 	char	zone_importance[MAXNAMELEN];
 };
 
-struct zone_mcaptab {
-	char	zone_physmem_cap[MAXNAMELEN];
-};
-
 struct zone_pkgtab {
 	char	zone_pkg_name[MAXNAMELEN];
 	char	zone_pkg_version[ZONE_PKG_VERSMAX];
@@ -428,13 +425,6 @@ extern	int	zonecfg_delete_pset(zone_dochandle_t);
 extern	int	zonecfg_modify_pset(zone_dochandle_t, struct zone_psettab *);
 extern	int	zonecfg_lookup_pset(zone_dochandle_t, struct zone_psettab *);
 
-/*
- * mem-cap configuration.
- */
-extern	int	zonecfg_delete_mcap(zone_dochandle_t);
-extern	int	zonecfg_modify_mcap(zone_dochandle_t, struct zone_mcaptab *);
-extern	int	zonecfg_lookup_mcap(zone_dochandle_t, struct zone_mcaptab *);
-
 /* security-flags configuration */
 extern	int	zonecfg_add_secflags(zone_dochandle_t,
     struct zone_secflagstab *);
@@ -502,7 +492,6 @@ extern	int	zonecfg_setdsent(zone_dochandle_t);
 extern	int	zonecfg_getdsent(zone_dochandle_t, struct zone_dstab *);
 extern	int	zonecfg_enddsent(zone_dochandle_t);
 extern	int	zonecfg_getpsetent(zone_dochandle_t, struct zone_psettab *);
-extern	int	zonecfg_getmcapent(zone_dochandle_t, struct zone_mcaptab *);
 extern	int	zonecfg_getpkgdata(zone_dochandle_t, uu_avl_pool_t *,
     uu_avl_t *);
 extern	int	zonecfg_setdevperment(zone_dochandle_t);

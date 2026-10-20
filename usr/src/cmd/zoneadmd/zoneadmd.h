@@ -22,6 +22,7 @@
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2014 Nexenta Systems, Inc. All rights reserved.
+ * Copyright 2019 Joyent, Inc.
  */
 
 #ifndef	_ZONEADMD_H
@@ -32,6 +33,9 @@ extern "C" {
 #endif
 
 #include <libdladm.h>
+#include <libzonecfg.h>
+#include <thread.h>
+#include <synch.h>
 
 /*
  * Multi-threaded programs should avoid MT-unsafe library calls (i.e., any-
@@ -69,6 +73,7 @@ extern "C" {
 #define	DEFAULT_DIR_USER -1	/* user ID for chown: -1 means don't change */
 #define	DEFAULT_DIR_GROUP -1	/* grp ID for chown: -1 means don't change */
 
+#define	ALT_MOUNT(mount_cmd) 	((mount_cmd) != Z_MNT_BOOT)
 
 typedef struct zlog {
 	FILE *logfile;	/* file to log to */
@@ -83,7 +88,8 @@ typedef struct zlog {
 	char *locale;	/* locale to use for gettext() */
 } zlog_t;
 
-extern zlog_t logsys;
+extern zlog_t logsys;		/* syslog */
+extern zlog_t logplat;		/* platform.log */
 
 extern mutex_t lock;
 extern mutex_t msglock;
@@ -94,13 +100,13 @@ extern char pool_name[MAXNAMELEN];
 extern char brand_name[MAXNAMELEN];
 extern char default_brand[MAXNAMELEN];
 extern char boot_args[BOOTARGS_MAX];
-extern char bad_boot_arg[BOOTARGS_MAX];
 extern boolean_t zone_isnative;
 extern boolean_t zone_iscluster;
 extern dladm_handle_t dld_handle;
 
 extern void zerror(zlog_t *, boolean_t, const char *, ...);
 extern char *localize_msg(char *locale, const char *msg);
+extern void nwifent_free_attrs(struct zone_nwiftab *);
 
 /*
  * Eventstream interfaces.
@@ -112,8 +118,7 @@ typedef enum {
 	Z_EVT_ZONE_HALTED,
 	Z_EVT_ZONE_READIED,
 	Z_EVT_ZONE_UNINSTALLING,
-	Z_EVT_ZONE_BOOTFAILED,
-	Z_EVT_ZONE_BADARGS
+	Z_EVT_ZONE_BOOTFAILED
 } zone_evt_t;
 
 extern int eventstream_init();
@@ -135,9 +140,9 @@ typedef enum {
 /*
  * Virtual platform interfaces.
  */
-extern zoneid_t vplat_create(zlog_t *, zone_mnt_t);
+extern zoneid_t vplat_create(zlog_t *, zone_mnt_t, zoneid_t);
 extern int vplat_bringup(zlog_t *, zone_mnt_t, zoneid_t);
-extern int vplat_teardown(zlog_t *, boolean_t, boolean_t);
+extern int vplat_teardown(zlog_t *, boolean_t, boolean_t, boolean_t);
 extern int vplat_get_iptype(zlog_t *, zone_iptype_t *);
 
 /*
@@ -163,7 +168,13 @@ extern int init_template(void);
 /*
  * Routine to manage child processes.
  */
-extern int do_subproc(zlog_t *, char *, char **);
+extern int do_subproc(zlog_t *, char *, char **, boolean_t);
+
+/*
+ * Resource handling.
+ */
+extern int resolve_device_match(zlog_t *, struct zone_devtab *,
+    char *, size_t);
 
 #ifdef __cplusplus
 }

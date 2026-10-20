@@ -23,7 +23,7 @@
  * Copyright 2013 DEY Storage Systems, Inc.
  * Copyright (c) 2014 Gary Mills
  * Copyright 2015 Nexenta Systems, Inc. All rights reserved.
- * Copyright 2019 Joyent, Inc.
+ * Copyright 2020 Joyent, Inc.
  * Copyright 2020 OmniOS Community Edition (OmniOSce) Association.
  */
 
@@ -43,6 +43,13 @@
  *   'zlogin my-zone ls -l' and the command would be run as specified.
  *   In this mode, zlogin sets up pipes as the communication channel, and
  *   'su' is used to do the login setup work.
+ *
+ * - "interactive command" is a combination of the above two modes where
+ *   a command is provide like the non-interactive case, but the -i option is
+ *   also provided to make things interactive. For example, the user could
+ *   issue 'zlogin -i my-zone /bin/sh'. In this mode neither 'login -c' nor
+ *   'su root -c' is prepended to the command invocation. Because of this
+ *   there will be no wtmpx login record within the zone.
  *
  * - "console login" is the equivalent to accessing the tip line for a
  *   zone.  For example, the user can issue 'zlogin -C my-zone'.
@@ -103,12 +110,13 @@ static volatile int dead;
 static volatile pid_t child_pid = -1;
 static int interactive = 0;
 static priv_set_t *dropprivs;
+static unsigned int connect_flags = 0;
 
 static int nocmdchar = 0;
 static int failsafe = 0;
-static int disconnect = 0;
 static char cmdchar = '~';
 static int quiet = 0;
+static char zonebrand[MAXNAMELEN];
 
 static int pollerr = 0;
 
@@ -125,10 +133,14 @@ static boolean_t forced_login = B_FALSE;
 #define	TEXT_DOMAIN	"SYS_TEST"	/* Use this only if it wasn't */
 #endif
 
-#define	SUPATH	"/usr/bin/su"
+#define	SUPATH1	"/usr/bin/su"
+#define	SUPATH2	"/bin/su"
 #define	FAILSAFESHELL	"/sbin/sh"
 #define	DEFAULTSHELL	"/sbin/sh"
 #define	DEF_PATH	"/usr/sbin:/usr/bin"
+#define	LX_DEF_PATH	"/bin:/usr/sbin:/usr/bin"
+
+#define	MAX_RETRY	30
 
 #define	CLUSTER_BRAND_NAME	"cluster"
 
@@ -155,7 +167,7 @@ static boolean_t forced_login = B_FALSE;
 static void
 usage(void)
 {
-	(void) fprintf(stderr, gettext("usage: %s [ -dnQCES ] [ -e cmdchar ] "
+	(void) fprintf(stderr, gettext("usage: %s [-dinCEINQS] [-e cmdchar] "
 	    "[-l user] zonename [command [args ...] ]\n"), pname);
 	exit(2);
 }
@@ -518,8 +530,32 @@ sigwinch(int s)
 {
 	struct winsize ws;
 
-	if (ioctl(0, TIOCGWINSZ, &ws) == 0)
-		(void) ioctl(masterfd, TIOCSWINSZ, &ws);
+	if (ioctl(0, TIOCGWINSZ, &ws) == 0) {
+		if (ctlfd != -1) {
+			char buf[BUFSIZ];
+			snprintf(buf, sizeof (buf), "TIOCSWINSZ %hu %hu\n",
+			    ws.ws_row, ws.ws_col);
+			(void) send_ctl_sock(buf, strlen(buf));
+		} else {
+			(void) ioctl(masterfd, TIOCSWINSZ, &ws);
+		}
+	}
+}
+
+/*
+ * Toggle zfd EOF mode and notify zoneadmd
+ */
+/*ARGSUSED*/
+static void
+sigusr1(int s)
+{
+	connect_flags ^= ZLOGIN_ZFD_EOF;
+	if (ctlfd != -1) {
+		char buf[BUFSIZ];
+		snprintf(buf, sizeof (buf), "SETFLAGS %u\n",
+		    connect_flags);
+		(void) send_ctl_sock(buf, strlen(buf));
+	}
 }
 
 static volatile int close_on_sig = -1;
@@ -863,21 +899,11 @@ doio(int stdin_fd, int appin_fd, int stdout_fd, int stderr_fd, int sig_fd,
 			break;
 		}
 
-		/* event from master side stdout */
-		if (pollfds[0].revents) {
-			if (pollfds[0].revents &
-			    (POLLIN | POLLRDNORM | POLLRDBAND | POLLPRI)) {
-				if (process_output(stdout_fd, STDOUT_FILENO)
-				    != 0)
-					break;
-			} else {
-				pollerr = pollfds[0].revents;
-				break;
-			}
-		}
-
 		/* event from master side stderr */
 		if (pollfds[1].revents) {
+			if (pollfds[1].revents & POLLHUP)
+				break;
+
 			if (pollfds[1].revents &
 			    (POLLIN | POLLRDNORM | POLLRDBAND | POLLPRI)) {
 				if (process_output(stderr_fd, STDERR_FILENO)
@@ -885,6 +911,22 @@ doio(int stdin_fd, int appin_fd, int stdout_fd, int stderr_fd, int sig_fd,
 					break;
 			} else {
 				pollerr = pollfds[1].revents;
+				break;
+			}
+		}
+
+		/* event from master side stdout */
+		if (pollfds[0].revents) {
+			if (pollfds[0].revents & POLLHUP)
+				break;
+
+			if (pollfds[0].revents &
+			    (POLLIN | POLLRDNORM | POLLRDBAND | POLLPRI)) {
+				if (process_output(stdout_fd, STDOUT_FILENO)
+				    != 0)
+					break;
+			} else {
+				pollerr = pollfds[0].revents;
 				break;
 			}
 		}
@@ -1054,7 +1096,7 @@ zone_login_cmd(brand_handle_t bh, const char *login)
 	 * but we're going to be very simplistic about it and break stuff
 	 * up based on spaces.  We're not even going to support any kind
 	 * of quoting or escape characters.  It's truly amazing that
-	 * there is no library function in OpenSolaris to do this for us.
+	 * there is no library function in Illumos to do this for us.
 	 */
 
 	/*
@@ -1100,62 +1142,148 @@ zone_login_cmd(brand_handle_t bh, const char *login)
  * checks).
  */
 static char **
-prep_args(brand_handle_t bh, const char *login, char **argv)
+prep_args(brand_handle_t bh, char *zonename, const char *login, char **argv)
 {
-	int argc = 0, a = 0, i, n = -1;
-	char **new_argv;
+	int argc = 0, i;
+	size_t subshell_len = 1;
+	char *subshell = NULL, *supath = NULL;
+	char **new_argv = NULL;
 
-	if (argv != NULL) {
-		size_t subshell_len = 1;
-		char *subshell;
-
-		while (argv[argc] != NULL)
-			argc++;
-
-		for (i = 0; i < argc; i++) {
-			subshell_len += strlen(argv[i]) + 1;
+	if (argv == NULL) {
+		if (failsafe) {
+			if ((new_argv = malloc(sizeof (char *) * 2)) == NULL)
+				return (NULL);
+			new_argv[0] = FAILSAFESHELL;
+			new_argv[1] = NULL;
+		} else {
+			new_argv = zone_login_cmd(bh, login);
 		}
-		if ((subshell = calloc(1, subshell_len)) == NULL)
+		return (new_argv);
+	}
+
+	/*
+	 * Attempt to locate a 'su' binary if not using the failsafe shell.
+	 */
+	if (!failsafe) {
+		struct stat sb;
+		char zonepath[MAXPATHLEN];
+		char supath_check[MAXPATHLEN];
+
+		if (zone_get_zonepath(zonename, zonepath,
+		    sizeof (zonepath)) != Z_OK) {
+			zerror(gettext("unable to determine zone "
+			    "path"));
+			return (NULL);
+		}
+
+		(void) snprintf(supath_check, sizeof (supath), "%s/root/%s",
+		    zonepath, SUPATH1);
+		if (stat(supath_check, &sb) == 0) {
+			supath = SUPATH1;
+		} else {
+			(void) snprintf(supath_check, sizeof (supath_check),
+			    "%s/root/%s", zonepath, SUPATH2);
+			if (stat(supath_check, &sb) == 0) {
+				supath = SUPATH2;
+			}
+		}
+	}
+
+	/*
+	 * With no failsafe shell or supath to wrap the incoming command, the
+	 * arguments are passed straight through.
+	 */
+	if (!failsafe && supath == NULL) {
+		/*
+		 * Such an outcome is not acceptable, however, if the caller
+		 * expressed a desire to switch users.
+		 */
+		if (strcmp(login, "root") != 0) {
+			zerror(gettext("unable to find 'su' command"));
+			return (NULL);
+		}
+		return (argv);
+	}
+
+	/*
+	 * Inventory arguments and allocate a buffer to escape them for the
+	 * subshell.
+	 */
+	while (argv[argc] != NULL) {
+		/*
+		 * Allocate enough space for the delimiter and 2
+		 * quotes which might be needed.
+		 */
+		subshell_len += strlen(argv[argc]) + 3;
+		argc++;
+	}
+	if ((subshell = calloc(1, subshell_len)) == NULL) {
+		return (NULL);
+	}
+
+	/*
+	 * The handling of quotes in the following block may seem unusual, but
+	 * it is done this way for backward compatibility.
+	 * When running a command, zlogin is documented as:
+	 *    zlogin zonename command args
+	 * However, some code has come to depend on the following usage:
+	 *    zlogin zonename 'command args'
+	 * This relied on the fact that the single argument would be re-parsed
+	 * within the zone and excuted as a command with an argument. To remain
+	 * compatible with this (incorrect) usage, if there is only a single
+	 * argument, it is not quoted, even if it has embedded spaces.
+	 *
+	 * Here are two examples which both need to work:
+	 * 1) zlogin foo 'echo hello'
+	 *    This has a single argv member with a space in it but will not be
+	 *    quoted on the command passed into the zone.
+	 * 2) zlogin foo bash -c 'echo hello'
+	 *    This has 3 argv members. The 3rd arg has a space and must be
+	 *    quoted on the command passed into the zone.
+	 */
+	for (i = 0; i < argc; i++) {
+		if (i > 0)
+			(void) strcat(subshell, " ");
+
+		if (argc > 1 && (strchr(argv[i], ' ') != NULL ||
+		    strchr(argv[i], '\t') != NULL)) {
+			(void) strcat(subshell, "'");
+			(void) strcat(subshell, argv[i]);
+			(void) strcat(subshell, "'");
+		} else {
+			(void) strcat(subshell, argv[i]);
+		}
+	}
+
+	if (failsafe) {
+		int a = 0, n = 4;
+
+		if ((new_argv = malloc(sizeof (char *) * n)) == NULL)
 			return (NULL);
 
-		for (i = 0; i < argc; i++) {
-			(void) strcat(subshell, argv[i]);
-			(void) strcat(subshell, " ");
-		}
-
-		if (failsafe) {
-			n = 4;
-			if ((new_argv = malloc(sizeof (char *) * n)) == NULL)
-				return (NULL);
-
-			new_argv[a++] = FAILSAFESHELL;
-		} else {
-			n = 5;
-			if ((new_argv = malloc(sizeof (char *) * n)) == NULL)
-				return (NULL);
-
-			new_argv[a++] = SUPATH;
-			if (strcmp(login, "root") != 0) {
-				new_argv[a++] = "-";
-				n++;
-			}
-			new_argv[a++] = (char *)login;
-		}
+		new_argv[a++] = FAILSAFESHELL;
 		new_argv[a++] = "-c";
 		new_argv[a++] = subshell;
 		new_argv[a++] = NULL;
 		assert(a == n);
 	} else {
-		if (failsafe) {
-			n = 2;
-			if ((new_argv = malloc(sizeof (char *) * n)) == NULL)
-				return (NULL);
-			new_argv[a++] = FAILSAFESHELL;
-			new_argv[a++] = NULL;
-			assert(n == a);
+		int a = 0, n = 6;
+
+		assert(supath != NULL);
+		if ((new_argv = malloc(sizeof (char *) * n)) == NULL)
+			return (NULL);
+
+		new_argv[a++] = supath;
+		if (strcmp(login, "root") != 0) {
+			new_argv[a++] = "-";
 		} else {
-			new_argv = zone_login_cmd(bh, login);
+			n--;
 		}
+		new_argv[a++] = (char *)login;
+		new_argv[a++] = "-c";
+		new_argv[a++] = subshell;
+		new_argv[a++] = NULL;
+		assert(a == n);
 	}
 
 	return (new_argv);
@@ -1186,6 +1314,7 @@ prep_env()
 	int e = 0, size = 1;
 	char **new_env, *estr;
 	char *term = getenv("TERM");
+	char *path;
 
 	size++;	/* for $PATH */
 	if (term != NULL)
@@ -1202,7 +1331,12 @@ prep_env()
 	if ((new_env = malloc(sizeof (char *) * size)) == NULL)
 		return (NULL);
 
-	if ((estr = add_env("PATH", DEF_PATH)) == NULL)
+	if (strcmp(zonebrand, "lx") == 0)
+		path = LX_DEF_PATH;
+	else
+		path = DEF_PATH;
+
+	if ((estr = add_env("PATH", path)) == NULL)
 		return (NULL);
 	new_env[e++] = estr;
 
@@ -1724,24 +1858,61 @@ get_username()
 	return (nptr->pw_name);
 }
 
+static boolean_t
+zlog_mode_logging(char *zonename, boolean_t *found)
+{
+	boolean_t lm = B_FALSE;
+	zone_dochandle_t handle;
+	struct zone_attrtab attr;
+
+	*found = B_FALSE;
+	if ((handle = zonecfg_init_handle()) == NULL)
+		return (lm);
+
+	if (zonecfg_get_handle(zonename, handle) != Z_OK)
+		goto done;
+
+	if (zonecfg_setattrent(handle) != Z_OK)
+		goto done;
+	while (zonecfg_getattrent(handle, &attr) == Z_OK) {
+		if (strcmp("zlog-mode", attr.zone_attr_name) == 0) {
+			int len = strlen(attr.zone_attr_value);
+
+			*found = B_TRUE;
+			if (strncmp("log", attr.zone_attr_value, 3) == 0 ||
+			    strncmp("nolog", attr.zone_attr_value, 5) == 0 ||
+			    (len >= 3 && attr.zone_attr_value[len - 2] == '-'))
+				lm = B_TRUE;
+			break;
+		}
+	}
+	(void) zonecfg_endattrent(handle);
+
+done:
+	zonecfg_fini_handle(handle);
+	return (lm);
+}
+
 int
 main(int argc, char **argv)
 {
-	int arg, console = 0;
+	int arg, console = 0, imode = 0;
+	int estatus = 0;
 	zoneid_t zoneid;
 	zone_state_t st;
 	char *login = "root";
+	int iflag = 0;
 	int lflag = 0;
 	int nflag = 0;
 	char *zonename = NULL;
 	char **proc_args = NULL;
 	char **new_args, **new_env;
 	sigset_t block_cld;
+	siginfo_t si;
 	char devroot[MAXPATHLEN];
 	char *slavename, slaveshortname[MAXPATHLEN];
 	priv_set_t *privset;
 	int tmpl_fd;
-	char zonebrand[MAXNAMELEN];
 	char default_brand[MAXNAMELEN];
 	struct stat sb;
 	char kernzone[ZONENAME_MAX];
@@ -1755,13 +1926,23 @@ main(int argc, char **argv)
 	(void) getpname(argv[0]);
 	username = get_username();
 
-	while ((arg = getopt(argc, argv, "dnECR:Se:l:Q")) != EOF) {
+	while ((arg = getopt(argc, argv, "diNnECIR:Se:l:Q")) != EOF) {
 		switch (arg) {
 		case 'C':
 			console = 1;
 			break;
 		case 'E':
 			nocmdchar = 1;
+			break;
+		case 'I':
+			/*
+			 * interactive mode is just a slight variation on the
+			 * console mode.
+			 */
+			console = 1;
+			imode = 1;
+			/* The default is HUP, disconnect on EOF */
+			connect_flags ^= ZLOGIN_ZFD_EOF;
 			break;
 		case 'R':	/* undocumented */
 			if (*optarg != '/') {
@@ -1782,14 +1963,21 @@ main(int argc, char **argv)
 			failsafe = 1;
 			break;
 		case 'd':
-			disconnect = 1;
+			connect_flags |= ZLOGIN_DISCONNECT;
 			break;
 		case 'e':
 			set_cmdchar(optarg);
 			break;
+		case 'i':
+			iflag = 1;
+			break;
 		case 'l':
 			login = optarg;
 			lflag = 1;
+			break;
+		case 'N':
+			/* NOHUP - do not send EOF */
+			connect_flags ^= ZLOGIN_ZFD_EOF;
 			break;
 		case 'n':
 			nflag = 1;
@@ -1800,6 +1988,12 @@ main(int argc, char **argv)
 	}
 
 	if (console != 0) {
+
+		/*
+		 * The only connect option in console mode is ZLOGIN_DISCONNECT
+		 */
+		if (imode == 0)
+			connect_flags &= ZLOGIN_DISCONNECT;
 
 		if (lflag != 0) {
 			zerror(gettext(
@@ -1827,14 +2021,24 @@ main(int argc, char **argv)
 
 	}
 
+	if (iflag != 0 && nflag != 0) {
+		zerror(gettext("-i and -n flags are incompatible"));
+		usage();
+	}
+
 	if (failsafe != 0 && lflag != 0) {
 		zerror(gettext("-l may not be specified for failsafe login"));
 		usage();
 	}
 
-	if (!console && disconnect != 0) {
+	if (!console && (connect_flags & ZLOGIN_DISCONNECT) != 0) {
 		zerror(gettext(
 		    "-d may only be specified with console login"));
+		usage();
+	}
+
+	if (imode == 0 && (connect_flags & ZLOGIN_ZFD_EOF) != 0) {
+		zerror(gettext("-N may only be specified with -I"));
 		usage();
 	}
 
@@ -1860,7 +2064,8 @@ main(int argc, char **argv)
 		/* zone name and process name, and possibly some args */
 		zonename = argv[optind];
 		proc_args = &argv[optind + 1];
-		interactive = 0;
+		if (iflag && isatty(STDIN_FILENO))
+			interactive = 1;
 	} else {
 		usage();
 	}
@@ -1946,10 +2151,31 @@ main(int argc, char **argv)
 	}
 
 	/*
-	 * The console is a separate case from the rest of the code; handle
-	 * it first.
+	 * The console (or standalong interactive mode) is a separate case from
+	 * the rest of the code; handle it first.
 	 */
 	if (console) {
+		int gz_stderr_fd = -1;
+		int retry;
+		boolean_t set_raw = B_TRUE;
+
+		if (imode) {
+			boolean_t has_zfd_config;
+
+			if (zlog_mode_logging(zonename, &has_zfd_config))
+				set_raw = B_FALSE;
+
+			/*
+			 * Asked for standalone interactive mode but the
+			 * zlog-mode attribute is not configured on the zone.
+			 */
+			if (!has_zfd_config) {
+				zerror(gettext("'%s' is not configured on "
+				    "the zone"), "zlog-mode");
+				return (1);
+			}
+		}
+
 		/*
 		 * Ensure that zoneadmd for this zone is running.
 		 */
@@ -1958,16 +2184,56 @@ main(int argc, char **argv)
 
 		/*
 		 * Make contact with zoneadmd.
+		 *
+		 * Handshake with the control socket first. We handle retries
+		 * here since the relevant thread in zoneadmd might not have
+		 * finished setting up yet.
 		 */
-		if (get_console_master(zonename) == -1)
+		for (retry = 0; retry < MAX_RETRY; retry++) {
+			masterfd = connect_zone_sock(zonename,
+			    (imode ? "server_ctl" : "console_sock"), B_FALSE);
+			if (masterfd != -1)
+				break;
+			sleep(1);
+		}
+
+		if (retry == MAX_RETRY) {
+			zerror(gettext("unable to connect for %d seconds"),
+			    MAX_RETRY);
 			return (1);
+		}
 
-		if (!quiet)
-			(void) printf(
-			    gettext("[Connected to zone '%s' console]\n"),
-			    zonename);
+		if (handshake_zone_sock(masterfd, connect_flags) != 0) {
+			(void) close(masterfd);
+			return (1);
+		}
 
-		if (set_tty_rawmode(STDIN_FILENO) == -1) {
+		if (imode) {
+			ctlfd = masterfd;
+
+			/* Now open the io-related sockets */
+			masterfd = connect_zone_sock(zonename, "server_out",
+			    B_TRUE);
+			gz_stderr_fd = connect_zone_sock(zonename,
+			    "server_err", B_TRUE);
+			if (masterfd == -1 || gz_stderr_fd == -1) {
+				(void) close(ctlfd);
+				(void) close(masterfd);
+				(void) close(gz_stderr_fd);
+				return (1);
+			}
+		}
+
+		if (!quiet) {
+			if (imode)
+				(void) printf(gettext("[Connected to zone '%s' "
+				    "interactively]\n"), zonename);
+			else
+				(void) printf(gettext("[Connected to zone '%s' "
+				    "console]\n"), zonename);
+		}
+
+		if (set_raw && set_tty_rawmode(STDIN_FILENO) == -1) {
 			reset_tty();
 			zperror(gettext("failed to set stdin pty to raw mode"));
 			return (1);
@@ -1976,15 +2242,25 @@ main(int argc, char **argv)
 		(void) sigset(SIGWINCH, sigwinch);
 		(void) sigwinch(0);
 
+		if (imode) {
+			/* Allow EOF mode toggling via SIGUSR1 */
+			(void) sigset(SIGUSR1, sigusr1);
+		}
+
 		/*
 		 * Run the I/O loop until we get disconnected.
 		 */
-		doio(masterfd, -1, masterfd, -1, -1, B_FALSE);
+		doio(masterfd, -1, masterfd, gz_stderr_fd, -1, B_FALSE);
 		reset_tty();
-		if (!quiet)
-			(void) printf(
-			    gettext("\n[Connection to zone '%s' console "
-			    "closed]\n"), zonename);
+		if (!quiet) {
+			if (imode)
+				(void) printf(gettext("\n[Interactive "
+				    "connection to zone '%s' closed]\n"),
+				    zonename);
+			else
+				(void) printf(gettext("\n[Connection to zone "
+				    "'%s' console closed]\n"), zonename);
+		}
 
 		return (0);
 	}
@@ -2052,11 +2328,23 @@ main(int argc, char **argv)
 		return (1);
 	}
 
-	if ((new_args = prep_args(bh, login, proc_args)) == NULL) {
-		zperror(gettext("could not assemble new arguments"));
-		brand_close(bh);
-		return (1);
+	/*
+	 * The 'interactive' parameter (-i option) indicates that we're running
+	 * a command interactively. In this case we skip prep_args so that we
+	 * don't prepend the 'su root -c' preamble to the command invocation
+	 * since the 'su' command typically will execute a setpgrp which will
+	 * disassociate the actual command from the controlling terminal that
+	 * we (zlogin) setup.
+	 */
+	if (!iflag) {
+		if ((new_args = prep_args(bh, zonename, login, proc_args))
+		    == NULL) {
+			zperror(gettext("could not assemble new arguments"));
+			brand_close(bh);
+			return (1);
+		}
 	}
+
 	/*
 	 * Get the brand specific user_cmd.  This command is used to get
 	 * a passwd(5) entry for login.
@@ -2202,6 +2490,8 @@ main(int argc, char **argv)
 			return (1);
 		}
 
+		/* Note: we're now inside the zone, can't use gettext anymore */
+
 		if (slavefd != STDERR_FILENO)
 			(void) close(STDERR_FILENO);
 
@@ -2243,8 +2533,18 @@ main(int argc, char **argv)
 		/*
 		 * In failsafe mode, we don't use login(1), so don't try
 		 * setting up a utmpx entry.
+		 *
+		 * A branded zone may have very different utmpx semantics.
+		 * At the moment, we only have two brand types:
+		 * Illumos-like (native, sn1) and Linux.  In the Illumos
+		 * case, we know exactly how to do the necessary utmpx
+		 * setup.  Fortunately for us, the Linux /bin/login is
+		 * prepared to deal with a non-initialized utmpx entry, so
+		 * we can simply skip it.  If future brands don't fall into
+		 * either category, we'll have to add a per-brand utmpx
+		 * setup hook.
 		 */
-		if (!failsafe)
+		if (!failsafe && (strcmp(zonebrand, "lx") != 0))
 			if (setup_utmpx(slaveshortname) == -1)
 				return (1);
 
@@ -2253,13 +2553,17 @@ main(int argc, char **argv)
 		 * execute the brand's login program.
 		 */
 		if (setuid(0) == -1) {
-			zperror(gettext("insufficient privilege"));
+			zperror("insufficient privilege");
 			return (1);
 		}
 
-		(void) execve(new_args[0], new_args, new_env);
-		zperror(gettext("exec failure"));
-		return (1);
+		if (iflag) {
+			(void) execve(proc_args[0], proc_args, new_env);
+		} else {
+			(void) execve(new_args[0], new_args, new_env);
+		}
+		zperror("exec failure");
+		return (ENOEXEC);
 	}
 
 	(void) ct_tmpl_clear(tmpl_fd);
@@ -2284,8 +2588,19 @@ main(int argc, char **argv)
 	if (pollerr != 0) {
 		(void) fprintf(stderr, gettext("Error: connection closed due "
 		    "to unexpected pollevents=0x%x.\n"), pollerr);
-		return (1);
+		return (EPIPE);
 	}
 
-	return (0);
+	/* reap child and get its status */
+	if (waitid(P_PID, child_pid, &si, WEXITED | WNOHANG) == -1) {
+		estatus = errno;
+	} else if (si.si_pid == 0) {
+		estatus = ECHILD;
+	} else if (si.si_code == CLD_EXITED) {
+		estatus = si.si_status;
+	} else {
+		estatus = ECONNABORTED;
+	}
+
+	return (estatus);
 }

@@ -22,7 +22,7 @@
 /*
  * Copyright 2014 Gary Mills
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2018, Joyent, Inc.
+ * Copyright 2019 Joyent, Inc.
  * Copyright 2015 Nexenta Systems, Inc. All rights reserved.
  * Copyright 2021 OmniOS Community Edition (OmniOSce) Association.
  */
@@ -4736,7 +4736,7 @@ get_pool_sched_class(char *poolname, char *class, int clsize)
 	pool_conf_t *poolconf;
 	pool_t *pool;
 	pool_elem_t *pe;
-	pool_value_t *pv = pool_value_alloc();
+	pool_value_t *pv;
 	const char *sched_str;
 
 	if (pool_get_status(&status) != PO_SUCCESS || status != POOL_ENABLED)
@@ -4757,15 +4757,23 @@ get_pool_sched_class(char *poolname, char *class, int clsize)
 		return (Z_NO_POOL);
 	}
 
+	if ((pv = pool_value_alloc()) == NULL) {
+		(void) pool_conf_close(poolconf);
+		pool_conf_free(poolconf);
+		return (Z_NO_POOL);
+	}
+
 	pe = pool_to_elem(poolconf, pool);
 	if (pool_get_property(poolconf, pe, "pool.scheduler", pv) !=
 	    POC_STRING) {
 		(void) pool_conf_close(poolconf);
+		pool_value_free(pv);
 		pool_conf_free(poolconf);
 		return (Z_NO_ENTRY);
 	}
 	(void) pool_value_get_string(pv, &sched_str);
 	(void) pool_conf_close(poolconf);
+	pool_value_free(pv);
 	pool_conf_free(poolconf);
 	if (strlcpy(class, sched_str, clsize) >= clsize)
 		return (Z_TOO_BIG);
@@ -7132,51 +7140,6 @@ zonecfg_getsecflagsent(zone_dochandle_t handle,
 	}
 
 	handle->zone_dh_cur = cur->next;
-
-	(void) zonecfg_endent(handle);
-
-	return (err);
-}
-
-static int
-getmcapent_core(zone_dochandle_t handle, struct zone_mcaptab *tabptr)
-{
-	xmlNodePtr cur;
-	int err;
-
-	if (handle == NULL)
-		return (Z_INVAL);
-
-	if ((cur = handle->zone_dh_cur) == NULL)
-		return (Z_NO_ENTRY);
-
-	for (; cur != NULL; cur = cur->next)
-		if (xmlStrcmp(cur->name, DTD_ELEM_MCAP) == 0)
-			break;
-	if (cur == NULL) {
-		handle->zone_dh_cur = handle->zone_dh_top;
-		return (Z_NO_ENTRY);
-	}
-
-	if ((err = fetchprop(cur, DTD_ATTR_PHYSCAP, tabptr->zone_physmem_cap,
-	    sizeof (tabptr->zone_physmem_cap))) != Z_OK) {
-		handle->zone_dh_cur = handle->zone_dh_top;
-		return (err);
-	}
-
-	handle->zone_dh_cur = cur->next;
-	return (Z_OK);
-}
-
-int
-zonecfg_getmcapent(zone_dochandle_t handle, struct zone_mcaptab *tabptr)
-{
-	int err;
-
-	if ((err = zonecfg_setent(handle)) != Z_OK)
-		return (err);
-
-	err = getmcapent_core(handle, tabptr);
 
 	(void) zonecfg_endent(handle);
 

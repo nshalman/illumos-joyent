@@ -109,7 +109,7 @@ extern "C" {
 #define	ZONE_ATTR_INITNAME	9
 #define	ZONE_ATTR_BOOTARGS	10
 #define	ZONE_ATTR_BRAND		11
-#define	ZONE_ATTR_PHYS_MCAP	12
+/* #define	ZONE_ATTR_PHYS_MCAP	12 */
 #define	ZONE_ATTR_SCHED_CLASS	13
 #define	ZONE_ATTR_FLAGS		14
 #define	ZONE_ATTR_HOSTID	15
@@ -259,9 +259,12 @@ typedef enum zone_cmd {
 typedef struct zone_cmd_arg {
 	uint64_t	uniqid;		/* unique "generation number" */
 	zone_cmd_t	cmd;		/* requested action */
-	uint32_t	_pad;		/* need consistent 32/64 bit alignmt */
+	int		status;		/* init status on shutdown */
+	uint32_t	debug;		/* enable brand hook debug */
 	char locale[MAXPATHLEN];	/* locale in which to render messages */
 	char bootbuf[BOOTARGS_MAX];	/* arguments passed to zone_boot() */
+	/* Needed for 32/64 zoneadm -> zoneadmd door arg size check. */
+	int		pad;
 } zone_cmd_arg_t;
 
 /*
@@ -519,7 +522,6 @@ typedef struct zone {
 	char		*zone_initname;	/* fs path to 'init' */
 	int		zone_boot_err;  /* for zone_boot() if boot fails */
 	char		*zone_bootargs;	/* arguments passed via zone_boot() */
-	uint64_t	zone_phys_mcap;	/* physical memory cap */
 	/*
 	 * zone_kthreads is protected by zone_status_lock.
 	 */

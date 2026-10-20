@@ -20,6 +20,7 @@
 #
 #
 # Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright 2015, Joyent Inc.
 #
 
 #
@@ -129,7 +130,6 @@ SYMBOL_VERSION SUNWprivate_1.1 {
 	zonecfg_get_hostid;
 	zonecfg_get_iptype;
 	zonecfg_get_limitpriv;
-	zonecfg_getmcapent;
 	zonecfg_get_name;
 	zonecfg_get_name_by_uuid;
 	zonecfg_getnwifent;

@@ -22,7 +22,7 @@
 /*
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
- * Copyright 2012 Joyent, Inc.  All rights reserved.
+ * Copyright 2019 Joyent, Inc.
  * Copyright 2015 Nexenta Systems, Inc. All rights reserved.
  */
 
@@ -40,10 +40,10 @@
  *
  *                                      Global Zone | Non-Global Zone
  *                        .--------------.          |
- *        .-----------.   | zoneadmd -z  |          | .--------. .---------.
- *        | zlogin -C |   |     myzone   |          | | ttymon | | syslogd |
- *        `-----------'   `--------------'          | `--------' `---------'
- *                  |       |       | |             |      |       |
+ *        .-----------.   | zoneadmd -z  |--.       | .--------. .---------.
+ *        | zlogin -C |   |     myzone   |  |       | | ttymon | | syslogd |
+ *        `-----------'   `--------------'  V       | `--------' `---------'
+ *                  |       |       | | console.log |      |       |
  *  User            |       |       | |             |      V       V
  * - - - - - - - - -|- - - -|- - - -|-|- - - - - - -|- - /dev/zconsole - - -
  *  Kernel          V       V       | |                        |
@@ -59,7 +59,7 @@
  *                                  V     +-----------+
  *                           +---manager--+-subsidiary+
  *                           |                        |
- *                           |      zcons driver      |
+ *                           |      Zcons driver      |
  *                           |    zonename="myzone"   |
  *                           +------------------------+
  *
@@ -81,6 +81,8 @@
  *   functions as a two-way proxy for console I/O, relaying user input
  *   to the manager side of the console, and relaying output from the
  *   zone to the user.
+ *
+ * - Logging output to <zonepath>/logs/console.log.
  */
 
 #include <sys/types.h>
@@ -118,9 +120,10 @@
 
 #define	CONSOLE_SOCKPATH	ZONES_TMPDIR "/%s.console_sock"
 
+#define	ZCONS_RETRY		10
+
 static int	serverfd = -1;	/* console server unix domain socket fd */
 char boot_args[BOOTARGS_MAX];
-char bad_boot_arg[BOOTARGS_MAX];
 
 /*
  * The eventstream is a simple one-directional flow of messages from the
@@ -130,7 +133,10 @@ char bad_boot_arg[BOOTARGS_MAX];
  */
 static int eventstream[2];
 
-
+/* flag used to cope with race creating manager zcons devlink */
+static boolean_t manager_zcons_failed = B_FALSE;
+/* flag to track if we've seen a state change when there is no manager zcons */
+static boolean_t state_changed = B_FALSE;
 
 int
 eventstream_init()
@@ -323,7 +329,7 @@ destroy_console_devs(zlog_t *zlogp)
  * interfaces to instantiate a new zone console node.  We do a lot of
  * sanity checking, and are careful to reuse a console if one exists.
  *
- * Once the device is in the device tree, we kick devfsadm via di_init_devs()
+ * Once the device is in the device tree, we kick devfsadm via di_devlink_init()
  * to ensure that the appropriate symlinks (to the manager and subsidiary
  * console devices) are placed in /dev in the global zone.
  */
@@ -410,45 +416,66 @@ devlinks:
 	 * ioctl, which will cause the manager to retain a reference to the
 	 * subsidiary.  This prevents ttymon from blowing through the
 	 * subsidiary's STREAMS anchor.
+	 *
+	 * In very rare cases the open returns ENOENT if devfs doesn't have
+	 * everything setup yet due to heavy zone startup load. Wait for
+	 * 1 sec. and retry a few times. Even if we can't setup the zone's
+	 * console, we still go ahead and boot the zone.
 	 */
 	(void) snprintf(conspath, sizeof (conspath), "/dev/zcons/%s/%s",
 	    zone_name, ZCONS_MANAGER_NAME);
-	if ((managerfd = open(conspath, O_RDWR | O_NOCTTY)) == -1) {
+	for (i = 0; i < ZCONS_RETRY; i++) {
+		managerfd = open(conspath, O_RDWR | O_NOCTTY);
+		if (managerfd >= 0 || errno != ENOENT)
+			break;
+		(void) sleep(1);
+	}
+	if (managerfd == -1) {
 		zerror(zlogp, B_TRUE, "ERROR: could not open manager side of "
 		    "zone console for %s to acquire subsidiary handle",
 		    zone_name);
-		goto error;
+		manager_zcons_failed = B_TRUE;
 	}
+
 	(void) snprintf(conspath, sizeof (conspath), "/dev/zcons/%s/%s",
 	    zone_name, ZCONS_SUBSIDIARY_NAME);
-	if ((subfd = open(conspath, O_RDWR | O_NOCTTY)) == -1) {
+	for (i = 0; i < ZCONS_RETRY; i++) {
+		subfd = open(conspath, O_RDWR | O_NOCTTY);
+		if (subfd >= 0 || errno != ENOENT)
+			break;
+		(void) sleep(1);
+	}
+	if (subfd == -1)
 		zerror(zlogp, B_TRUE, "ERROR: could not open subsidiary side "
 		    "of zone console for %s to acquire subsidiary handle",
 		    zone_name);
-		(void) close(managerfd);
-		goto error;
-	}
+
 	/*
 	 * This ioctl can occasionally return ENXIO if devfs doesn't have
 	 * everything plumbed up yet due to heavy zone startup load. Wait for
 	 * 1 sec. and retry a few times before we fail to boot the zone.
 	 */
-	for (i = 0; i < 5; i++) {
-		if (ioctl(managerfd, ZC_HOLDSUBSID, (caddr_t)(intptr_t)subfd)
-		    == 0) {
-			rv = 0;
-			break;
-		} else if (errno != ENXIO) {
-			break;
+	if (managerfd != -1 && subfd != -1) {
+		for (i = 0; i < ZCONS_RETRY; i++) {
+			if (ioctl(managerfd, ZC_HOLDSUBSID,
+			    (caddr_t)(intptr_t)subfd) == 0) {
+				rv = 0;
+				break;
+			} else if (errno != ENXIO) {
+				break;
+			}
+			(void) sleep(1);
 		}
-		(void) sleep(1);
+		if (rv != 0)
+			zerror(zlogp, B_TRUE, "ERROR: error while acquiring "
+			    "subsidiary handle of zone console for %s",
+			    zone_name);
 	}
-	if (rv != 0)
-		zerror(zlogp, B_TRUE, "ERROR: error while acquiring "
-		    "subsidiary handle of zone console for %s", zone_name);
 
-	(void) close(subfd);
-	(void) close(managerfd);
+	if (subfd != -1)
+		(void) close(subfd);
+	if (managerfd != -1)
+		(void) close(managerfd);
 
 error:
 	if (ddef_hdl)
@@ -671,14 +698,6 @@ event_message(int clifd, char *clilocale, zone_evt_t evt, int dflag)
 		else
 			str = "NOTICE: Zone boot failed";
 		break;
-	case Z_EVT_ZONE_BADARGS:
-		/*LINTED*/
-		(void) snprintf(lmsg, sizeof (lmsg),
-		    localize_msg(clilocale,
-		    "WARNING: Ignoring invalid boot arguments: %s"),
-		    bad_boot_arg);
-		lstr = lmsg;
-		break;
 	default:
 		return;
 	}
@@ -717,7 +736,7 @@ test_client(int clifd)
  * messages) can be output in the user's locale.
  */
 static void
-do_console_io(zlog_t *zlogp, int consfd, int servfd)
+do_console_io(zlog_t *zlogp, int consfd, int servfd, int conslog)
 {
 	struct pollfd pollfds[4];
 	char ibuf[BUFSIZ];
@@ -763,14 +782,21 @@ do_console_io(zlog_t *zlogp, int consfd, int servfd)
 			    (POLLIN | POLLRDNORM | POLLRDBAND | POLLPRI)) {
 				errno = 0;
 				cc = read(consfd, ibuf, BUFSIZ);
-				if (cc <= 0 && (errno != EINTR) &&
-				    (errno != EAGAIN))
-					break;
-				/*
-				 * Lose I/O if no one is listening
-				 */
-				if (clifd != -1 && cc > 0)
-					(void) write(clifd, ibuf, cc);
+				if (cc <= 0) {
+					if (errno != EINTR &&
+					    errno != EAGAIN) {
+						break;
+					}
+				} else {
+					logstream_write(conslog, ibuf, cc);
+
+					/*
+					 * Lose I/O if no one is listening
+					 */
+					if (clifd != -1) {
+						(void) write(clifd, ibuf, cc);
+					}
+				}
 			} else {
 				pollerr = pollfds[0].revents;
 				zerror(zlogp, B_FALSE,
@@ -894,6 +920,17 @@ init_console(zlog_t *zlogp)
 }
 
 /*
+ * Maintain a simple flag that tracks if we have seen at least one state
+ * change. This is currently only used to handle the special case where we are
+ * running without a console device, which is what normally drives shutdown.
+ */
+void
+zcons_statechanged()
+{
+	state_changed = B_TRUE;
+}
+
+/*
  * serve_console() is the master loop for driving console I/O.  It is also the
  * routine which is ultimately responsible for "pulling the plug" on zoneadmd
  * when it realizes that the daemon should shut down.
@@ -911,6 +948,10 @@ serve_console(zlog_t *zlogp)
 	int managerfd;
 	zone_state_t zstate;
 	char conspath[MAXPATHLEN];
+	static boolean_t cons_warned = B_FALSE;
+	int conslog;
+
+	conslog = logstream_open("console.log", "console", LS_LINE_BUFFERED);
 
 	(void) snprintf(conspath, sizeof (conspath),
 	    "/dev/zcons/%s/%s", zone_name, ZCONS_MANAGER_NAME);
@@ -918,6 +959,46 @@ serve_console(zlog_t *zlogp)
 	for (;;) {
 		managerfd = open(conspath, O_RDWR|O_NONBLOCK|O_NOCTTY);
 		if (managerfd == -1) {
+			if (manager_zcons_failed) {
+				/*
+				 * If we don't have a console and the zone is
+				 * not shutting down, there may have been a
+				 * race/failure with devfs while creating the
+				 * console. In this case we want to leave the
+				 * zone up, even without a console, so
+				 * periodically recheck.
+				 */
+				int i;
+
+				/*
+				 * In the normal flow of this loop, we use
+				 * do_console_io to give things a chance to get
+				 * going first. However, in this case we can't
+				 * use that, so we have to wait for at least
+				 * one state change before checking the state.
+				 */
+				for (i = 0; i < 60; i++) {
+					if (state_changed)
+						break;
+					(void) sleep(1);
+				}
+
+				if (i < 60 && zone_get_state(zone_name,
+				    &zstate) == Z_OK &&
+				    (zstate == ZONE_STATE_READY ||
+				    zstate == ZONE_STATE_RUNNING)) {
+					if (!cons_warned) {
+						zerror(zlogp, B_FALSE,
+						    "WARNING: missing zone "
+						    "console for %s",
+						    zone_name);
+						cons_warned = B_TRUE;
+					}
+					(void) sleep(ZCONS_RETRY);
+					continue;
+				}
+			}
+
 			zerror(zlogp, B_TRUE, "failed to open console manager");
 			(void) mutex_lock(&lock);
 			goto death;
@@ -937,7 +1018,7 @@ serve_console(zlog_t *zlogp)
 			goto death;
 		}
 
-		do_console_io(zlogp, managerfd, serverfd);
+		do_console_io(zlogp, managerfd, serverfd, conslog);
 
 		/*
 		 * We would prefer not to do this, but hostile zone processes
@@ -978,4 +1059,6 @@ death:
 
 	destroy_console_sock(serverfd);
 	(void) destroy_console_devs(zlogp);
+
+	logstream_close(conslog, B_FALSE);
 }

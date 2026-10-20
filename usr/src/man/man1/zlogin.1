@@ -13,24 +13,24 @@
 .\" Portions Copyright [yyyy] [name of copyright owner]
 .\" Copyright 2013 DEY Storage Systems, Inc.
 .\" Copyright (c) 2014 Gary Mills
+.\" Copyright (c) 2015, Joyent, Inc. All Rights Reserved
 .\" Copyright 2015 Nexenta Systems, Inc. All rights reserved.
-.TH ZLOGIN 1 "Mar 17, 2015"
+.TH ZLOGIN 1 "Mar 30, 2015"
 .SH NAME
 zlogin \- enter a zone
 .SH SYNOPSIS
 .LP
 .nf
-\fBzlogin\fR [\fB-dCEQ\fR] [\fB-e\fR \fIc\fR] [\fB-l\fR \fIusername\fR] \fIzonename\fR
+\fBzlogin\fR [\fB-dCEINQ\fR] [\fB-e\fR \fIc\fR] [\fB-l\fR \fIusername\fR] \fIzonename\fR
 .fi
 
 .LP
 .nf
-\fBzlogin\fR [\fB-nEQS\fR] [\fB-e\fR \fIc\fR] [\fB-l\fR \fIusername\fR] \fIzonename\fR \fIutility\fR
+\fBzlogin\fR [\fB-inEQS\fR] [\fB-e\fR \fIc\fR] [\fB-l\fR \fIusername\fR] \fIzonename\fR \fIutility\fR
      [\fIargument\fR]...
 .fi
 
 .SH DESCRIPTION
-.sp
 .LP
 The \fBzlogin\fR utility is used by the administrator to enter an operating
 system zone. Only a superuser operating in the global system zone can use this
@@ -44,12 +44,12 @@ utility.
 \fBInteractive Mode\fR
 .ad
 .RS 24n
-If no utility argument is given and the stdin file descriptor for the
-\fBzlogin\fR process is a tty device, \fBzlogin\fR operates in \fBinteractive
-mode\fR. In this mode, \fBzlogin\fR creates a new pseudo terminal for use
-within the login session. Programs requiring a tty device, for example,
-\fBvi\fR(1), work properly in this mode. In this mode, \fBzlogin\fR invokes
-\fBlogin\fR(1) to provide a suitable login session.
+If no utility argument is given or if the \fB-i\fR option is specified, and the
+stdin file descriptor for the \fBzlogin\fR process is a tty device, \fBzlogin\fR
+operates in \fBinteractive mode\fR. In this mode, \fBzlogin\fR creates a new
+pseudo terminal for use within the login session. Programs requiring a tty
+device, for example, \fBvi\fR(1), work properly in this mode. In this mode,
+\fBzlogin\fR invokes \fBlogin\fR(1) to provide a suitable login session.
 .RE
 
 .sp
@@ -58,11 +58,12 @@ within the login session. Programs requiring a tty device, for example,
 \fBNon-Interactive Mode\fR
 .ad
 .RS 24n
-If a utility is specified, \fBzlogin\fR operates in \fBnon-interactive mode\fR.
-This mode can be useful for script authors since stdin, stdout, and stderr are
-preserved and the exit status of \fIutility\fR is returned upon termination. In
-this mode, \fBzlogin\fR invokes \fBsu\fR(8) in order to set up the user's
-environment and to provide a login environment.
+If a utility is specified and the \fB-i\fR option is not specified, \fBzlogin\fR
+operates in \fBnon-interactive mode\fR.  This mode can be useful for script
+authors since stdin, stdout, and stderr are preserved and the exit status of
+\fIutility\fR is returned upon termination. In this mode, \fBzlogin\fR invokes
+\fBsu\fR(8) in order to set up the user's environment and to provide a login
+environment.
 .sp
 The specified command is passed as a string and interpreted by a shell running
 in the non-global zone. See \fBrsh\fR(1).
@@ -127,6 +128,25 @@ login by using the escape sequence character.
 .sp
 .ne 2
 .na
+\fB\fB-i\fR\fR
+.ad
+.RS 15n
+Forces interactive mode when a utility argument is specified.
+.RE
+
+.sp
+.ne 2
+.na
+\fB\fB-I\fR\fR
+.ad
+.RS 15n
+Connects to the zone's \fBzfd(7D)\fR devices.
+.RE
+
+.sp
+.sp
+.ne 2
+.na
 \fB\fB-l\fR \fIusername\fR\fR
 .ad
 .RS 15n
@@ -144,6 +164,17 @@ option, the zone username used is "root". This option is invalid if the
 Redirect the input of \fBzlogin\fR to \fB/dev/null\fR.
 This option is useful when the command running in the local zone
 and the shell which invokes \fBzlogin\fR both read from standard input.
+.RE
+
+.sp
+.ne 2
+.na
+\fB-N\fR
+.ad
+.RS 15n
+Nohup. This may only be used with the -I option to avoid sending EOF to the zfd
+device when zlogin's stdin receives EOF. It can also be toggled by sending
+\fBSIGUSR1\fR to an attached zlogin process.
 .RE
 
 .sp
@@ -172,7 +203,6 @@ other forms of login have become impossible.
 .RE
 
 .SS "Escape Sequences"
-.sp
 .LP
 Lines that you type that start with the tilde character (\fB~\fR) are "escape
 sequences". The escape character can be changed using the \fB-e\fR option.
@@ -187,12 +217,10 @@ host breaks the connection with no warning to the zone's end.
 .RE
 
 .SH SECURITY
-.sp
 .LP
 Once a process has been placed in a zone other than the global zone, the
 process cannot change zone again, nor can any of its children.
 .SH OPERANDS
-.sp
 .LP
 The following operands are supported:
 .sp
@@ -223,7 +251,6 @@ Arguments passed to the utility.
 .RE
 
 .SH EXIT STATUS
-.sp
 .LP
 In interactive and non-interactive modes, the \fBzlogin\fR utility exits when
 the command or shell in the non-global zone exits. In non-interactive mode, the
@@ -268,7 +295,6 @@ mode.
 .RE
 
 .SH ATTRIBUTES
-.sp
 .LP
 See \fBattributes\fR(7) for descriptions of the following attributes:
 .sp
@@ -284,7 +310,6 @@ Interface Stability	Evolving
 .TE
 
 .SH SEE ALSO
-.sp
 .LP
 .BR login (1),
 .BR rsh (1),
@@ -295,7 +320,6 @@ Interface Stability	Evolving
 .BR zoneadm (8),
 .BR zonecfg (8)
 .SH NOTES
-.sp
 .LP
 \fBzlogin\fR fails if its open files or any portion of its address space
 corresponds to an NFS file. This includes the executable itself or the shared

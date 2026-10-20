@@ -35,16 +35,14 @@ CSTD= $(CSTD_GNU99)
 
 ROOTCMDDIR=	$(ROOTLIB)/zones
 
-OBJS= zoneadmd.o zcons.o vplat.o
+OBJS= zoneadmd.o zcons.o zfd.o vplat.o log.o
 SRCS = $(OBJS:.o=.c)
-POFILE=zoneadmd_all.po
-POFILES= $(OBJS:%.o=%.po)
 
 CFLAGS += $(CCVERBOSE)
 
 LDLIBS += -lsocket -lzonecfg -lnsl -ldevinfo -ldevice -lnvpair \
 	-lgen -lbsm -lcontract -lzfs -luuid -lbrand -ldladm -ltsnet -ltsol \
-	-linetutil -lscf
+	-linetutil -lscf -lppt -lcustr
 XGETFLAGS += -a -x zoneadmd.xcl
 
 .KEEP_STATE:
@@ -59,9 +57,7 @@ $(PROG): $(OBJS)
 
 install: all $(ROOTCMD)
 
-$(POFILE): $(POFILES)
-	$(RM) $@
-	$(CAT) $(POFILES) > $@
+$(POFILE):
 
 clean:
 	$(RM) $(OBJS)
