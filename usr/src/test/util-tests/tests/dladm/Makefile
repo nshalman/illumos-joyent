@@ -23,7 +23,8 @@ PROG =	allowed-ips \
 	create-vnic \
 	set-linkprop \
 	show-class-confusion \
-	show-overlay-exit
+	show-overlay-exit \
+	vnic-mtu
 
 ROOTPROG = $(PROG:%=$(ROOTOPTPKG)/%)
 

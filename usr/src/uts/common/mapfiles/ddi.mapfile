@@ -256,6 +256,9 @@ SYMBOL_SCOPE {
 	mutex_tryenter			{ FLAGS = EXTERN };
 	nochpoll			{ FLAGS = EXTERN };
 	nodev				{ FLAGS = EXTERN };
+	nvlist_add_string		{ FLAGS = EXTERN };
+	nvlist_alloc			{ FLAGS = EXTERN };
+	nvlist_free			{ FLAGS = EXTERN };
 	nulldev				{ FLAGS = EXTERN };
 	nvlist_add_boolean		{ FLAGS = EXTERN; };
 	nvlist_add_boolean_array	{ FLAGS = EXTERN; };

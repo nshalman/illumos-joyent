@@ -1208,19 +1208,6 @@ $(ASSYMDEP_OBJS:%=pics/%): assym.h
 # assym.h build rules
 
 GENASSYM_C = genassym.c
-LDFLAGS.native = $(LDASSERTS) $(BDIRECT)
-
-genassym := NATIVE_LIBS += libc.so
-
-genassym: $(GENASSYM_C)
-	$(NATIVECC) $(NATIVE_CFLAGS) -Iinc -I$(LIBCDIR)/inc $(CPPFLAGS.native) \
-		$(LDFLAGS.native) -o $@ $(GENASSYM_C)
-
-OFFSETS = $(LIBCDIR)/$(MACH)/offsets.in
-
-assym.h: $(OFFSETS) genassym
-	$(OFFSETS_CREATE) <$(OFFSETS) >$@
-	./genassym >>$@
 
 # derived C source and related explicit dependencies
 $(LIBCDIR)/port/gen/new_list.c: $(LIBCDIR)/port/gen/errlist $(LIBCDIR)/port/gen/errlist.awk

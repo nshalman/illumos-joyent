@@ -30,15 +30,19 @@
 
 $mapfile_version 2
 
-SYMBOL_VERSION ILLUMOSprivate {
+SYMBOL_VERSION ILLUMOS_1.0 {    # first release of libidspace
     global:
 	id_alloc;
 	id_allocff;
 	id_alloc_specific;
 	id_free;
-	id_space_create;
+        id_space_create;
 	id_space_destroy;
-	id_space_extend;
+        id_space_extend;
+};
+
+
+SYMBOL_VERSION ILLUMOSprivate {
     local:
         *;
 };

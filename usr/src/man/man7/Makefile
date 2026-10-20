@@ -14,7 +14,7 @@
 # Copyright (c) 2012 by Delphix. All rights reserved.
 # Copyright 2014 Nexenta Systems, Inc.
 # Copyright 2014 Garrett D'Amore <garrett@damore.org>
-# Copyright (c) 2015, Joyent, Inc.  All rights reserved.
+# Copyright 2017 Joyent, Inc.
 # Copyright 2018 Gary Mills
 # Copyright 2019 OmniOS Community Edition (OmniOSce) Association.
 # Copyright 2019 Peter Tribble

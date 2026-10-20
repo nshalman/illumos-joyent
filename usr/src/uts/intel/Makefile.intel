@@ -22,7 +22,7 @@
 # Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 # Copyright (c) 2013 Andrew Stormont.  All rights reserved.
 # Copyright (c) 2014 by Delphix. All rights reserved.
-# Copyright 2019 Joyent, Inc.
+# Copyright 2021 Joyent, Inc.
 # Copyright 2022 Garrett D'Amore <garrett@damore.org>
 # Copyright 2018 Nexenta Systems, Inc.
 # Copyright 2019 Peter Tribble.
@@ -347,6 +347,8 @@ DRV_KMODS	+= ural
 DRV_KMODS	+= uath
 DRV_KMODS	+= urtw
 DRV_KMODS	+= vgatext
+DRV_KMODS	+= vmxnet
+DRV_KMODS	+= vnd
 DRV_KMODS	+= vnic
 DRV_KMODS	+= vscan
 DRV_KMODS	+= wc
@@ -512,7 +514,8 @@ DRV_KMODS	+= sol_umad
 #
 #	Brand modules
 #
-BRAND_KMODS	+= sn1_brand s10_brand
+BRAND_KMODS	+= sn1_brand s10_brand lx_brand
+DRV_KMODS	+= lx_systrace lx_ptm lx_netlink
 
 #
 #	Exec Class Modules (/kernel/exec):

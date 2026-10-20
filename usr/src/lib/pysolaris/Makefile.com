@@ -45,6 +45,7 @@ LIBS =		$(DYNLIB)
 LDLIBS +=	-lc -lsec -lidmap -lpython$(PYVER)$(PYSUFFIX)
 NATIVE_LIBS +=	libpython$(PYVER)$(PYSUFFIX).so
 CFLAGS +=	$(CCVERBOSE)
+CPPFLAGS +=	-I$(ADJUNCT_PROTO)/usr/include/python2.6
 CERRWARN +=	-_gcc=-Wno-unused-variable
 CPPFLAGS +=	\
 	-I$(ADJUNCT_PROTO)/usr/include/python$(PYVER)$(PYSUFFIX)

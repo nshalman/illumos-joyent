@@ -32,6 +32,8 @@
 # Copyright 2020 Peter Tribble
 # Copyright 2021 OmniOS Community Edition (OmniOSce) Association.
 # Copyright 2021 Joyent, Inc.
+# Copyright 2023 MNX Cloud, Inc.
+# Copyright 2026 Edgecast Cloud LLC.
 #
 
 #
@@ -189,8 +191,8 @@ GENOFFSETS=	$(ONBLD_TOOLS)/bin/genoffsets
 XREF=		$(ONBLD_TOOLS)/bin/xref
 FIND=		/usr/bin/find
 PERL=		/usr/bin/perl
-PERL_VERSION=	5.10.0
-PERL_PKGVERS=	-510
+PERL_VERSION=	5.12
+PERL_PKGVERS=	-512
 PERL_MACH=	i86pc
 $(SPARC_BLD)PERL_MACH=	sun4
 PERL_VARIANT=
@@ -485,6 +487,13 @@ sparcv9_COPTFLAG=	-xO3
 i386_COPTFLAG=		-O
 amd64_COPTFLAG=		-xO3
 
+# This would normally be added by cw(1) but cannot be while we want to support
+# Both GCC 3.x and GCC 4.x
+$(__GNUC4)$(MACH)_COPTFLAG += -_gcc=-fno-inline-small-functions \
+	-_gcc=-fno-inline-functions-called-once
+$(__GNUC4)$(MACH64)_COPTFLAG += -_gcc=-fno-inline-small-functions \
+	-_gcc=-fno-inline-functions-called-once
+
 COPTFLAG= $($(MACH)_COPTFLAG)
 COPTFLAG64= $($(MACH64)_COPTFLAG)
 
@@ -592,8 +601,7 @@ CPPFLAGS.first=	# Please keep empty.  Only lower makefiles should set this.
 CPPFLAGS.master=$(DTEXTDOM) $(DTS_ERRNO) \
 	$(ENVCPPFLAGS1) $(ENVCPPFLAGS2) $(ENVCPPFLAGS3) $(ENVCPPFLAGS4) \
 	$(ADJUNCT_PROTO:%=-I%/usr/include)
-CPPFLAGS.native=$(ENVCPPFLAGS1) $(ENVCPPFLAGS2) $(ENVCPPFLAGS3) \
-		$(ENVCPPFLAGS4) -I$(NATIVE_ADJUNCT)/include
+CPPFLAGS.native=-I$(NATIVE_ADJUNCT)/include
 CPPFLAGS=	$(CPPFLAGS.first) $(CPPFLAGS.master)
 AS_CPPFLAGS=	$(CPPFLAGS.first) $(CPPFLAGS.master)
 JAVAFLAGS=	-source 7 -target 7 -Xlint:deprecation,-options
@@ -953,8 +961,9 @@ UTS_LABEL=	$(RELEASE)
 # bootbanner_expand_template() for more details about the template string
 # format.
 #
-BOOTBANNER1=	^o Version ^v ^w-bit
-BOOTBANNER2=
+BOOTBANNER1=	SmartOS Version ^v ^w-bit
+# XXX SmartOS: BANNER_YEAR in environment set in smartos-live's build_illumos.
+BOOTBANNER2=	Copyright 2025-$(BANNER_YEAR) Edgecast Cloud LLC.
 BOOTBANNER3=
 BOOTBANNER4=
 BOOTBANNER5=

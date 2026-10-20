@@ -260,9 +260,6 @@ SUBDIRS +=				\
 	pkcs11		\
 	policykit	\
 	print		\
-	pylibbe		\
-	pysolaris	\
-	pyzfs		\
 	raidcfg_plugins	\
 	rpcsec_gss	\
 	sasl_plugins	\
@@ -355,7 +352,6 @@ MSGSUBDIRS=		\
 	madv		\
 	mpss		\
 	pam_modules	\
-	pyzfs		\
 	rpcsec_gss	\
 	$($(MACH)_MSGSUBDIRS)
 
@@ -578,7 +574,7 @@ dbusdeps:	libsecdb libtsol libinetutil libscf libuutil libgen libsmbios \
 ../cmd/sendmail/libmilter:	libsocket libnsl
 abi:		libctf libmapmalloc libproc
 auditd_plugins: libbsm libsecdb libgss libmtmalloc
-brand:		libzonecfg libmapmalloc
+brand:		libzonecfg libmapmalloc libipadm libcustr libproc librpcsvc
 cfgadm_plugins:	libdevice libdevinfo libhotplug librcm hbaapi libkstat libscf
 fm:		libexacct libipmi libzfs scsi libdevinfo libdevid libcfgadm \
 		libcontract libsysevent ../cmd/sgs/libelf libdladm libsff \
@@ -597,6 +593,7 @@ libadutils:	libldap5 libresolv2
 libbe:		libzfs libinstzones libuuid libgen libdevinfo libefi libficl \
 		libzfsbootenv
 libbsm:		libinetutil libscf libsecdb libtsol
+libbunyan:	libumem
 libcfgadm:	libdevinfo
 libcontract:	libnvpair
 libcmdutils:	libavl libnvpair
@@ -675,6 +672,7 @@ libsff:		libnvpair
 libshare:	libscf libzfs libuuid libfsmgt libsecdb libumem libsmbfs
 libsip:		libmd5
 libsldap:	libldap5 libscf
+libsmartsshd:	libc libcontract
 libsmbfs:	libkrb5 libsec libidmap pkcs11
 libsmbios:	libdevinfo
 libsrpt:	libstmf
@@ -694,6 +692,7 @@ libvolmgt:	libadm
 libvrrpadm:	libdladm libscf
 libvscan:	libscf libsecdb
 libxpio:	libdevinfo libnvpair
+libzdoor:	libc libzonecfg libcontract
 libzfs:		libdevid libgen libuutil libavl libefi libidmap \
 		libumem libtsol libzfs_core libcryptoutil pkcs11 libmd libzutil
 libzfsbootenv:	libzfs libnvpair
@@ -707,7 +706,8 @@ libzutil:	libadm libavl libdevid libefi
 madv:		libgen
 mpapi:		libpthread libdevinfo libsysevent
 mpss:		libgen
-nsswitch:	libadutils libidmap libdns_sd libscf libldap5 libsldap
+nsswitch:	libadutils libidmap libdns_sd libscf libldap5 libsldap \
+		libresolv2_joy
 pam_modules:	libproject passwdutil smbsrv libtsnet libpam libbsm libsecdb
 passwdutil:	libsldap
 pkcs11:		libcryptoutil libgen libuuid
@@ -729,7 +729,7 @@ sun_fc:		libdevinfo libsysevent
 sun_sas:	libdevinfo libsysevent libkstat libdevid
 udapl:		libdevinfo libdladm
 varpd:		libavl libidspace libumem libnsl libnvpair libmd5 librename \
-		libcustr
+		libbunyan libcustr
 
 #
 # The reason this rule checks for the existence of the

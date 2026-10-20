@@ -40,6 +40,7 @@ SUBDIRS = \
 	wctype
 
 PROGS = \
+	env-OS-4089 \
 	aio_cancel \
 	aligned_alloc \
 	ascftime \

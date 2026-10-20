@@ -118,11 +118,8 @@ MANIFEST_SUBDIRS=			\
 	krb5/krb5kdc			\
 	krb5/kwarn			\
 	krb5/slave			\
-	lp/cmd/lpsched			\
 	picl/picld			\
 	pools/poold			\
-	print/bsd-sysv-commands		\
-	print/ppdmgr			\
 	rcap/rcapd			\
 	rpcsvc/rpc.bootparamd		\
 	sendmail/lib			\

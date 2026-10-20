@@ -30,6 +30,7 @@ MANIFEST=	name-service-cache.xml
 SVCMETHOD=	svc-nscd
 
 include ../Makefile.cmd
+include ../Makefile.ctf
 
 ROOTMANIFESTDIR=	$(ROOTSVCSYSTEM)
 

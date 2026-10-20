@@ -10,7 +10,7 @@
 #
 
 #
-# Copyright 2016 Joyent, Inc.
+# Copyright 2020 Joyent, Inc.
 #
 
 include $(SRC)/cmd/Makefile.cmd
@@ -31,6 +31,11 @@ PROGS64 = $(PROGS:%=%.64)
 ROOTOPTDIR = $(ROOT)/opt/os-tests/tests/file-locking
 ROOTOPTPROGS = $(PROGS32:%=$(ROOTOPTDIR)/%) \
 	$(PROGS64:%=$(ROOTOPTDIR)/%)
+
+all     :=      TARGET = all
+install :=      TARGET = install
+clean   :=      TARGET = clean
+clobber :=      TARGET = clobber
 
 .KEEP_STATE:
 

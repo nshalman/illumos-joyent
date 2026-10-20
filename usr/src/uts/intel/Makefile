@@ -57,7 +57,7 @@ install_h.prereq	:=	TARGET= install_h
 
 .PARALLEL:	$(PARALLEL_KMODS) $(XMODS) config
 
-def all install clean clobber: $(KMODS) $(XMODS) config
+def all install clean clobber: genassym $(KMODS) $(XMODS) config
 
 clobber: clobber.targ
 

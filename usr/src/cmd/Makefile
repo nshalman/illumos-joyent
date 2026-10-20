@@ -30,14 +30,16 @@
 # Copyright 2018 Gary Mills
 # Copyright 2019 Peter Tribble
 # Copyright 2021 OmniOS Community Edition (OmniOSce) Association.
+# Copyright 2024 MNX Cloud, Inc.
+# Copyright 2025 Edgecast Cloud LLC.
 # Copyright 2026 Oxide Computer Company
 #
 
 include ../Makefile.master
 
 #
-#	Note that the commands 'lp', and 'perl' are first in
-#	the list, violating alphabetical order.  This is because they are very
+#	Note that if the 'lp' command were built, it would be first in
+#	the list, violating alphabetical order.  This is because it is very
 #	long-running and should be given the most wall-clock time for a
 #	parallel build.
 #
@@ -58,7 +60,6 @@ FIRST_SUBDIRS=		\
 COMMON_SUBDIRS=		\
 	allocate	\
 	availdevs	\
-	lp		\
 	perl		\
 	Adm		\
 	abi		\
@@ -200,7 +201,6 @@ COMMON_SUBDIRS=		\
 	growfs		\
 	grpck		\
 	gss		\
-	hal		\
 	halt		\
 	head		\
 	hostid		\
@@ -237,7 +237,6 @@ COMMON_SUBDIRS=		\
 	kvmstat		\
 	last		\
 	lastcomm	\
-	latencytop	\
 	ldap		\
 	ldapcachemgr	\
 	lgrpinfo	\
@@ -328,7 +327,6 @@ COMMON_SUBDIRS=		\
 	plockstat	\
 	pr		\
 	prctl		\
-	print		\
 	printf		\
 	priocntl	\
 	profiles	\
@@ -522,11 +520,14 @@ sparc_SUBDIRS=		\
 	vntsd
 
 #
-# Commands that are messaged.  Note that 'lp' comes first
-# (see previous comment about 'lp'.)
+# Commands that are messaged.  Note that 'lp' comes first (see previous comment
+# about 'lp'.)
+#
+# We purposefully leave out auditrecord's messages from illumos-joyent: it
+# attempts to use Perl modules constructed as part of the build alongside the
+# native Perl.
 #
 MSGSUBDIRS=		\
-	lp		\
 	abi		\
 	acctadm		\
 	allocate	\
@@ -536,7 +537,6 @@ MSGSUBDIRS=		\
 	audit		\
 	auditconfig	\
 	auditd		\
-	auditrecord	\
 	auditset	\
 	auths		\
 	autopush	\
@@ -667,7 +667,6 @@ MSGSUBDIRS=		\
 	power		\
 	pr		\
 	praudit		\
-	print		\
 	profiles	\
 	projadd		\
 	projects	\

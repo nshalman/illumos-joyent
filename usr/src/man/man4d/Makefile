@@ -163,7 +163,8 @@ _MANFILES=	aac.4d		\
 		xge.4d		\
 		yge.4d		\
 		zcons.4d	\
-		zero.4d
+		zero.4d		\
+		zfd.4d
 
 i386_MANFILES=	ahci.4d		\
 		amd8111s.4d	\
