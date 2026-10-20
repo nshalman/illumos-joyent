@@ -34,7 +34,7 @@ include ../../Makefile.cmd
 include ../../Makefile.ctf
 
 POFILE =	$(PROG)_all.po
-LDLIBS +=	-lcontract -lscf -luutil -lumem -lnvpair -lzonecfg -lproc
+LDLIBS +=	-lcontract -lscf -luutil -lumem -lnvpair -lzonecfg -lsasl -lproc
 CPPFLAGS += -I ../common
 
 CERRWARN += $(CNOWARN_UNINIT)
