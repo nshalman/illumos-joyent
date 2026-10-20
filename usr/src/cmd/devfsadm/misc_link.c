@@ -21,7 +21,7 @@
 /*
  * Copyright (c) 1998, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
- * Copyright (c) 2015, Joyent, Inc. All rights reserved.
+ * Copyright 2019 Joyent, Inc.
  * Copyright 2022 Garrett D'Amore <garrett@damore.org>
  * Copyright 2023 Oxide Computer Company
  */
@@ -117,6 +117,9 @@ static devfsadm_create_t misc_cbt[] = {
 	    "(^rts$)|(^arp$)|(^ipsecah$)|(^ipsecesp$)|(^keysock$)|(^spdsock$)|"
 	    "(^rds$)|(^sdp$)|(^ipnet$)|(^dlpistub$)|(^bpf$)",
 	    TYPE_EXACT | DRV_RE, ILEVEL_1, minor_name
+	},
+	{ "pseudo", "ddi_pseudo", "inotify",
+	    TYPE_EXACT | DRV_EXACT, ILEVEL_0, minor_name
 	},
 	{ "pseudo", "ddi_pseudo", "ipd",
 	    TYPE_EXACT | DRV_EXACT, ILEVEL_0, minor_name

@@ -22,7 +22,7 @@
 /*
  * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
- * Copyright 2015 Joyent, Inc.
+ * Copyright 2016 Joyent, Inc.
  * Copyright 2024 MNX Cloud, Inc.
  */
 
@@ -827,8 +827,7 @@ top:
 
 	if (error == 0) {
 		vnevent_rename_src(PCTOV(pcp), PCTOV(dp), snm, ctp);
-		if (dp != tdp)
-			vnevent_rename_dest_dir(PCTOV(tdp), ctp);
+		vnevent_rename_dest_dir(PCTOV(tdp), PCTOV(pcp), tnm, ctp);
 	}
 
 done:

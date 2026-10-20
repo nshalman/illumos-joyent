@@ -918,6 +918,7 @@ PORTSYS=			\
 	fexecve.o		\
 	getpagesizes.o		\
 	getpeerucred.o		\
+	inotify.o		\
 	inst_sync.o		\
 	issetugid.o		\
 	label.o			\

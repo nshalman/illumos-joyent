@@ -25,7 +25,7 @@
  */
 
 /*
- * Copyright (c) 2015, Joyent, Inc. All rights reserved.
+ * Copyright 2016 Joyent, Inc.
  * Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
  * Copyright 2016 RackTop Systems.
  * Copyright (c) 2017 by Delphix. All rights reserved.
@@ -788,8 +788,13 @@ tmp_setattr(
 		rw_exit(&tp->tn_contents);
 		rw_exit(&tp->tn_rwlock);
 
-		if (error == 0 && vap->va_size == 0)
-			vnevent_truncate(vp, ct);
+		if (error == 0) {
+			if (vap->va_size == 0) {
+				vnevent_truncate(vp, ct);
+			} else {
+				vnevent_resize(vp, ct);
+			}
+		}
 
 		goto out1;
 	}
@@ -1304,8 +1309,7 @@ tmp_rename(
 		 * vnevent_rename_dest is called in tdirenter().
 		 * Notify the target dir if not same as source dir.
 		 */
-		if (ndvp != odvp)
-			vnevent_rename_dest_dir(ndvp, ct);
+		vnevent_rename_dest_dir(ndvp, TNTOV(fromtp), nnm, ct);
 	}
 
 done:
@@ -2342,8 +2346,13 @@ tmp_space(
 			return (EFBIG);
 		error = tmp_freesp(vp, bfp, flag);
 
-		if (error == 0 && bfp->l_start == 0)
-			vnevent_truncate(vp, ct);
+		if (error == 0) {
+			if (bfp->l_start == 0) {
+				vnevent_truncate(vp, ct);
+			} else {
+				vnevent_resize(vp, ct);
+			}
+		}
 	}
 	return (error);
 }

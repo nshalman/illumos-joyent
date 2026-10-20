@@ -24,7 +24,7 @@
  */
 
 /*
- * Copyright (c) 2018, Joyent, Inc.
+ * Copyright 2020 Joyent, Inc.
  * Copyright 2022 Oxide Computer Company
  */
 
@@ -540,14 +540,14 @@ port_fop_trimpfplist(vnode_t *vp)
 			port_pcache_remove_fop(pfcp, pfp);
 			mutex_exit(&pfcp->pfc_lock);
 			if (tdvp != NULL)
-				VN_RELE(tdvp);
+				VN_PHANTOM_RELE(tdvp);
 		}
 	}
 }
 
 /*
  * This routine returns 1, if the vnode can be rele'ed by the caller.
- * The caller has to VN_RELE the vnode with out holding any
+ * The caller has to VN_PHANTOM_RELE the vnode with out holding any
  * locks.
  */
 int
@@ -617,7 +617,7 @@ port_fop_femuninstall(vnode_t *vp)
  * able to remove it from the port's queue).
  *
  * vpp and dvpp will point to the vnode and directory vnode which the caller
- * is required to VN_RELE without holding any locks.
+ * is required to VN_PHANTOM_RELE without holding any locks.
  */
 int
 port_remove_fop(portfop_t *pfp, portfop_cache_t *pfcp, int cleanup,
@@ -727,8 +727,8 @@ port_cache_lookup_fop(portfop_cache_t *pfcp, pid_t pid, uintptr_t obj)
 
 /*
  * Given the file name, get the vnode and also the directory vnode
- * On return, the vnodes are held (VN_HOLD). The caller has to VN_RELE
- * the vnode(s).
+ * On return, the vnodes are held with phantom holds (VN_PHANTOM_HOLD). The
+ * caller has to VN_PHANTOM_RELE the vnode(s).
  */
 int
 port_fop_getdvp(void *objptr, vnode_t **vp, vnode_t **dvp, char **cname,
@@ -776,6 +776,17 @@ port_fop_getdvp(void *objptr, vnode_t **vp, vnode_t **dvp, char **cname,
 			*cname = NULL;
 			*len = 0;
 		}
+	}
+
+	/* Trade VN_HOLD()s from lookuppn with VN_PHANTOM_HOLD()s */
+	if (dvp != NULL && *dvp != NULL) {
+		VN_PHANTOM_HOLD(*dvp);
+		VN_RELE(*dvp);
+	}
+
+	if (vp != NULL && *vp != NULL) {
+		VN_PHANTOM_HOLD(*vp);
+		VN_RELE(*vp);
 	}
 
 	pn_free(&pn);
@@ -1177,7 +1188,7 @@ port_pfp_setup(portfop_t **pfpp, port_t *pp, vnode_t *vp, portfop_cache_t *pfcp,
 					 * Hold a reference to the vnode since
 					 * we successfully installed the hooks.
 					 */
-					VN_HOLD(vp);
+					VN_PHANTOM_HOLD(vp);
 				} else {
 					(void) fem_uninstall(vp, femp, vp);
 					pvp->pvp_femp = NULL;
@@ -1210,7 +1221,7 @@ port_pfp_setup(portfop_t **pfpp, port_t *pp, vnode_t *vp, portfop_cache_t *pfcp,
 	 * Hold the directory vnode since we have a reference now.
 	 */
 	if (dvp != NULL)
-		VN_HOLD(dvp);
+		VN_PHANTOM_HOLD(dvp);
 	*pfpp = pfp;
 	return (0);
 }
@@ -1225,9 +1236,9 @@ port_resolve_vp(vnode_t *vp)
 	 */
 	if (vfs_mntdummyvp && mntfstype != 0 &&
 	    vp->v_vfsp->vfs_fstype == mntfstype) {
-		VN_RELE(vp);
+		VN_PHANTOM_RELE(vp);
 		vp = vfs_mntdummyvp;
-		VN_HOLD(vfs_mntdummyvp);
+		VN_PHANTOM_HOLD(vfs_mntdummyvp);
 	}
 
 	/*
@@ -1235,8 +1246,8 @@ port_resolve_vp(vnode_t *vp)
 	 * hardlinks.
 	 */
 	if ((VOP_REALVP(vp, &rvp, NULL) == 0) && vp != rvp) {
-		VN_HOLD(rvp);
-		VN_RELE(vp);
+		VN_PHANTOM_HOLD(rvp);
+		VN_PHANTOM_RELE(vp);
 		vp = rvp;
 	}
 	return (vp);
@@ -1248,10 +1259,10 @@ port_resolve_vp(vnode_t *vp)
  * The association is identified by the object pointer and the pid.
  * The events argument contains the events to be monitored for.
  *
- * The vnode will have a VN_HOLD once the fem hooks are installed.
+ * The vnode will have a VN_PHANTOM_HOLD once the fem hooks are installed.
  *
- * Every reference(pfp) to the directory vnode will have a VN_HOLD to ensure
- * that the directory vnode pointer does not change.
+ * Every reference(pfp) to the directory vnode will have a VN_PHANTOM_HOLD to
+ * ensure that the directory vnode pointer does not change.
  */
 int
 port_associate_fop(port_t *pp, int source, uintptr_t object, int events,
@@ -1331,7 +1342,7 @@ port_associate_fop(port_t *pp, int source, uintptr_t object, int events,
 	 */
 	if (dvp != NULL && dvp->v_vfsp != vp->v_vfsp &&
 	    !(orig->v_type == VPROC && vp != NULL && vp->v_type != VPROC)) {
-		VN_RELE(dvp);
+		VN_PHANTOM_RELE(dvp);
 		dvp = NULL;
 	}
 
@@ -1351,8 +1362,8 @@ port_associate_fop(port_t *pp, int source, uintptr_t object, int events,
 	pfp = port_cache_lookup_fop(pfcp, curproc->p_pid, object);
 
 	/*
-	 * If it is not the same vnode, just discard it. VN_RELE needs to be
-	 * called with no locks held, therefore save vnode pointers and
+	 * If it is not the same vnode, just discard it. VN_PHANTOM_RELE needs
+	 * to be called with no locks held, therefore save vnode pointers and
 	 * vn_rele them later.
 	 */
 	if (pfp != NULL && (pfp->pfop_vp != vp || pfp->pfop_dvp != dvp)) {
@@ -1405,7 +1416,7 @@ port_associate_fop(port_t *pp, int source, uintptr_t object, int events,
 				 * This vnode pointer is just used
 				 * for comparison, so rele it
 				 */
-				VN_RELE(tvp);
+				VN_PHANTOM_RELE(tvp);
 			}
 		}
 
@@ -1438,8 +1449,8 @@ port_associate_fop(port_t *pp, int source, uintptr_t object, int events,
 			 * active and it is not being removed from
 			 * the vnode list. This is checked in
 			 * port_remove_fop with the vnode lock held.
-			 * The vnode returned is VN_RELE'ed after dropping
-			 * the locks.
+			 * The vnode returned is VN_PHANTOM_RELE'ed after
+			 * dropping the locks.
 			 */
 			tdvp = tvp = NULL;
 			if (port_remove_fop(pfp, pfcp, 0, NULL, &tvp, &tdvp)) {
@@ -1452,9 +1463,9 @@ port_associate_fop(port_t *pp, int source, uintptr_t object, int events,
 			}
 			mutex_exit(&pfcp->pfc_lock);
 			if (tvp != NULL)
-				VN_RELE(tvp);
+				VN_PHANTOM_RELE(tvp);
 			if (tdvp != NULL)
-				VN_RELE(tdvp);
+				VN_PHANTOM_RELE(tdvp);
 			goto errout;
 		}
 	} else {
@@ -1521,14 +1532,14 @@ errout:
 	 * Release the hold acquired due to the lookup operation.
 	 */
 	if (vp != NULL)
-		VN_RELE(vp);
+		VN_PHANTOM_RELE(vp);
 	if (dvp != NULL)
-		VN_RELE(dvp);
+		VN_PHANTOM_RELE(dvp);
 
 	if (oldvp != NULL)
-		VN_RELE(oldvp);
+		VN_PHANTOM_RELE(oldvp);
 	if (olddvp != NULL)
-		VN_RELE(olddvp);
+		VN_PHANTOM_RELE(olddvp);
 
 	/*
 	 * copied file name not used, free it.
@@ -1589,9 +1600,9 @@ port_dissociate_fop(port_t *pp, uintptr_t object)
 	(void) port_remove_fop(pfp, pfcp, 1, &active, &tvp, &tdvp);
 	mutex_exit(&pfcp->pfc_lock);
 	if (tvp != NULL)
-		VN_RELE(tvp);
+		VN_PHANTOM_RELE(tvp);
 	if (tdvp != NULL)
-		VN_RELE(tdvp);
+		VN_PHANTOM_RELE(tdvp);
 	return (active ? 0 : ENOENT);
 }
 
@@ -1629,7 +1640,7 @@ port_close_fop(void *arg, int port, pid_t pid, int lastclose)
 	 * be possible as the port is being closed.
 	 *
 	 * The common case is that the port is not shared and all the entries
-	 * are of this pid and have to be freed. Since VN_RELE has to be
+	 * are of this pid and have to be freed. Since VN_PHANTOM_RELE has to be
 	 * called outside the lock, we do it in batches.
 	 */
 	hashtbl = (portfop_t **)pfcp->pfc_hash;
@@ -1656,14 +1667,14 @@ port_close_fop(void *arg, int port, pid_t pid, int lastclose)
 		if (pfp == NULL)
 			index++;
 		/*
-		 * Now call VN_RELE if we have collected enough vnodes or
-		 * we have reached the end of the hash table.
+		 * Now call VN_PHANTOM_RELE if we have collected enough vnodes
+		 * or we have reached the end of the hash table.
 		 */
 		if (i >= (PORTFOP_NVP - 1) ||
 		    (i > 0 && index == PORTFOP_HASHSIZE)) {
 			mutex_exit(&pfcp->pfc_lock);
 			while (i > 0) {
-				VN_RELE(vpl[--i]);
+				VN_PHANTOM_RELE(vpl[--i]);
 				vpl[i] = NULL;
 			}
 			mutex_enter(&pfcp->pfc_lock);
@@ -1771,7 +1782,7 @@ port_fop_excep(list_t *tlist, int op)
 		port_pcache_remove_fop(pfcp, pfp);
 		mutex_exit(&pfcp->pfc_lock);
 		if (tdvp != NULL)
-			VN_RELE(tdvp);
+			VN_PHANTOM_RELE(tdvp);
 	}
 }
 
@@ -1935,7 +1946,7 @@ port_fop_sendevent(vnode_t *vp, int events, vnode_t *dvp, char *cname)
 		 * that may be attempting to remove an object from the vnode's.
 		 */
 		if (port_fop_femuninstall(vp))
-			VN_RELE(vp);
+			VN_PHANTOM_RELE(vp);
 
 		/*
 		 * Send exception events and discard the watch entries.
@@ -2070,7 +2081,7 @@ port_fop_unmount(fsemarg_t *vf, int flag, cred_t *cr)
 		 * unmount is in process.
 		 */
 		port_fop_sendevent(pvp->pvp_vp, UNMOUNTED, NULL, NULL);
-		VN_RELE(pvp->pvp_vp);
+		VN_PHANTOM_RELE(pvp->pvp_vp);
 	}
 
 	error = vfsnext_unmount(vf, flag, cr);

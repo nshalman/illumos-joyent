@@ -25,6 +25,7 @@
  * Copyright 2022 Spencer Evans-Cole.
  * Copyright 2016 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
+ * Copyright 2021 OmniOS Community Edition (OmniOSce) Association.
  */
 
 /*	Copyright (c) 1983, 1984, 1985, 1986, 1987, 1988, 1989 AT&T	*/
@@ -847,6 +848,36 @@ vn_rele(vnode_t *vp)
 	VERIFY(vp->v_count > 0);
 	VN_RELE_LOCKED(vp);
 	mutex_exit(&vp->v_lock);
+}
+
+void
+vn_phantom_rele(vnode_t *vp)
+{
+	mutex_enter(&vp->v_lock);
+	VERIFY3U(vp->v_count, >=, vp->v_phantom_count);
+	vp->v_phantom_count--;
+	DTRACE_PROBE1(vn__phantom_rele, vnode_t *, vp);
+	if (vp->v_count == 1) {
+		ASSERT0(vp->v_phantom_count);
+		mutex_exit(&vp->v_lock);
+		VOP_INACTIVE(vp, CRED(), NULL);
+		return;
+	}
+	VERIFY(vp->v_count > 0);
+	VN_RELE_LOCKED(vp);
+	mutex_exit(&vp->v_lock);
+}
+
+/*
+ * Return the number of non-phantom holds. Things such as portfs will use
+ * phantom holds to prevent it from blocking filesystems from mounting over
+ * watched directories.
+ */
+uint_t
+vn_count(vnode_t *vp)
+{
+	ASSERT(MUTEX_HELD(&vp->v_lock));
+	return (vp->v_count - vp->v_phantom_count);
 }
 
 /*
@@ -2441,6 +2472,7 @@ vn_reinit(vnode_t *vp)
 {
 	vp->v_count = 1;
 	vp->v_count_dnlc = 0;
+	vp->v_phantom_count = 0;
 	vp->v_vfsp = NULL;
 	vp->v_stream = NULL;
 	vp->v_vfsmountedhere = NULL;
@@ -2497,6 +2529,7 @@ vn_free(vnode_t *vp)
 	 */
 	ASSERT((vp->v_count == 0) || (vp->v_count == 1));
 	ASSERT(vp->v_count_dnlc == 0);
+	ASSERT0(vp->v_phantom_count);
 	VERIFY(vp->v_path != NULL);
 	if (vp->v_path != vn_vpath_empty) {
 		kmem_free(vp->v_path, strlen(vp->v_path) + 1);
@@ -2587,6 +2620,7 @@ vnevent_rename_src(vnode_t *vp, vnode_t *dvp, char *name, caller_context_t *ct)
 	if (vp == NULL || vp->v_femhead == NULL) {
 		return;
 	}
+	(void) VOP_VNEVENT(dvp, VE_RENAME_SRC_DIR, vp, name, ct);
 	(void) VOP_VNEVENT(vp, VE_RENAME_SRC, dvp, name, ct);
 }
 
@@ -2601,12 +2635,13 @@ vnevent_rename_dest(vnode_t *vp, vnode_t *dvp, char *name,
 }
 
 void
-vnevent_rename_dest_dir(vnode_t *vp, caller_context_t *ct)
+vnevent_rename_dest_dir(vnode_t *vp, vnode_t *nvp, char *name,
+    caller_context_t *ct)
 {
 	if (vp == NULL || vp->v_femhead == NULL) {
 		return;
 	}
-	(void) VOP_VNEVENT(vp, VE_RENAME_DEST_DIR, NULL, NULL, ct);
+	(void) VOP_VNEVENT(vp, VE_RENAME_DEST_DIR, nvp, name, ct);
 }
 
 void
@@ -2691,6 +2726,15 @@ vnevent_truncate(vnode_t *vp, caller_context_t *ct)
 		return;
 	}
 	(void) VOP_VNEVENT(vp, VE_TRUNCATE, NULL, NULL, ct);
+}
+
+void
+vnevent_resize(vnode_t *vp, caller_context_t *ct)
+{
+	if (vp == NULL || vp->v_femhead == NULL) {
+		return;
+	}
+	(void) VOP_VNEVENT(vp, VE_RESIZE, NULL, NULL, ct);
 }
 
 /*
