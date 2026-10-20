@@ -25,7 +25,7 @@
  */
 
 /*
- * Copyright (c) 2013, Joyent, Inc. All rights reserved.
+ * Copyright 2017, Joyent, Inc.
  * Copyright 2025 Oxide Computer Company
  */
 
@@ -654,7 +654,6 @@ grow:
 		}
 	}
 
-	p->p_lwpcnt++;
 	t->t_waitfor = -1;
 
 	/*
@@ -698,6 +697,7 @@ grow:
 	/*
 	 * Insert the new thread into the list of all threads.
 	 */
+	p->p_lwpcnt++;
 	if ((tx = p->p_tlist) == NULL) {
 		t->t_back = t;
 		t->t_forw = t;

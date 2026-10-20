@@ -27,6 +27,7 @@ MANFILES=	bootfs.4fs	\
 		fd.4fs		\
 		hsfs.4fs	\
 		lofs.4fs	\
+		lxproc.4fs	\
 		objfs.4fs	\
 		pcfs.4fs	\
 		sharefs.4fs	\

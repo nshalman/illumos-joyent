@@ -59,6 +59,7 @@
 #include <sys/zone.h>
 #include <sys/dnlc.h>
 #include <sys/fs/snode.h>
+#include <sys/brand.h>
 
 /* Controls whether paths are stored with vnodes. */
 int vfs_vnode_path = 1;
@@ -248,6 +249,9 @@ lookuppnvp(
 		lookup_flags |= LOOKUP_NOACLCHECK;
 		flags &= ~LOOKUP_NOACLCHECK;
 	}
+
+	if (flags & __FLXNOAUTO)
+		lookup_flags |= __FLXNOAUTO;
 
 	if (auditing)
 		audit_anchorpath(pnp, vp == rootvp);

@@ -357,6 +357,7 @@ typedef struct	proc {
 	struct zone	*p_zone;	/* zone in which process lives */
 	struct vnode	*p_execdir;	/* directory that p_exec came from */
 	struct brand	*p_brand;	/* process's brand  */
+
 	void		*p_brand_data;	/* per-process brand state */
 	psecflags_t	p_secflags;	/* per-process security flags */
 
@@ -380,7 +381,6 @@ typedef struct	proc {
 	 */
 	struct user p_user;		/* (see sys/user.h) */
 } proc_t;
-
 #define	PROC_T				/* headers relying on proc_t are OK */
 
 #ifdef _KERNEL
@@ -656,6 +656,7 @@ extern int signal_is_blocked(kthread_t *, int);
 extern int sigcheck(proc_t *, kthread_t *);
 extern void sigdefault(proc_t *);
 
+extern struct pid *pid_find(pid_t pid);
 extern void pid_setmin(void);
 extern pid_t pid_allocate(proc_t *, pid_t, int);
 extern int pid_rele(struct pid *);
@@ -671,6 +672,7 @@ extern int sprtrylock_proc(proc_t *);
 extern void sprwaitlock_proc(proc_t *);
 extern void sprlock_proc(proc_t *);
 extern void sprunlock(proc_t *);
+extern void sprunprlock(proc_t *);
 extern void pid_init(void);
 extern proc_t *pid_entry(int);
 extern int pid_slot(proc_t *);

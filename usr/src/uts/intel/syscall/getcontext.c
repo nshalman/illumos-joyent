@@ -20,6 +20,9 @@
  */
 
 /*
+ * Copyright 2015 Joyent, Inc.
+ */
+/*
  * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
@@ -50,6 +53,7 @@
 #include <sys/schedctl.h>
 #include <sys/debug.h>
 #include <sys/sysmacros.h>
+#include <sys/sdt.h>
 
 /*
  * This is a wrapper around copyout_noerr that returns a guaranteed error code.
@@ -194,7 +198,23 @@ savecontext(ucontext_t *ucp, const k_sigset_t *mask, savecontext_flags_t flags)
 	else
 		ucp->uc_flags &= ~UC_FPU;
 
-	sigktou(mask, &ucp->uc_sigmask);
+	if (mask != NULL) {
+		/*
+		 * Save signal mask.
+		 */
+		sigktou(mask, &ucp->uc_sigmask);
+	} else {
+		ucp->uc_flags &= ~UC_SIGMASK;
+		bzero(&ucp->uc_sigmask, sizeof (ucp->uc_sigmask));
+	}
+
+	if (PROC_IS_BRANDED(p) && BROP(p)->b_savecontext != NULL) {
+		/*
+		 * Allow the brand the chance to modify the context we
+		 * saved:
+		 */
+		BROP(p)->b_savecontext(ucp);
+	}
 
 	/*
 	 * Determine if we need to get the rest of the xsave context out here.
@@ -234,7 +254,19 @@ restorecontext(ucontext_t *ucp)
 {
 	kthread_t *t = curthread;
 	klwp_t *lwp = ttolwp(t);
+	proc_t *p = lwptoproc(lwp);
 
+	if (PROC_IS_BRANDED(p) && BROP(p)->b_restorecontext != NULL) {
+		/*
+		 * Allow the brand the chance to modify the context before
+		 * we restore it:
+		 */
+		BROP(p)->b_restorecontext(ucp);
+	}
+
+	DTRACE_PROBE3(oldcontext__set, klwp_t *, lwp,
+	    uintptr_t, lwp->lwp_oldcontext,
+	    uintptr_t, (uintptr_t)ucp->uc_link);
 	lwp->lwp_oldcontext = (uintptr_t)ucp->uc_link;
 
 	if (ucp->uc_flags & UC_STACK) {
@@ -293,6 +325,7 @@ getsetcontext(int flag, void *arg)
 	klwp_t *lwp = ttolwp(curthread);
 	void *fpu = NULL;
 	stack_t dummy_stk;
+	proc_t *p = lwptoproc(lwp);
 	int ret;
 
 	/*
@@ -367,6 +400,15 @@ getsetcontext(int flag, void *arg)
 		if ((uc.uc_flags & UC_FPU) &&
 		    copyin(&ucp->uc_mcontext.fpregs, &uc.uc_mcontext.fpregs,
 		    sizeof (uc.uc_mcontext.fpregs))) {
+			return (set_errno(EFAULT));
+		}
+
+		/*
+		 * If this is a branded process, copy in the brand-private
+		 * data:
+		 */
+		if (PROC_IS_BRANDED(p) && copyin(&ucp->uc_brand_data,
+		    &uc.uc_brand_data, sizeof (uc.uc_brand_data)) != 0) {
 			return (set_errno(EFAULT));
 		}
 
@@ -487,7 +529,23 @@ savecontext32(ucontext32_t *ucp, const k_sigset_t *mask,
 	else
 		ucp->uc_flags &= ~UC_FPU;
 
-	sigktou(mask, &ucp->uc_sigmask);
+	if (mask != NULL) {
+		/*
+		 * Save signal mask.
+		 */
+		sigktou(mask, &ucp->uc_sigmask);
+	} else {
+		ucp->uc_flags &= ~UC_SIGMASK;
+		bzero(&ucp->uc_sigmask, sizeof (ucp->uc_sigmask));
+	}
+
+	if (PROC_IS_BRANDED(p) && BROP(p)->b_savecontext32 != NULL) {
+		/*
+		 * Allow the brand the chance to modify the context we
+		 * saved:
+		 */
+		BROP(p)->b_savecontext32(ucp);
+	}
 
 	if (!need_xsave || !fpu_en) {
 		return (0);
@@ -522,6 +580,7 @@ getsetcontext32(int flag, void *arg)
 	klwp_t *lwp = ttolwp(curthread);
 	caddr32_t ustack32;
 	stack32_t dummy_stk32;
+	proc_t *p = lwptoproc(lwp);
 	int ret;
 
 	switch (flag) {
@@ -571,6 +630,15 @@ getsetcontext32(int flag, void *arg)
 		if ((uc.uc_flags & UC_FPU) &&
 		    copyin(&ucp->uc_mcontext.fpregs, &uc.uc_mcontext.fpregs,
 		    sizeof (uc.uc_mcontext.fpregs))) {
+			return (set_errno(EFAULT));
+		}
+
+		/*
+		 * If this is a branded process, copy in the brand-private
+		 * data:
+		 */
+		if (PROC_IS_BRANDED(p) && copyin(&ucp->uc_brand_data,
+		    &uc.uc_brand_data, sizeof (uc.uc_brand_data)) != 0) {
 			return (set_errno(EFAULT));
 		}
 

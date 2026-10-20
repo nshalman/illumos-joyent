@@ -4007,6 +4007,7 @@ $endif
 	psecflags_validate;
 	semctl64;
 	_semctl64;
+	set_escaped_context_cleanup;
 	set_setcontext_enforcement;
 	_setbufend;
 	__set_errno;

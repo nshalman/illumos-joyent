@@ -24,6 +24,10 @@
  */
 
 /*
+ * Copyright 2019 Joyent, Inc.
+ */
+
+/*
  * Data-Link Driver
  */
 

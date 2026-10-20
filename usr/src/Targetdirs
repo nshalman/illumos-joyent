@@ -30,6 +30,7 @@
 # Copyright 2017 RackTop Systems.
 # Copyright 2022 OmniOS Community Edition (OmniOSce) Association.
 # Copyright 2020 Joyent, Inc.
+# Copyright 2025 MNX Cloud, Inc.
 #
 
 #
@@ -531,6 +532,9 @@ SYM.DIRS= \
 	/usr/ucblib/32 \
 	/var/ld/32
 
+i386_SYM.DIRS64= \
+	/usr/lib/brand/lx/64
+
 amd64_SYM.DIRS64= \
 	/usr/platform/i86pc/lib/fm/topo/plugins/64
 
@@ -648,6 +652,7 @@ $(BUILD64) $(ROOT)/lib/crypto/64:=	LINKDEST=$(MACH64)
 $(BUILD64) $(ROOT)/lib/secure/64:=	LINKDEST=$(MACH64)
 $(BUILD64) $(ROOT)/usr/lib/64:=		LINKDEST=$(MACH64)
 $(BUILD64) $(ROOT)/usr/lib/elfedit/64:=	LINKDEST=$(MACH64)
+$(BUILD64) $(ROOT)/usr/lib/brand/lx/64:=	LINKDEST=$(MACH64)
 $(BUILD64) $(ROOT)/usr/lib/brand/sn1/64:=	LINKDEST=$(MACH64)
 $(BUILD64) $(ROOT)/usr/lib/brand/solaris10/64:=	LINKDEST=$(MACH64)
 $(BUILD64) $(ROOT)/usr/lib/fm/64 := LINKDEST=$(MACH64)

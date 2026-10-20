@@ -222,6 +222,7 @@ prchoose(proc_t *p)
 			case PR_SYSEXIT:
 			case PR_SIGNALLED:
 			case PR_FAULTED:
+			case PR_BRAND:
 				/*
 				 * Make an lwp calling exit() be the
 				 * last lwp seen in the process.
@@ -555,6 +556,12 @@ prexecend(void)
 			pcp->prc_tslot = tslot;
 		}
 	}
+
+	/*
+	 * There may be threads waiting for the flag change blocked behind the
+	 * pr_pid_cv as well.
+	 */
+	cv_signal(&pr_pid_cv[p->p_slot]);
 }
 
 /*

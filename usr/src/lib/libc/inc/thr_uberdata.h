@@ -1290,6 +1290,7 @@ extern	void	rwl_free(ulwp_t *);
 extern	void	heldlock_exit(void);
 extern	void	heldlock_free(ulwp_t *);
 extern	void	sigacthandler(int, siginfo_t *, void *);
+extern	int	setctxt(const ucontext_t *);
 extern	void	signal_init(void);
 extern	int	sigequalset(const sigset_t *, const sigset_t *);
 extern	void	mutex_setup(void);

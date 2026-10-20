@@ -21,7 +21,8 @@
 
 /*
  * Copyright (c) 1988, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2013, Joyent, Inc. All rights reserved.
+ * Copyright 2016, Joyent, Inc.
+ * Copyright 2026 OmniOS Community Edition (OmniOSce) Association.
  * Copyright 2026 Oxide Computer Company
  */
 
@@ -935,6 +936,9 @@ extern struct as kas;
 
 /*
  * fork a kernel process.
+ *
+ * Passing a pid argument of -1 indicates that the new process should be
+ * launched as a child of 'zsched' within the zone.
  */
 int
 newproc(void (*pc)(), caddr_t arg, id_t cid, int pri, struct contract **ct,
@@ -953,6 +957,7 @@ newproc(void (*pc)(), caddr_t arg, id_t cid, int pri, struct contract **ct,
 		rctl_set_t *init_set;
 
 		ASSERT(pid != 1);
+		ASSERT(pid >= 0);
 
 		if (getproc(&p, pid, GETPROC_KERNEL, NULL) < 0)
 			return (EAGAIN);
@@ -996,8 +1001,18 @@ newproc(void (*pc)(), caddr_t arg, id_t cid, int pri, struct contract **ct,
 		rctl_set_t *init_set;
 		task_t *tk, *tk_old;
 		klwp_t *lwp;
+		boolean_t pzsched = B_FALSE;
+		int flag = GETPROC_USER;
 
-		if (getproc(&p, pid, GETPROC_USER, NULL) < 0)
+		/* Handle a new user-level thread as child of zsched. */
+		if (pid < 0) {
+			VERIFY(curzone != global_zone);
+			flag = GETPROC_ZSCHED;
+			pzsched = B_TRUE;
+			pid = 0;
+		}
+
+		if (getproc(&p, pid, flag, NULL) < 0)
 			return (EAGAIN);
 		/*
 		 * init creates a new task, distinct from the task
@@ -1058,7 +1073,8 @@ newproc(void (*pc)(), caddr_t arg, id_t cid, int pri, struct contract **ct,
 		}
 		t = lwptot(lwp);
 
-		ctp = contract_process_fork(sys_process_tmpl, p, curproc,
+		ctp = contract_process_fork(sys_process_tmpl, p,
+		    (pzsched ? curproc->p_zone->zone_zsched : curproc),
 		    B_FALSE);
 		ASSERT(ctp != NULL);
 		if (ct != NULL)

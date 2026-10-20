@@ -21,7 +21,8 @@
 
 /*
  * Copyright (c) 1989, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2015, Joyent Inc.
+ * Copyright 2017, Joyent Inc.
+ * Copyright 2021 OmniOS Community Edition (OmniOSce) Association.
  * Copyright 2026 Oxide Computer Company
  */
 
@@ -490,7 +491,7 @@ free_afd(afd_t *afd)		/* called below and from thread_free() */
 		afd->a_fd[i] = -1;
 }
 
-static void
+void
 set_active_fd(int fd)
 {
 	afd_t *afd = &curthread->t_activefd;

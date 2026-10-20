@@ -23,7 +23,7 @@
  * Copyright (c) 1988, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2018 Joyent, Inc.
  * Copyright 2026 Oxide Computer Company
- * Copyright 2021 OmniOS Community Edition (OmniOSce) Association.
+ * Copyright 2026 OmniOS Community Edition (OmniOSce) Association.
  */
 
 /*	Copyright (c) 1984, 1986, 1987, 1988, 1989 AT&T	*/
@@ -1072,10 +1072,9 @@ winfo(proc_t *pp, k_siginfo_t *ip, int waitflag)
 int
 waitid(idtype_t idtype, id_t id, k_siginfo_t *ip, int options)
 {
-	int found;
 	proc_t *cp, *pp;
-	int proc_gone;
 	int waitflag = !(options & WNOWAIT);
+	boolean_t have_brand_helper = B_FALSE;
 
 	/*
 	 * Obsolete flag, defined here only for binary compatibility
@@ -1103,7 +1102,8 @@ waitid(idtype_t idtype, id_t id, k_siginfo_t *ip, int options)
 	pp = ttoproc(curthread);
 
 	/*
-	 * lock parent mutex so that sibling chain can be searched.
+	 * Anytime you are looking for a process, you take pidlock to prevent
+	 * things from changing as you look.
 	 */
 	mutex_enter(&pidlock);
 
@@ -1123,10 +1123,37 @@ waitid(idtype_t idtype, id_t id, k_siginfo_t *ip, int options)
 		return (ECHILD);
 	}
 
-	while (pp->p_child != NULL) {
+	if (PROC_IS_BRANDED(pp) && BROP(pp)->b_waitid_helper != NULL) {
+		have_brand_helper = B_TRUE;
+	}
 
-		proc_gone = 0;
+	while (pp->p_child != NULL || have_brand_helper) {
+		boolean_t brand_wants_wait = B_FALSE;
+		int proc_gone = 0;
+		int found = 0;
 
+		/*
+		 * Give the brand a chance to return synthetic results from
+		 * this waitid() call before we do the real thing.
+		 */
+		if (have_brand_helper) {
+			int ret;
+
+			if (BROP(pp)->b_waitid_helper(idtype, id, ip, options,
+			    &brand_wants_wait, &ret) == 0) {
+				mutex_exit(&pidlock);
+				return (ret);
+			}
+
+			if (pp->p_child == NULL) {
+				goto no_real_children;
+			}
+		}
+
+		/*
+		 * Look for interesting children in the newstate list.
+		 */
+		VERIFY(pp->p_child != NULL);
 		for (cp = pp->p_child_ns; cp != NULL; cp = cp->p_sibling_ns) {
 			if (idtype != P_PID && (cp->p_pidflag & CLDWAITPID))
 				continue;
@@ -1134,6 +1161,11 @@ waitid(idtype_t idtype, id_t id, k_siginfo_t *ip, int options)
 				continue;
 			if (idtype == P_PGID && id != cp->p_pgrp)
 				continue;
+			if (PROC_IS_BRANDED(pp)) {
+				if (BROP(pp)->b_wait_filter != NULL &&
+				    BROP(pp)->b_wait_filter(pp, cp) == B_FALSE)
+					continue;
+			}
 
 			switch (cp->p_wcode) {
 
@@ -1178,12 +1210,16 @@ waitid(idtype_t idtype, id_t id, k_siginfo_t *ip, int options)
 		 * Wow! None of the threads on the p_sibling_ns list were
 		 * interesting threads. Check all the kids!
 		 */
-		found = 0;
 		for (cp = pp->p_child; cp != NULL; cp = cp->p_sibling) {
 			if (idtype == P_PID && id != cp->p_pid)
 				continue;
 			if (idtype == P_PGID && id != cp->p_pgrp)
 				continue;
+			if (PROC_IS_BRANDED(pp)) {
+				if (BROP(pp)->b_wait_filter != NULL &&
+				    BROP(pp)->b_wait_filter(pp, cp) == B_FALSE)
+					continue;
+			}
 
 			switch (cp->p_wcode) {
 			case CLD_TRAPPED:
@@ -1252,11 +1288,12 @@ waitid(idtype_t idtype, id_t id, k_siginfo_t *ip, int options)
 				break;
 		}
 
+no_real_children:
 		/*
 		 * If we found no interesting processes at all,
 		 * break out and return ECHILD.
 		 */
-		if (found + proc_gone == 0)
+		if (!brand_wants_wait && (found + proc_gone == 0))
 			break;
 
 		if (options & WNOHANG) {
@@ -1275,7 +1312,7 @@ waitid(idtype_t idtype, id_t id, k_siginfo_t *ip, int options)
 		 * change state while we wait, we don't wait at all.
 		 * Get out with ECHILD according to SVID.
 		 */
-		if (found == proc_gone)
+		if (!brand_wants_wait && (found == proc_gone))
 			break;
 
 		if (!cv_wait_sig_swap(&pp->p_cv, &pidlock)) {

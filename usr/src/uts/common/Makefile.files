@@ -25,7 +25,7 @@
 # Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
 # Copyright 2018 Nexenta Systems, Inc.
 # Copyright 2022 Garrett D'Amore
-# Copyright 2020 Joyent, Inc.
+# Copyright 2021 Joyent, Inc.
 # Copyright 2016 OmniTI Computer Consulting, Inc.  All rights reserved.
 # Copyright 2016 Hans Rosenfeld <rosenfeld@grumpf.hope-2000.org>
 # Copyright 2026 Oxide Computer Company
@@ -447,6 +447,8 @@ PROFILE_OBJS += profile.o
 
 SYSTRACE_OBJS += systrace.o
 
+LX_SYSTRACE_OBJS += lx_systrace.o
+
 LOCKSTAT_OBJS += lockstat.o
 
 FASTTRAP_OBJS += fasttrap.o fasttrap_isa.o
@@ -516,6 +518,10 @@ PTC_OBJS +=	tty_pty.o
 PTSL_OBJS +=	tty_pts.o
 
 PTM_OBJS +=	ptm.o
+
+LX_PTM_OBJS +=	lx_ptm.o
+
+LX_NETLINK_OBJS +=	lx_netlink.o
 
 MII_OBJS +=	mii.o mii_cicada.o mii_natsemi.o mii_intel.o mii_qualsemi.o \
 		mii_marvell.o mii_realtek.o mii_other.o

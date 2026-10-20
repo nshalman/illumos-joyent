@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 1995, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2015, Joyent, Inc. All rights reserved.
  * Copyright 2016 Nexenta Systems, Inc.  All rights reserved.
  * Copyright 2015, Joyent, Inc. All rights reserved.
  * Copyright 2020 OmniOS Community Edition (OmniOSce) Association.
@@ -435,8 +436,10 @@ sogetoff(mblk_t *mp, t_uscalar_t offset,
  *
  * The underlying filesystem VSOCK vnode has a v_stream pointer that
  * references the actual stream head (hence indirectly the actual sonode).
+ *
+ * This function is non-static so it can be used by brand emulation.
  */
-static int
+int
 so_ux_lookup(struct sonode *so, struct sockaddr_un *soun, int checkaccess,
     vnode_t **vpp)
 {

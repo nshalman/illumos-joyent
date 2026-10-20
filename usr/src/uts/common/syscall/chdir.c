@@ -21,6 +21,7 @@
 /*
  * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ * Copyright 2016 Joyent, Inc.
  * Copyright 2026 Oxide Computer Company
  */
 
@@ -63,7 +64,7 @@
 /*
  * Change current working directory (".").
  */
-static int	chdirec(vnode_t *, int ischroot, int do_traverse);
+static int	chdirec(vnode_t *, boolean_t ischroot, boolean_t do_traverse);
 
 static int
 chdir_common(char *fname, uio_seg_t seg)
@@ -80,7 +81,7 @@ lookup:
 		return (error);
 	}
 
-	error = chdirec(vp, 0, 1);
+	error = chdirec(vp, B_FALSE, B_TRUE);
 	if (error == ESTALE && fs_need_estale_retry(estale_retry++))
 		goto lookup;
 	return (error);
@@ -122,7 +123,7 @@ fchdir(int fd)
 	vp = fp->f_vnode;
 	VN_HOLD(vp);
 	releasef(fd);
-	error = chdirec(vp, 0, 0);
+	error = chdirec(vp, B_FALSE, B_FALSE);
 	if (error)
 		return (set_errno(error));
 	return (0);
@@ -145,7 +146,7 @@ lookup:
 		return (set_errno(error));
 	}
 
-	error = chdirec(vp, 1, 1);
+	error = chdirec(vp, B_TRUE, B_TRUE);
 	if (error) {
 		if ((error == ESTALE) && fs_need_estale_retry(estale_retry++))
 			goto lookup;
@@ -172,18 +173,18 @@ fchroot(int fd)
 	vp = fp->f_vnode;
 	VN_HOLD(vp);
 	releasef(fd);
-	error = chdirec(vp, 1, 0);
+	error = chdirec(vp, B_TRUE, B_FALSE);
 	if (error)
 		return (set_errno(error));
 	return (0);
 }
 
 static int
-chdirec(vnode_t *vp, int ischroot, int do_traverse)
+chdirec_common(proc_t *pp, vnode_t *vp, boolean_t ischroot,
+    boolean_t do_traverse)
 {
 	int error;
 	vnode_t *oldvp;
-	proc_t *pp = curproc;
 	vnode_t **vpp;
 	refstr_t *cwd;
 	int newcwd = 1;
@@ -214,7 +215,7 @@ chdirec(vnode_t *vp, int ischroot, int do_traverse)
 	if (ischroot) {
 		struct vattr tattr;
 		struct vattr rattr;
-		vnode_t *zonevp = curproc->p_zone->zone_rootvp;
+		vnode_t *zonevp = pp->p_zone->zone_rootvp;
 
 		tattr.va_mask = AT_FSID|AT_NODEID;
 		if (error = VOP_GETATTR(vp, &tattr, 0, CRED(), NULL))
@@ -262,4 +263,16 @@ chdirec(vnode_t *vp, int ischroot, int do_traverse)
 bad:
 	VN_RELE(vp);
 	return (error);
+}
+
+int
+chdir_proc(proc_t *pp, vnode_t *vp, boolean_t ischroot, boolean_t do_traverse)
+{
+	return (chdirec_common(pp, vp, ischroot, do_traverse));
+}
+
+static int
+chdirec(vnode_t *vp, boolean_t ischroot, boolean_t do_traverse)
+{
+	return (chdirec_common(curproc, vp, ischroot, do_traverse));
 }

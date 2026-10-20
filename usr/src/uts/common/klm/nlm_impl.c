@@ -29,6 +29,7 @@
  * Copyright 2026 Edgecast Cloud LLC.
  * Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright 2017 Joyent, Inc.  All rights reserved.
  */
 
 /*
@@ -58,6 +59,7 @@
 #include <sys/queue.h>
 #include <sys/bitmap.h>
 #include <sys/sdt.h>
+#include <sys/brand.h>
 #include <netinet/in.h>
 
 #include <rpc/rpc.h>
@@ -203,6 +205,12 @@ static struct nlm_knc nlm_netconfigs[] = { /* (g) */
 };
 
 /*
+ * NLM functions which can be called by a brand hook.
+ */
+void nlm_netbuf_to_netobj(struct netbuf *, int *, netobj *);
+void nlm_nsm_clnt_init(CLIENT *, struct nlm_nsm *);
+
+/*
  * NLM misc. function
  */
 static void nlm_copy_netbuf(struct netbuf *, struct netbuf *);
@@ -211,8 +219,6 @@ static void nlm_kmem_reclaim(void *);
 static void nlm_pool_shutdown(void);
 static void nlm_suspend_zone(struct nlm_globals *);
 static void nlm_resume_zone(struct nlm_globals *);
-static void nlm_nsm_clnt_init(CLIENT *, struct nlm_nsm *);
-static void nlm_netbuf_to_netobj(struct netbuf *, int *, netobj *);
 
 /*
  * NLM thread functions
@@ -1874,6 +1880,12 @@ nlm_host_unmonitor(struct nlm_globals *g, struct nlm_host *host)
 		return;
 
 	host->nh_flags &= ~NLM_NH_MONITORED;
+
+	if (ZONE_IS_BRANDED(curzone) && ZBROP(curzone)->b_rpc_statd != NULL) {
+		ZBROP(curzone)->b_rpc_statd(SM_UNMON, g, host);
+		return;
+	}
+
 	stat = nlm_nsm_unmon(&g->nlm_nsm, host->nh_name);
 	if (stat != RPC_SUCCESS) {
 		NLM_WARN("NLM: Failed to contact statd, stat=%d\n", stat);
@@ -1911,6 +1923,11 @@ nlm_host_monitor(struct nlm_globals *g, struct nlm_host *host, int state)
 
 	host->nh_flags |= NLM_NH_MONITORED;
 	mutex_exit(&host->nh_lock);
+
+	if (ZONE_IS_BRANDED(curzone) && ZBROP(curzone)->b_rpc_statd != NULL) {
+		ZBROP(curzone)->b_rpc_statd(SM_MON, g, host);
+		return;
+	}
 
 	/*
 	 * Before we begin monitoring the host register the network address
@@ -2841,14 +2858,14 @@ nlm_cprresume(void)
 	rw_exit(&lm_lck);
 }
 
-static void
+void
 nlm_nsm_clnt_init(CLIENT *clnt, struct nlm_nsm *nsm)
 {
 	(void) clnt_tli_kinit(clnt, &nsm->ns_knc, &nsm->ns_addr, 0,
 	    NLM_RPC_RETRIES, zone_kcred());
 }
 
-static void
+void
 nlm_netbuf_to_netobj(struct netbuf *addr, int *family, netobj *obj)
 {
 	/* LINTED pointer alignment */

@@ -396,12 +396,12 @@ advance(const char *lp, const char *ep)
 			/*FALLTHRU*/
 
 		case CBRA:
-			braslist[*ep++] = (char *)lp;
+			braslist[(int)*ep++] = (char *)lp;
 			continue;
 			/*FALLTHRU*/
 
 		case CKET:
-			braelist[*ep++] = (char *)lp;
+			braelist[(int)*ep++] = (char *)lp;
 			continue;
 			/*FALLTHRU*/
 
@@ -479,8 +479,8 @@ advance(const char *lp, const char *ep)
 			/*FALLTHRU*/
 
 		case CBACK:
-			bbeg = braslist[*ep];
-			ct = braelist[*ep++] - bbeg;
+			bbeg = braslist[(int)*ep];
+			ct = braelist[(int)*ep++] - bbeg;
 
 			if (ecmp(bbeg, lp, ct)) {
 				lp += ct;
@@ -490,8 +490,8 @@ advance(const char *lp, const char *ep)
 			/*FALLTHRU*/
 
 		case CBACK | STAR:
-			bbeg = braslist[*ep];
-			ct = braelist[*ep++] - bbeg;
+			bbeg = braslist[(int)*ep];
+			ct = braelist[(int)*ep++] - bbeg;
 			curlp = lp;
 			while (ecmp(bbeg, lp, ct))
 				lp += ct;

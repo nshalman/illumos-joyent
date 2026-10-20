@@ -99,7 +99,7 @@ CLOBBERFILES += $(PRIVS_C)
 # intel/dtrace depends on i86pc/genassym, so we need to build both
 # i86pc/genassym and intel/genassym.
 #
-all.prereq install.prereq def.prereq: genunix FRC
+all.prereq install.prereq def.prereq: genassym genunix FRC
 	@cd ../i86pc/genassym; pwd; $(MAKE) $(@:%.prereq=%)
 
 #
@@ -109,7 +109,7 @@ all.prereq install.prereq def.prereq: genunix FRC
 
 genunix: $(PRIVS_C)
 
-$(KMODS) $(SUBDIRS) config:	FRC
+genassym $(KMODS) $(SUBDIRS) config:	FRC
 	@cd $@; pwd; $(MAKE) $(NO_STATE) $(TARGET)
 
 $(XMODS):	FRC

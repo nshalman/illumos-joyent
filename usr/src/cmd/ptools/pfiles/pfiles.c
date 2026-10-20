@@ -25,7 +25,7 @@
  */
 /*
  * Copyright (c) 2017 Joyent, Inc.  All Rights reserved.
- * Copyright 2020 OmniOS Community Edition (OmniOSce) Association.
+ * Copyright 2021 OmniOS Community Edition (OmniOSce) Association.
  * Copyright 2024 Oxide Computer Company
  */
 
@@ -385,7 +385,8 @@ dofcntl(struct ps_prochandle *Pr, const prfdinfo_t *info, int mandatory,
 
 #define	ALL_O_FLAGS	O_ACCMODE | O_NDELAY | O_NONBLOCK | O_APPEND | \
 			O_SYNC | O_DSYNC | O_RSYNC | O_XATTR | \
-			O_CREAT | O_TRUNC | O_EXCL | O_NOCTTY | O_LARGEFILE
+			O_CREAT | O_TRUNC | O_EXCL | O_NOCTTY | O_LARGEFILE | \
+			__FLXPATH
 
 static void
 show_fileflags(int flags)
@@ -438,6 +439,8 @@ show_fileflags(int flags)
 		(void) strcat(str, "|O_LARGEFILE");
 	if (flags & O_XATTR)
 		(void) strcat(str, "|O_XATTR");
+	if (flags & __FLXPATH)
+		(void) strcat(str, "|__FLXPATH");
 	if (flags & ~(ALL_O_FLAGS))
 		(void) sprintf(str + strlen(str), "|0x%x",
 		    flags & ~(ALL_O_FLAGS));
@@ -532,6 +535,7 @@ show_sockaddr(const char *str, const struct sockaddr *sa, socklen_t len)
 	case AF_KEY:		p = "AF_KEY";		break;
 	case AF_POLICY:		p = "AF_POLICY";	break;
 	case AF_LINK:		p = "AF_LINK";		break;
+	case AF_LX_NETLINK:	p = "AF_LX_NETLINK";	break;
 	}
 
 	(void) printf("\t%s: %s\n", str, p);

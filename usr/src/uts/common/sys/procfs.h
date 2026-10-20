@@ -25,7 +25,7 @@
  */
 /*
  * Copyright 2012 DEY Storage Systems, Inc.  All rights reserved.
- * Copyright 2018 Joyent, Inc.
+ * Copyright 2019 Joyent, Inc.
  * Copyright 2020 OmniOS Community Edition (OmniOSce) Association.
  * Copyright 2024 Oxide Computer Company
  */
@@ -238,6 +238,7 @@ typedef struct pstatus {
 #define	PR_FAULTED	6
 #define	PR_SUSPENDED	7
 #define	PR_CHECKPOINT	8
+#define	PR_BRAND	9
 
 /*
  * lwp ps(1) information file.  /proc/<pid>/lwp/<lwpid>/lwpsinfo

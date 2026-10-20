@@ -22,7 +22,7 @@
 /*
  * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
- * Copyright (c) 2014, Joyent, Inc.  All rights reserved.
+ * Copyright 2017, Joyent, Inc.
  */
 
 /*	Copyright (c) 1984, 1986, 1987, 1988, 1989 AT&T	*/
@@ -159,12 +159,13 @@ signal_is_blocked(kthread_t *t, int sig)
  *	the signal is not being accepted via sigwait()
  */
 static int
-sig_discardable(proc_t *p, int sig)
+sig_discardable(proc_t *p, kthread_t *tp, int sig)
 {
 	kthread_t *t = p->p_tlist;
+	klwp_t *lwp = (tp == NULL) ? NULL : tp->t_lwp;
 
 	return (t == NULL ||		/* if zombie or ... */
-	    (sigismember(&p->p_ignore, sig) &&	/* signal is ignored */
+	    (sig_ignorable(p, lwp, sig) &&		/* signal is ignored */
 	    t->t_forw == t &&			/* and single-threaded */
 	    !tracing(p, sig) &&			/* and no /proc tracing */
 	    !signal_is_blocked(t, sig) &&	/* and signal not blocked */
@@ -200,7 +201,7 @@ eat_signal(kthread_t *t, int sig)
 		    !(ttoproc(t)->p_proc_flag & P_PR_LOCK)) {
 			ttoproc(t)->p_stopsig = 0;
 			t->t_dtrace_stop = 0;
-			t->t_schedflag |= TS_XSTART | TS_PSTART;
+			t->t_schedflag |= TS_XSTART | TS_PSTART | TS_BSTART;
 			setrun_locked(t);
 		} else if (t != curthread && t->t_state == TS_ONPROC) {
 			aston(t);	/* make it do issig promptly */
@@ -297,7 +298,7 @@ sigtoproc(proc_t *p, kthread_t *t, int sig)
 		}
 	}
 
-	if (sig_discardable(p, sig)) {
+	if (sig_discardable(p, t, sig)) {
 		DTRACE_PROC3(signal__discard, kthread_t *, p->p_tlist,
 		    proc_t *, p, int, sig);
 		return;
@@ -623,6 +624,28 @@ issig_forreal(void)
 		}
 
 		/*
+		 * The brand hook name 'b_issig_stop' is a misnomer.
+		 * Allow the brand the chance to alter (or suppress) delivery
+		 * of this signal.
+		 */
+		if (PROC_IS_BRANDED(p) && BROP(p)->b_issig_stop != NULL) {
+			int r;
+
+			/*
+			 * The brand hook will return 0 if it would like
+			 * us to drive on, -1 if we should restart
+			 * the loop to check other conditions, or 1 if we
+			 * should terminate the loop.
+			 */
+			r = BROP(p)->b_issig_stop(p, lwp);
+			if (r < 0) {
+				continue;
+			} else if (r > 0) {
+				break;
+			}
+		}
+
+		/*
 		 * Honor requested stop before dealing with the
 		 * current signal; a debugger may change it.
 		 * Do not want to go back to loop here since this is a special
@@ -656,7 +679,7 @@ issig_forreal(void)
 			lwp->lwp_cursig = 0;
 			lwp->lwp_extsig = 0;
 			if (sigismember(&t->t_sigwait, sig) ||
-			    (!sigismember(&p->p_ignore, sig) &&
+			    (!sig_ignorable(p, lwp, sig) &&
 			    !isjobstop(sig))) {
 				if (p->p_flag & (SEXITLWPS|SKILLED)) {
 					sig = SIGKILL;
@@ -708,7 +731,7 @@ issig_forreal(void)
 				toproc = 0;
 				if (tracing(p, sig) ||
 				    sigismember(&t->t_sigwait, sig) ||
-				    !sigismember(&p->p_ignore, sig)) {
+				    !sig_ignorable(p, lwp, sig)) {
 					if (sigismember(&t->t_extsig, sig))
 						ext = 1;
 					break;
@@ -722,7 +745,7 @@ issig_forreal(void)
 				toproc = 1;
 				if (tracing(p, sig) ||
 				    sigismember(&t->t_sigwait, sig) ||
-				    !sigismember(&p->p_ignore, sig)) {
+				    !sig_ignorable(p, lwp, sig)) {
 					if (sigismember(&p->p_extsig, sig))
 						ext = 1;
 					break;
@@ -954,6 +977,16 @@ stop(int why, int what)
 		}
 		break;
 
+	case PR_BRAND:
+		/*
+		 * We have been stopped by the brand code for a brand-private
+		 * reason.  This is an asynchronous stop affecting only this
+		 * LWP.
+		 */
+		VERIFY(PROC_IS_BRANDED(p));
+		flags &= ~TS_BSTART;
+		break;
+
 	default:	/* /proc stop */
 		flags &= ~TS_PSTART;
 		/*
@@ -1065,7 +1098,7 @@ stop(int why, int what)
 		}
 	}
 
-	if (why != PR_JOBCONTROL && why != PR_CHECKPOINT) {
+	if (why != PR_JOBCONTROL && why != PR_CHECKPOINT && why != PR_BRAND) {
 		/*
 		 * Do process-level notification when all lwps are
 		 * either stopped on events of interest to /proc
@@ -1171,6 +1204,13 @@ stop(int why, int what)
 	if (why == PR_CHECKPOINT)
 		del_one_utstop();
 
+	/*
+	 * Allow the brand to post notification of this stop condition.
+	 */
+	if (PROC_IS_BRANDED(p) && BROP(p)->b_stop_notify != NULL) {
+		BROP(p)->b_stop_notify(p, lwp, why, what);
+	}
+
 	thread_lock(t);
 	ASSERT((t->t_schedflag & TS_ALLSTART) == 0);
 	t->t_schedflag |= flags;
@@ -1192,7 +1232,7 @@ stop(int why, int what)
 		    (p->p_flag & (SEXITLWPS|SKILLED))) {
 			p->p_stopsig = 0;
 			thread_lock(t);
-			t->t_schedflag |= TS_XSTART | TS_PSTART;
+			t->t_schedflag |= TS_XSTART | TS_PSTART | TS_BSTART;
 			setrun_locked(t);
 			thread_unlock_nopreempt(t);
 		} else if (why == PR_JOBCONTROL) {
@@ -1804,6 +1844,15 @@ sigcld_repost()
 
 	sqp = kmem_zalloc(sizeof (sigqueue_t), KM_SLEEP);
 	mutex_enter(&pidlock);
+	if (PROC_IS_BRANDED(pp) && BROP(pp)->b_sigcld_repost != NULL) {
+		/*
+		 * Allow the brand to inject synthetic SIGCLD signals.
+		 */
+		if (BROP(pp)->b_sigcld_repost(pp, sqp) == 0) {
+			mutex_exit(&pidlock);
+			return;
+		}
+	}
 	for (cp = pp->p_child; cp; cp = cp->p_sibling) {
 		if (cp->p_pidflag & CLDPEND) {
 			post_sigcld(cp, sqp);
@@ -2115,7 +2164,7 @@ sigaddqa(proc_t *p, kthread_t *t, sigqueue_t *sigqp)
 	ASSERT(MUTEX_HELD(&p->p_lock));
 	ASSERT(sig >= 1 && sig < NSIG);
 
-	if (sig_discardable(p, sig))
+	if (sig_discardable(p, t, sig))
 		siginfofree(sigqp);
 	else
 		sigaddqins(p, t, sigqp);
@@ -2141,7 +2190,7 @@ sigaddq(proc_t *p, kthread_t *t, k_siginfo_t *infop, int km_flags)
 	 * blocking the signal (it *could* change it's mind while
 	 * the signal is pending) then don't bother creating one.
 	 */
-	if (!sig_discardable(p, sig) &&
+	if (!sig_discardable(p, t, sig) &&
 	    (sigismember(&p->p_siginfo, sig) ||
 	    (curproc->p_ct_process != p->p_ct_process) ||
 	    (sig == SIGCLD && SI_FROMKERNEL(infop))) &&

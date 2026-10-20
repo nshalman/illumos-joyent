@@ -22,6 +22,7 @@
 /*
  * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ * Copyright 2015 Joyent, Inc.
  */
 
 /*
@@ -288,6 +289,24 @@ take_deferred_signal(int sig)
 		thr_panic("take_deferred_signal(): __sigresend() failed");
 }
 
+/*
+ * sigacthandler() attempts to clean up dangling uc_link pointers in
+ * signal handling contexts when libc believes us to have escaped
+ * a signal handler incorrectly in the past.
+ *
+ * Branded processes have a legitimate use for a chain including contexts
+ * other than those used for signal handling when tracking emulation
+ * requests from the kernel.  We allow them to disable this cleanup
+ * behaviour.
+ */
+static int escaped_context_cleanup = 1;
+
+void
+set_escaped_context_cleanup(int on)
+{
+	escaped_context_cleanup = on;
+}
+
 void
 sigacthandler(int sig, siginfo_t *sip, void *uvp)
 {
@@ -310,7 +329,7 @@ sigacthandler(int sig, siginfo_t *sip, void *uvp)
 	 * we are actually executing at main level (self->ul_siglink == NULL).
 	 * See the code for setjmp()/longjmp() for more details.
 	 */
-	if (self->ul_siglink == NULL)
+	if (escaped_context_cleanup && self->ul_siglink == NULL)
 		ucp->uc_link = NULL;
 
 	/*
@@ -462,11 +481,12 @@ sigaction(int sig, const struct sigaction *nact, struct sigaction *oact)
 }
 
 /*
- * This is a private interface for the linux brand interface.
+ * This is a private interface for the lx brand.
  */
 void
 setsigacthandler(void (*nsigacthandler)(int, siginfo_t *, void *),
-    void (**osigacthandler)(int, siginfo_t *, void *))
+    void (**osigacthandler)(int, siginfo_t *, void *),
+    int (*brsetctxt)(const ucontext_t *))
 {
 	ulwp_t *self = curthread;
 	uberdata_t *udp = self->ul_uberdata;
@@ -475,6 +495,9 @@ setsigacthandler(void (*nsigacthandler)(int, siginfo_t *, void *),
 		*osigacthandler = udp->sigacthandler;
 
 	udp->sigacthandler = nsigacthandler;
+
+	if (brsetctxt != NULL)
+		udp->setctxt = brsetctxt;
 }
 
 /*

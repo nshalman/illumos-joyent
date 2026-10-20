@@ -1865,6 +1865,9 @@ prldump(const char *caller, lwpstatus_t *lsp)
 	case PR_SUSPENDED:
 		Pdprintf("%s: SUSPENDED\n", caller);
 		break;
+	case PR_BRAND:
+		Pdprintf("%s: BRANDPRIVATE (%d)\n", caller, lsp->pr_what);
+		break;
 	default:
 		Pdprintf("%s: Unknown\n", caller);
 		break;
@@ -2044,6 +2047,7 @@ Pstopstatus(struct ps_prochandle *P,
 	case PR_FAULTED:
 	case PR_JOBCONTROL:
 	case PR_SUSPENDED:
+	case PR_BRAND:
 		break;
 	default:
 		errno = EPROTO;
@@ -3632,6 +3636,7 @@ Lstopstatus(struct ps_lwphandle *L,
 	case PR_FAULTED:
 	case PR_JOBCONTROL:
 	case PR_SUSPENDED:
+	case PR_BRAND:
 		break;
 	default:
 		errno = EPROTO;

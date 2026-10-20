@@ -279,7 +279,7 @@ so_connect(struct sonode *so, struct sockaddr *name,
 	 * This can happen if a non blocking operation caused an error.
 	 */
 
-	if (so->so_error != 0) {
+	if (so->so_error != 0 && (so->so_mode & SM_DEFERERR) == 0) {
 		mutex_enter(&so->so_lock);
 		error = sogeterr(so, B_TRUE);
 		mutex_exit(&so->so_lock);
@@ -378,7 +378,7 @@ so_sendmsg(struct sonode *so, struct nmsghdr *msg, struct uio *uiop,
 			break;
 		}
 
-		if (so->so_error != 0) {
+		if (so->so_error != 0 && (so->so_mode & SM_DEFERERR) == 0) {
 			mutex_enter(&so->so_lock);
 			error = sogeterr(so, B_TRUE);
 			mutex_exit(&so->so_lock);
@@ -487,7 +487,7 @@ so_sendmblk_impl(struct sonode *so, struct nmsghdr *msg, int fflag,
 			error = EPIPE;
 			break;
 		}
-		if (so->so_error != 0) {
+		if (so->so_error != 0 && (so->so_mode & SM_DEFERERR) == 0) {
 			mutex_enter(&so->so_lock);
 			error = sogeterr(so, B_TRUE);
 			mutex_exit(&so->so_lock);
@@ -843,7 +843,7 @@ so_ioctl(struct sonode *so, int cmd, intptr_t arg, int mode,
 	 * If there is a pending error, return error
 	 * This can happen if a non blocking operation caused an error.
 	 */
-	if (so->so_error != 0) {
+	if (so->so_error != 0 && (so->so_mode & SM_DEFERERR) == 0) {
 		mutex_enter(&so->so_lock);
 		error = sogeterr(so, B_TRUE);
 		mutex_exit(&so->so_lock);

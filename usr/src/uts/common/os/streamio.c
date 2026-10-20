@@ -78,6 +78,7 @@
 #include <sys/policy.h>
 #include <sys/dld.h>
 #include <sys/zone.h>
+#include <sys/limits.h>
 #include <sys/ptms.h>
 #include <sys/limits.h>
 #include <c2/audit.h>
@@ -3267,6 +3268,7 @@ job_control_type(int cmd)
 	case JAGENT:	/* Obsolete */
 	case JTRUN:	/* Obsolete */
 	case JXTPROTO:	/* Obsolete */
+	case TIOCSETLD:
 		return (JCSETP);
 	}
 

@@ -20,6 +20,9 @@
  */
 
 /*
+ * Copyright 2015 Joyent, Inc.
+ */
+/*
  * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
@@ -91,6 +94,8 @@
 #include <sys/kdi.h>
 #include <sys/contract_impl.h>
 #include <sys/x86_archext.h>
+#include <sys/brand.h>
+#include <sys/sdt.h>
 
 /*
  * Construct the execution environment for the user's signal
@@ -204,7 +209,18 @@ sendsig(int sig, k_siginfo_t *sip, void (*hdlr)())
 	newstack = sigismember(&PTOU(curproc)->u_sigonstack, sig) &&
 	    !(lwp->lwp_sigaltstack.ss_flags & (SS_ONSTACK|SS_DISABLE));
 
-	if (newstack) {
+	/*
+	 * If this is a branded process, the brand may provide an alternate
+	 * stack pointer for signal delivery:
+	 */
+	if (PROC_IS_BRANDED(p) && BROP(p)->b_sendsig_stack != NULL) {
+		/*
+		 * Use the stack pointer value provided by the brand,
+		 * accounting for the 128-byte reserved region.
+		 */
+		newstack = 0;
+		fp = BROP(p)->b_sendsig_stack(sig) - STACK_RESERVE;
+	} else if (newstack) {
 		fp = (caddr_t)(SA((uintptr_t)lwp->lwp_sigaltstack.ss_sp) +
 		    SA(lwp->lwp_sigaltstack.ss_size) - STACK_ALIGN);
 	} else {
@@ -324,6 +340,8 @@ sendsig(int sig, k_siginfo_t *sip, void (*hdlr)())
 	kmem_free(tuc, sizeof (*tuc));
 	tuc = NULL;
 
+	DTRACE_PROBE3(oldcontext__set, klwp_t *, lwp,
+	    uintptr_t, lwp->lwp_oldcontext, uintptr_t, (uintptr_t)uc);
 	lwp->lwp_oldcontext = (uintptr_t)uc;
 
 	if (newstack) {
@@ -370,6 +388,14 @@ sendsig(int sig, k_siginfo_t *sip, void (*hdlr)())
 		 */
 		rp->r_cs = UCS_SEL;
 		rp->r_ss = UDS_SEL;
+	}
+
+	/*
+	 * Allow the brand to perform additional book-keeping once the signal
+	 * handling frame has been fully assembled:
+	 */
+	if (PROC_IS_BRANDED(p) && BROP(p)->b_sendsig != NULL) {
+		BROP(p)->b_sendsig(sig);
 	}
 
 	/*
@@ -459,7 +485,17 @@ sendsig32(int sig, k_siginfo_t *sip, void (*hdlr)())
 	newstack = sigismember(&PTOU(curproc)->u_sigonstack, sig) &&
 	    !(lwp->lwp_sigaltstack.ss_flags & (SS_ONSTACK|SS_DISABLE));
 
-	if (newstack) {
+	/*
+	 * If this is a branded process, the brand may provide an alternate
+	 * stack pointer for signal delivery:
+	 */
+	if (PROC_IS_BRANDED(p) && BROP(p)->b_sendsig_stack != NULL) {
+		/*
+		 * Use the stack pointer value provided by the brand:
+		 */
+		newstack = 0;
+		fp = BROP(p)->b_sendsig_stack(sig);
+	} else if (newstack) {
 		fp = (caddr_t)(SA32((uintptr_t)lwp->lwp_sigaltstack.ss_sp) +
 		    SA32(lwp->lwp_sigaltstack.ss_size) - STACK_ALIGN32);
 	} else if ((rp->r_ss & 0xffff) != UDS_SEL) {
@@ -474,8 +510,9 @@ sendsig32(int sig, k_siginfo_t *sip, void (*hdlr)())
 			    USEGD_GETBASE(&ldt[SELTOIDX(rp->r_ss)]);
 		else
 			fp = (caddr_t)rp->r_sp;
-	} else
+	} else {
 		fp = (caddr_t)rp->r_sp;
+	}
 
 	/*
 	 * Force proper stack pointer alignment, even in the face of a
@@ -563,6 +600,8 @@ sendsig32(int sig, k_siginfo_t *sip, void (*hdlr)())
 	kmem_free(tuc, sizeof (*tuc));
 	tuc = NULL;
 
+	DTRACE_PROBE3(oldcontext__set, klwp_t *, lwp,
+	    uintptr_t, lwp->lwp_oldcontext, uintptr_t, (uintptr_t)uc);
 	lwp->lwp_oldcontext = (uintptr_t)uc;
 
 	if (newstack) {
@@ -609,6 +648,14 @@ sendsig32(int sig, k_siginfo_t *sip, void (*hdlr)())
 		 */
 		rp->r_cs = U32CS_SEL;
 		rp->r_ss = UDS_SEL;
+	}
+
+	/*
+	 * Allow the brand to perform additional book-keeping once the signal
+	 * handling frame has been fully assembled:
+	 */
+	if (PROC_IS_BRANDED(p) && BROP(p)->b_sendsig != NULL) {
+		BROP(p)->b_sendsig(sig);
 	}
 
 	/*

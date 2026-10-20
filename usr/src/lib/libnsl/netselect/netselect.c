@@ -22,6 +22,7 @@
 /*
  * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ * Copyright 2015 Joyent, Inc.
  */
 
 /*	Copyright (c) 1983, 1984, 1985, 1986, 1987, 1988, 1989 AT&T	*/
@@ -43,6 +44,7 @@
 #include <malloc.h>
 #include <libintl.h>
 #include <syslog.h>
+#include <zone.h>
 #include "netcspace.h"
 
 #define	FAILURE  (unsigned)(-1)
@@ -263,13 +265,22 @@ freenetconfigent(struct netconfig *netp)
 static struct netconfig **
 getnetlist(void)
 {
-	char line[BUFSIZ];	/* holds each line of NETCONFIG */
-	FILE *fp;		/* file stream for NETCONFIG */
+	FILE *fp = NULL;	/* file stream for NETCONFIG */
 	struct netconfig **listpp; /* the beginning of the netconfig list */
 	struct netconfig **tpp;	/* used to traverse the netconfig list */
 	int count;		/* the number of entries in file */
+	char nc_path[MAXPATHLEN];
+	const char *zroot = zone_get_nroot();
+	char line[BUFSIZ];	/* holds each line of NETCONFIG */
 
-	if ((fp = fopen(NETCONFIG, "rF")) == NULL) {
+	/*
+	 * If we are running in a branded zone, ensure we use the "/native"
+	 * prefix when opening the netconfig file:
+	 */
+	(void) snprintf(nc_path, sizeof (nc_path), "%s%s", zroot != NULL ?
+	    zroot : "", NETCONFIG);
+
+	if ((fp = fopen(nc_path, "rF")) == NULL) {
 		nc_error = NC_OPENFAIL;
 		return (NULL);
 	}
@@ -284,13 +295,16 @@ getnetlist(void)
 
 	if (count == 0) {
 		nc_error = NC_NOTFOUND;
-		(void) fclose(fp);
+		if (fp != NULL)
+			(void) fclose(fp);
 		return (NULL);
 	}
+
 	if ((listpp = malloc((count + 1) *
 	    sizeof (struct netconfig *))) == NULL) {
 		nc_error = NC_NOMEM;
-		(void) fclose(fp);
+		if (fp != NULL)
+			(void) fclose(fp);
 		return (NULL);
 	}
 
@@ -309,6 +323,7 @@ getnetlist(void)
 
 	if (nc_error != NC_NOMOREENTRIES) /* Something is screwed up */
 		netlist_free(&listpp);
+
 	return (listpp);
 }
 

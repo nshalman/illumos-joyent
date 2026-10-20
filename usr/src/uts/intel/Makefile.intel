@@ -22,7 +22,7 @@
 # Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 # Copyright (c) 2013 Andrew Stormont.  All rights reserved.
 # Copyright (c) 2014 by Delphix. All rights reserved.
-# Copyright 2019 Joyent, Inc.
+# Copyright 2021 Joyent, Inc.
 # Copyright 2022 Garrett D'Amore <garrett@damore.org>
 # Copyright 2018 Nexenta Systems, Inc.
 # Copyright 2019 Peter Tribble.
@@ -50,6 +50,7 @@ PLATFORM	 = i86pc
 #
 UNIX_DIR	 = $(UTSBASE)/i86pc/unix
 GENLIB_DIR	 = $(UTSBASE)/intel/genunix
+GENASSYM_DIR	 = $(UTSBASE)/intel/genassym
 IPDRV_DIR	 = $(UTSBASE)/intel/ip
 MODSTUBS_DIR	 = $(UNIX_DIR)
 DSF_DIR		 = $(UTSBASE)/$(PLATFORM)/genassym
@@ -129,6 +130,7 @@ ASFLAGS_XARCH		= $(ASFLAGS_XARCH_$(CLASS))
 
 ASFLAGS			= $(ASFLAGS_XARCH)
 ASFLAGS			+= $(ASFLAGS_uts)
+AS_INC_PATH		+= -I$(GENASSYM_DIR)/$(OBJS_DIR)
 
 #
 #	Define the base directory for installation.
@@ -527,10 +529,10 @@ SCHED_KMODS	+= IA RT TS RT_DPTBL TS_DPTBL FSS FX FX_DPTBL SDC
 #
 #	File System Modules (/kernel/fs):
 #
-FS_KMODS	+= autofs ctfs dcfs dev devfs fdfs fifofs hsfs lofs
-FS_KMODS	+= mntfs namefs nfs objfs zfs zut
-FS_KMODS	+= pcfs procfs sockfs specfs tmpfs udfs ufs sharefs
-FS_KMODS	+= smbfs bootfs
+FS_KMODS	+= autofs ctfs dcfs dev devfs fdfs fifofs hsfs hyprlofs
+FS_KMODS	+= lofs lxautofs lx_proc lxprocfs mntfs namefs nfs objfs zfs zut
+FS_KMODS	+= pcfs procfs sockfs specfs tmpfs udfs ufs sharefs lx_sysfs
+FS_KMODS	+= smbfs bootfs lx_cgroup lx_devfs
 
 #
 #	Streams Modules (/kernel/strmod):
