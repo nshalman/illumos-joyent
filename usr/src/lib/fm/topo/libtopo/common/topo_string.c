@@ -67,6 +67,58 @@ topo_hdl_strfreev(topo_hdl_t *thp, char **strarr, uint_t nelem)
 }
 
 char *
+topo_hdl_strsplit(topo_hdl_t *hdl, const char *input, const char *sep,
+    char **lastp)
+{
+	size_t seplen = strlen(sep);
+	const char *scanstart;
+	char *token;
+	char *ret;
+
+	if (input != NULL) {
+		/*
+		 * Start scanning at beginning of input:
+		 */
+		scanstart = input;
+	} else if (*lastp == NULL) {
+		/*
+		 * If we have already finished scanning, return NULL.
+		 */
+		return (NULL);
+	} else {
+		/*
+		 * Otherwise, start scanning where we left off:
+		 */
+		scanstart = *lastp;
+	}
+
+	token = strstr(scanstart, sep);
+	if (token != NULL) {
+		/*
+		 * We still have a separator, so advance the next-start
+		 * pointer past it:
+		 */
+		*lastp = token + seplen;
+		/*
+		 * Copy out this element.  The buffer must fit the string
+		 * exactly, so that topo_hdl_strfree() can determine its
+		 * size with strlen().
+		 */
+		ret = topo_hdl_alloc(hdl, token - scanstart + 1);
+		(void) strncpy(ret, scanstart, token - scanstart);
+		ret[token - scanstart] = '\0';
+	} else {
+		/*
+		 * We have no separator, so this is the last element:
+		 */
+		*lastp = NULL;
+		ret = topo_hdl_strdup(hdl, scanstart);
+	}
+
+	return (ret);
+}
+
+char *
 topo_mod_strdup(topo_mod_t *mod, const char *s)
 {
 	return (topo_hdl_strdup(mod->tm_hdl, s));
@@ -150,6 +202,13 @@ void
 topo_mod_strfreev(topo_mod_t *mod, char **strarr, uint_t nelem)
 {
 	topo_hdl_strfreev(mod->tm_hdl, strarr, nelem);
+}
+
+char *
+topo_mod_strsplit(topo_mod_t *mod, const char *input, const char *sep,
+    char **lastp)
+{
+	return (topo_hdl_strsplit(mod->tm_hdl, input, sep, lastp));
 }
 
 const char *

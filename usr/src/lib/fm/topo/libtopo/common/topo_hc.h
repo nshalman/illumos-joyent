@@ -240,6 +240,27 @@ extern "C" {
  */
 #define	TOPO_PROP_IPMI_ENTITY_LIST	"entity-list"
 
+/*
+ * These properties can be used to describe the network configuration of a
+ * given hardware components.  They're currently used to describe the
+ * network config on the service processor (sp)
+ */
+#define	TOPO_PGROUP_NETCFG		"network-config"
+#define	TOPO_PROP_NETCFG_MACADDR	"mac-address"
+#define	TOPO_PROP_NETCFG_VLAN_ID	"vlan-id"
+#define	TOPO_PROP_NETCFG_IPV4_ADDR	"ipv4-address"
+#define	TOPO_PROP_NETCFG_IPV4_SUBNET	"ipv4-subnet"
+#define	TOPO_PROP_NETCFG_IPV4_GATEWAY	"ipv4-gateway"
+#define	TOPO_PROP_NETCFG_IPV4_TYPE	"ipv4-config-type"
+#define	TOPO_PROP_NETCFG_IPV6_ADDR	"ipv6-address"
+#define	TOPO_PROP_NETCFG_IPV6_ROUTES	"ipv6-routes"
+#define	TOPO_PROP_NETCFG_IPV6_TYPE	"ipv6-config-type"
+
+/* Possible values for TOPO_PROP_NETCFG_TYPE */
+#define	TOPO_NETCFG_TYPE_UNKNOWN	"unknown"
+#define	TOPO_NETCFG_TYPE_STATIC		"static"
+#define	TOPO_NETCFG_TYPE_DHCP		"dhcp"
+
 #define	TOPO_PGROUP_SLOT		"slot"
 #define	TOPO_PROP_SLOT_TYPE		"slot-type"
 

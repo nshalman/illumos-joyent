@@ -30,4 +30,4 @@ MODULESRCS = ipmi_enum.c ipmi_methods.c
 
 include ../../../Makefile.plugin
 
-LDLIBS += -lipmi
+LDLIBS += -lipmi -lnsl

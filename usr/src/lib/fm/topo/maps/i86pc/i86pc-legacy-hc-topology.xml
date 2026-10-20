@@ -83,6 +83,9 @@ Copyright 2019 Joyent, Inc.
       <range name='hostbridge' min='0' max='254'>
         <enum-method name='hostbridge' version='1' />
       </range>
+      <range name='sp' min='0' max='0'>
+        <enum-method name='ipmi' version='1' />
+      </range>
       <range name='usb-mobo' min='0' max='100'>
         <enum-method name='usb' version='1' />
       </range>
@@ -161,7 +164,7 @@ Copyright 2019 Joyent, Inc.
        </range>
     </set>
 
-    <set type='product' setlist='Joyent-Compute-Platform-1101|Joyent-Compute-Platform-1102'>
+    <set type='product' setlist='Joyent-Compute-Platform-1101|Joyent-Compute-Platform-1102|Joyent-Compute-Platform-2101|Joyent-Compute-Platform-2102'>
        <range name='psu' min='0' max='1'>
           <enum-method name='ipmi' version='1' />
        </range>
