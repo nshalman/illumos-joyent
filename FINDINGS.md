@@ -9,7 +9,7 @@ to `master` by design, so it carries every bug listed below.
 
 ## Status
 
-- Branch `joyent-restructure` (in the illumos clone): 82 commits on
+- Branch `joyent-restructure` (in the illumos clone): 80 commits on
   479a4a914dc, the illumos-gate commit merged into `master`
   da512a7e2e6.  Its tree is identical to `master`'s.
 - Delta: 1,778 paths (852 added, 915 modified, 11 deleted, counting a
@@ -18,10 +18,10 @@ to `master` by design, so it carries every bug listed below.
 
 ## Independent feature branches
 
-`features.py` builds 80 `features/*` branches, each based directly on
+`features.py` builds 78 `features/*` branches, each based directly on
 illumos-gate and holding only that feature's hunks (shared files carry
 just their share, plus copies of the file's copyright hunks), and
-`features-merged`, an octopus merge of all 80.  The branches merge with
+`features-merged`, an octopus merge of all 78.  The branches merge with
 no conflicts, and the merged tree equals `master`.
 
 Each hunk goes to the feature that wrote most of its lines, then
@@ -30,30 +30,49 @@ Each hunk goes to the feature that wrote most of its lines, then
 - **Function coherence.**  Hunks in the same C function body, or within
   3 lines of each other outside functions, go together.  Splitting
   interleaved hunks across features left uncompilable files (poll.c,
-  timer.c).  This moved 158 hunks.
-- **Includes.**  A hunk that only adds or removes `#include` lines goes
-  to the feature owning most of the file's other changes.  For example,
+  timer.c).
+- **Includes.**  A hunk that only adds or removes `#include` lines, from
+  a feature with no other change in the file, goes to the feature
+  owning most of the file's other changes.  For example,
   `#include <sys/brand.h>` in signalfd.c was written by an lx ticket
   but is needed by brand-events.
-- **Makefile lists.**  Hunks of bare list entries (SUBDIRS, CHKHDRS)
-  are split into one line per entry.  Each entry goes to the feature
-  owning that subdirectory or file, e.g. `libresolv2_joy` to resolver,
-  `zfscache` to zfs-zone-io.  An entry with no owner keeps the vote of
-  the hunk it came from.
-- **Hand overrides** (`HUNK_OVERRIDES` in `overrides.py`).
+- **Lists.**  Hunks of bare list entries are split into one line per
+  entry.  A Makefile entry (SUBDIRS, CHKHDRS, `ssh/etc`) goes to the
+  feature owning that subdirectory or file, e.g. `libresolv2_joy` to
+  resolver.  A mapfile symbol goes to the feature adding its definition,
+  e.g. libc's `zone_get_nroot` export to brand-native.  An entry with
+  no owner keeps the vote of the hunk it came from.
+- **Hand overrides** (`HUNK_OVERRIDES` in `overrides.py`), each with
+  its reason.
 
-After these passes, about 0.6% of changed lines sit in a hunk owned by
-another feature.  This undercounts, because the passes do not keep the
-attribution of the hunks they move.
+**Layering.**  Built alone, many features first needed each other in
+one cycle of about 20 (zones, brands, ptools, zfd, lx).  The cycle came
+from small definitions sitting with whichever feature's ticket wrote
+them, so overrides now move each one:
 
-`deps.py` (static, identifiers only) reports that 49 branches depend on
-no other feature.  The rest form one 14-feature cycle (brand-* hooks,
-lx, zone-kernel, zones-admin, zones-tools, inotify, ptools, zfd,
-zfs-zvol), three cyclic pairs (datalink/vnd, boot/dboot,
-zfs-zio/zfs-zone-io), and features that depend on those.  Many edges
-come from foundational definitions sitting in whichever feature's
-ticket wrote them (e.g. `zone_did`, `zone_get_nroot`, the zone VFS
-kstats).  Re-homing those should break much of the cycle.
+- A definition or interface change goes to the lowest feature using it.
+  Examples: zone_t fields, uberdata fields, the FX/RT scheduler
+  constants zone-kernel's fixed-priority code needs, and
+  `zone_create()`'s new argument (up to its only caller, zoneadmd).
+- A stray use goes to the feature owning the concept.  Examples: truss
+  decoding a flag; zone-cpu's rctl registration; `__FLXPATH`, lx's
+  private O_PATH interface, including vnode.c's hook (an exception to
+  keeping generic kernel hooks out of lx, since lx is its only user).
+- Retiring something goes to the highest feature that drops a use of
+  it (`ZONE_ATTR_PHYS_MCAP`, removed across five features).
+
+The brand interface could not be layered, because it changed as one
+piece: brand_ops signatures and about 25 new operations, which sn1,
+solaris10, lx and the exec, ELF, lwp and x86 entry code all have to
+match.  brand-exec and brand-x86 are therefore merged into brand-ops,
+the brand framework.
+
+The measured order is zone-kernel; then zone-cpu, zone-memory and
+brand-native; then zones-tools and zfs-zone-io/zfs-zio; then
+brand-process and brand-ops; then ptools, the zone tools and
+networking; lx on top.  Only boot/dboot and datalink/vnd still need
+each other.  zfd/zones-admin shows as a pair only because zfd carries
+an unused prototype.
 
 ## Compile checks
 
@@ -83,44 +102,40 @@ illumos-joyent's headers, cannot hide a missing dependency.
   `-L`, so every build prints `-L: unknown option` (harmless).
 - With postfix disabled, nightly's `-m` leaves a hung sendmail/postdrop
   pair per build; the experiment builds drop `-m`.
-- **Each feature alone on the gate baseline:** 40 of 80 branches
+- **Each feature alone on the gate baseline:** 42 of 78 branches
   build cleanly (`buildcheck-results.txt`).  `buildfail.py` names the
   feature defining what each failure was missing.
-  - The first sweep passed 35.  Fixing misplaced hunks raised that to
-    40 (hyprlofs, resolver, bunyan, tmpfs, ssh-removal).
-    The misplacements were include lines, Makefile list entries,
-    mapfile exports, corenote.msg's brand names, tmpfs's own changes,
-    vnd's ipf hook names, the split-up USDT and build-time man
-    support, and a few single callers of changed functions.
-  - The remaining failures are features that need others: the core
-    cycle (`stackplan.py --cycles`: 19 features), boot/dboot,
-    datalink/vnd, and the features that need those.
-- **Each failing feature with what it needs (step A):** every stacked
-  build passes, with no errors or warnings (`stackcheck.sh`,
-  `stack-plan-*.txt`).
-  - The core is 23 features built together: the 19-feature cycle plus
-    brand-events, bunyan, zone-brands and hyprlofs.
-  - boot with dboot, and overlay-svp with bunyan, build from the gate
-    baseline.
-  - The 14 other failing features each build on top of the core with
-    their own needs: brand-fs, ctf, dtrace, ipf-cfw, mdb, rtld-sgs,
-    tmpfs, zfs-arc, zfs-props, zfs-zvol, zfs-cli, datalink, vnd, and
-    platform-config with bhyve.
+  - The first sweep passed 35.  The rest of the gain came from fixing
+    placements, e.g. include lines, Makefile list entries, mapfile
+    exports, corenote.msg's brand names and single callers of changed
+    functions (zone-kernel, inotify, tmpfs and hyprlofs now build
+    alone).
+  - The other 36 need features below them in the layering (see
+    "Independent feature branches").
+- **Each failing feature with what it needs:** all 32 stacked builds
+  pass, with no errors or warnings (`buildcheck.sh stacks
+  stack-plan.txt`, from the gate baseline).
+  - Each stack is the feature plus everything it may need,
+    transitively: static deps, measured providers, and `stackplan.py`'s
+    Makefile-line edges.
+  - Most stacks are small.  8 need one other feature, 10 need two, 6
+    need three and 3 need four.  lx needs 12, brand-fs 13 and
+    platform-config 15.  zfd and zones-admin need 18, inflated by zfd's
+    unused prototype.
   - Not stack-built: integration, smartos-test and zfs-tests, which
-    refer to every feature.  All 80 together is master's tree.
+    refer to every feature.  All 78 together is master's tree.
   - So the measured dependency graph is sufficient.  It is not shown to
-    be minimal: each stack merged everything the static analysis
-    suggested.
-  - Making the core fixes needed: libc's mapfile exports (moved to the
-    defining features), OS-369's `killall` caller, tmpfs's calls to
-    inotify's new vnevent functions, and hyprlofs (below).
-- **Dependencies the identifier analysis cannot see:**
+    be minimal, because each stack merged everything suggested.
+- **Dependencies the identifier analysis cannot see** (`EXTRA` in
+  `stackplan.py`):
   - Some Makefile lines name several features' directories at once,
     so a line cannot be split between features:
-    lib/brand/Makefile's `i386_SUBDIRS= bhyve kvm lx` (platform-config
-    needs those brands) and uts/intel/Makefile.intel's `FS_KMODS +=`
-    lines (lx's modules with hyprlofs, so lx needs hyprlofs).  bhyve
-    installs into a directory platform-config makes.
+    - lib/brand/Makefile's `i386_SUBDIRS= bhyve kvm lx`, so
+      platform-config needs lx and zone-brands (bhyve, builder).
+    - uts/intel/Makefile.intel's `FS_KMODS +=` lines, which mix lx's
+      modules with hyprlofs, so lx needs hyprlofs.
+  - Build order: `lib/Makefile`'s `libdtrace: ... libzonecfg` line
+    goes with dtrace.
   - integration holds the shared hub lines, such as test-directory
     lists, so it builds only with everything else.
   - The smartos-test and zfs-tests runfiles list other features' tests.

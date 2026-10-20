@@ -7,14 +7,12 @@ feature-altexec                status=0 seconds=210             errors=0   warni
 feature-bhyve                  status=1 seconds=207             errors=1   warnings=5   checks=0   stage=nightly
 feature-boot                   status=1 seconds=211             errors=4   warnings=7   checks=0   stage=nightly
 feature-brand-events           status=1 seconds=516             errors=7   warnings=9   checks=0   stage=nightly
-feature-brand-exec             status=1 seconds=213             errors=47  warnings=35  checks=9   stage=nightly
 feature-brand-fs               status=1 seconds=234             errors=5   warnings=7   checks=0   stage=nightly
-feature-brand-native           status=1 seconds=167             errors=99  warnings=55  checks=19  stage=nightly
-feature-brand-net              status=1 seconds=231             errors=4   warnings=7   checks=0   stage=nightly
+feature-brand-native           status=1 seconds=221             errors=4   warnings=5   checks=0   stage=nightly
+feature-brand-net              status=1 seconds=232             errors=4   warnings=7   checks=0   stage=nightly
 feature-brand-nfs              status=1 seconds=202             errors=16  warnings=18  checks=0   stage=nightly
-feature-brand-ops              status=1 seconds=206             errors=6   warnings=9   checks=0   stage=nightly
-feature-brand-process          status=1 seconds=254             errors=72  warnings=72  checks=13  stage=nightly
-feature-brand-x86              status=1 seconds=387             errors=9   warnings=16  checks=0   stage=nightly
+feature-brand-ops              status=1 seconds=386             errors=36  warnings=29  checks=9   stage=nightly
+feature-brand-process          status=1 seconds=251             errors=105 warnings=60  checks=12  stage=nightly
 feature-bunyan                 status=0 seconds=246             errors=0   warnings=0   checks=0   stage=-
 feature-column                 status=0 seconds=208             errors=0   warnings=0   checks=0   stage=-
 feature-compiler-fixes         status=0 seconds=219             errors=0   warnings=0   checks=0   stage=-
@@ -23,20 +21,20 @@ feature-ctf                    status=1 seconds=213             errors=8   warni
 feature-datafilt               status=0 seconds=218             errors=0   warnings=0   checks=0   stage=-
 feature-datalink               status=1 seconds=240             errors=17  warnings=25  checks=0   stage=nightly
 feature-dboot                  status=1 seconds=210             errors=3   warnings=7   checks=0   stage=nightly
-feature-dtrace                 status=1 seconds=212             errors=14  warnings=19  checks=0   stage=nightly
+feature-dtrace                 status=1 seconds=211             errors=14  warnings=19  checks=0   stage=nightly
 feature-dump-encryption        status=0 seconds=229             errors=0   warnings=0   checks=0   stage=-
 feature-fm-topo                status=0 seconds=215             errors=0   warnings=0   checks=0   stage=-
 feature-hyprlofs               status=0 seconds=363             errors=0   warnings=0   checks=0   stage=-
 feature-icmp-bpf               status=0 seconds=232             errors=0   warnings=0   checks=0   stage=-
-feature-inotify                status=1 seconds=252             errors=4   warnings=7   checks=0   stage=nightly
-feature-integration            status=1 seconds=560             errors=10  warnings=232 checks=10  stage=nightly
+feature-inotify                status=0 seconds=386             errors=0   warnings=0   checks=0   stage=-
+feature-integration            status=1 seconds=558             errors=10  warnings=232 checks=10  stage=nightly
 feature-integration-checks     status=0 seconds=209             errors=0   warnings=0   checks=0   stage=-
 feature-integration-manifest   status=0 seconds=209             errors=0   warnings=0   checks=0   stage=-
 feature-integration-pkg        status=0 seconds=212             errors=0   warnings=0   checks=0   stage=-
 feature-ipf-cfw                status=1 seconds=211             errors=4   warnings=11  checks=0   stage=nightly
 feature-kernel-platform        status=0 seconds=426             errors=0   warnings=0   checks=0   stage=-
 feature-link-protection        status=0 seconds=257             errors=0   warnings=0   checks=0   stage=-
-feature-lx                     status=1 seconds=267             errors=64  warnings=35  checks=0   stage=nightly
+feature-lx                     status=1 seconds=241             errors=112 warnings=71  checks=8   stage=nightly
 feature-machid                 status=0 seconds=211             errors=0   warnings=0   checks=0   stage=-
 feature-man-fixes              status=0 seconds=208             errors=0   warnings=0   checks=0   stage=-
 feature-mdb                    status=1 seconds=220             errors=12  warnings=17  checks=0   stage=nightly
@@ -50,7 +48,7 @@ feature-onbld-tools            status=0 seconds=210             errors=0   warni
 feature-openssl-sunw           status=0 seconds=208             errors=0   warnings=0   checks=0   stage=-
 feature-overlay-svp            status=1 seconds=223             errors=61  warnings=26  checks=0   stage=nightly
 feature-platform-config        status=1 seconds=228             errors=1   warnings=25  checks=0   stage=nightly
-feature-ptools                 status=1 seconds=238             errors=47  warnings=41  checks=0   stage=nightly
+feature-ptools                 status=1 seconds=239             errors=43  warnings=38  checks=0   stage=nightly
 feature-resolver               status=0 seconds=212             errors=0   warnings=0   checks=0   stage=-
 feature-rtld-sgs               status=1 seconds=286             errors=23  warnings=20  checks=0   stage=nightly
 feature-sched                  status=0 seconds=210             errors=0   warnings=0   checks=0   stage=-
@@ -66,45 +64,59 @@ feature-tcp-connstat           status=0 seconds=298             errors=0   warni
 feature-tmpfs                  status=0 seconds=211             errors=0   warnings=0   checks=0   stage=-
 feature-vmxnet                 status=0 seconds=209             errors=0   warnings=0   checks=0   stage=-
 feature-vnd                    status=1 seconds=371             errors=7   warnings=18  checks=0   stage=nightly
-feature-zfd                    status=1 seconds=210             errors=10  warnings=7   checks=0   stage=nightly
+feature-zfd                    status=1 seconds=209             errors=10  warnings=7   checks=0   stage=nightly
 feature-zfs                    status=0 seconds=208             errors=0   warnings=0   checks=0   stage=-
 feature-zfs-arc                status=1 seconds=210             errors=10  warnings=19  checks=0   stage=nightly
 feature-zfs-cli                status=1 seconds=211             errors=6   warnings=5   checks=0   stage=nightly
 feature-zfs-metaslab           status=0 seconds=213             errors=0   warnings=0   checks=0   stage=-
 feature-zfs-props              status=1 seconds=213             errors=3   warnings=9   checks=0   stage=nightly
 feature-zfs-tests              status=1 seconds=207             errors=0   warnings=0   checks=7   stage=nightly
-feature-zfs-zio                status=1 seconds=236             errors=13  warnings=20  checks=0   stage=nightly
-feature-zfs-zone-io            status=1 seconds=250             errors=7   warnings=7   checks=0   stage=nightly
+feature-zfs-zio                status=1 seconds=241             errors=13  warnings=20  checks=0   stage=nightly
+feature-zfs-zone-io            status=1 seconds=385             errors=216 warnings=9   checks=0   stage=nightly
 feature-zfs-zvol               status=1 seconds=210             errors=41  warnings=11  checks=0   stage=nightly
 feature-zone-brands            status=0 seconds=208             errors=0   warnings=0   checks=0   stage=-
-feature-zone-cpu               status=1 seconds=202             errors=15  warnings=8   checks=0   stage=nightly
-feature-zone-kernel            status=1 seconds=224             errors=65  warnings=55  checks=9   stage=nightly
-feature-zone-memory            status=1 seconds=311             errors=26  warnings=13  checks=0   stage=nightly
+feature-zone-cpu               status=1 seconds=207             errors=15  warnings=8   checks=0   stage=nightly
+feature-zone-kernel            status=0 seconds=403             errors=0   warnings=0   checks=0   stage=-
+feature-zone-memory            status=1 seconds=306             errors=18  warnings=9   checks=0   stage=nightly
 feature-zone-security          status=0 seconds=362             errors=0   warnings=0   checks=0   stage=-
-feature-zones-admin            status=1 seconds=244             errors=95  warnings=17  checks=1   stage=nightly
-feature-zones-tools            status=1 seconds=214             errors=63  warnings=21  checks=0   stage=nightly
+feature-zones-admin            status=1 seconds=196             errors=181 warnings=61  checks=10  stage=nightly
+feature-zones-tools            status=1 seconds=217             errors=59  warnings=18  checks=0   stage=nightly
 
-# Stacked builds (stackcheck.sh, stack-plan-*.txt): each feature merged
-# with every feature it may need.  stack-core is the core cycle and its
-# needs; the stacks after it were built on top of stack-core.
+# Stacked builds (buildcheck.sh stacks stack-plan.txt): each feature that
+# fails alone, merged with every feature it may need, from gate-built.
 
-stack-boot                     status=0 seconds=212             errors=0   warnings=0   checks=0   stage=-
-stack-brand-fs                 status=0 seconds=205             errors=0   warnings=0   checks=0   stage=-
-stack-core                     status=0 seconds=526             errors=0   warnings=0   checks=0   stage=-
-stack-ctf                      status=0 seconds=210             errors=0   warnings=0   checks=0   stage=-
-stack-datalink                 status=0 seconds=368             errors=0   warnings=0   checks=0   stage=-
-stack-dtrace                   status=0 seconds=202             errors=0   warnings=0   checks=0   stage=-
-stack-ipf-cfw                  status=0 seconds=209             errors=0   warnings=0   checks=0   stage=-
-stack-mdb                      status=0 seconds=211             errors=0   warnings=0   checks=0   stage=-
-stack-overlay-svp              status=0 seconds=248             errors=0   warnings=0   checks=0   stage=-
-stack-platform-config          status=0 seconds=223             errors=0   warnings=0   checks=0   stage=-
-stack-rtld-sgs                 status=0 seconds=290             errors=0   warnings=0   checks=0   stage=-
-stack-tmpfs                    status=0 seconds=202             errors=0   warnings=0   checks=0   stage=-
-stack-vnd                      status=0 seconds=369             errors=0   warnings=0   checks=0   stage=-
-stack-zfs-arc                  status=0 seconds=203             errors=0   warnings=0   checks=0   stage=-
-stack-zfs-cli                  status=0 seconds=211             errors=0   warnings=0   checks=0   stage=-
-stack-zfs-props                status=0 seconds=210             errors=0   warnings=0   checks=0   stage=-
-stack-zfs-zvol                 status=0 seconds=204             errors=0   warnings=0   checks=0   stage=-
+stack-boot                     status=0 seconds=214             errors=0   warnings=0   checks=0   stage=-
+stack-brand-events             status=0 seconds=510             errors=0   warnings=0   checks=0   stage=-
+stack-brand-fs                 status=0 seconds=523             errors=0   warnings=0   checks=0   stage=-
+stack-brand-native             status=0 seconds=407             errors=0   warnings=0   checks=0   stage=-
+stack-brand-net                status=0 seconds=407             errors=0   warnings=0   checks=0   stage=-
+stack-brand-nfs                status=0 seconds=409             errors=0   warnings=0   checks=0   stage=-
+stack-brand-ops                status=0 seconds=427             errors=0   warnings=0   checks=0   stage=-
+stack-brand-process            status=0 seconds=440             errors=0   warnings=0   checks=0   stage=-
+stack-ctf                      status=0 seconds=407             errors=0   warnings=0   checks=0   stage=-
+stack-datalink                 status=0 seconds=404             errors=0   warnings=0   checks=0   stage=-
+stack-dboot                    status=0 seconds=213             errors=0   warnings=0   checks=0   stage=-
+stack-dtrace                   status=0 seconds=428             errors=0   warnings=0   checks=0   stage=-
+stack-ipf-cfw                  status=0 seconds=433             errors=0   warnings=0   checks=0   stage=-
+stack-lx                       status=0 seconds=524             errors=0   warnings=0   checks=0   stage=-
+stack-mdb                      status=0 seconds=433             errors=0   warnings=0   checks=0   stage=-
+stack-net-misc                 status=0 seconds=404             errors=0   warnings=0   checks=0   stage=-
+stack-overlay-svp              status=0 seconds=251             errors=0   warnings=0   checks=0   stage=-
+stack-platform-config          status=0 seconds=529             errors=0   warnings=0   checks=0   stage=-
+stack-ptools                   status=0 seconds=427             errors=0   warnings=0   checks=0   stage=-
+stack-rtld-sgs                 status=0 seconds=423             errors=0   warnings=0   checks=0   stage=-
+stack-vnd                      status=0 seconds=403             errors=0   warnings=0   checks=0   stage=-
+stack-zfd                      status=0 seconds=524             errors=0   warnings=0   checks=0   stage=-
+stack-zfs-arc                  status=0 seconds=404             errors=0   warnings=0   checks=0   stage=-
+stack-zfs-cli                  status=0 seconds=405             errors=0   warnings=0   checks=0   stage=-
+stack-zfs-props                status=0 seconds=405             errors=0   warnings=0   checks=0   stage=-
+stack-zfs-zio                  status=0 seconds=406             errors=0   warnings=0   checks=0   stage=-
+stack-zfs-zone-io              status=0 seconds=402             errors=0   warnings=0   checks=0   stage=-
+stack-zfs-zvol                 status=0 seconds=406             errors=0   warnings=0   checks=0   stage=-
+stack-zone-cpu                 status=0 seconds=408             errors=0   warnings=0   checks=0   stage=-
+stack-zone-memory              status=0 seconds=431             errors=0   warnings=0   checks=0   stage=-
+stack-zones-admin              status=0 seconds=533             errors=0   warnings=0   checks=0   stage=-
+stack-zones-tools              status=0 seconds=426             errors=0   warnings=0   checks=0   stage=-
 
 # Failures by provider (buildfail.py): identifiers and headers the
 # compiler or linker complained about, and the features defining them.
@@ -112,38 +124,27 @@ stack-zfs-zvol                 status=0 seconds=204             errors=0   warni
 bhyve            needs -
 boot             needs dboot(1)
                  unexplained: message_enabled
-brand-events     needs -
-                 unexplained: b_sigfd_translate
-brand-exec       needs brand-process(2), ptools(2), brand-ops(1)
-                 unexplained: b_lwpdata_alloc
-brand-fs         needs lx(1), ptools(1)
-brand-native     needs zone-kernel(4), lx(2), net-misc(1), zone-brands(1), brand-process(1), brand-net(1), ptools(1)
-                 unexplained: zone_create zone_get_nroot
+brand-events     needs brand-ops(1)
+brand-fs         needs lx(1)
+brand-native     needs zone-kernel(3)
 brand-net        needs brand-native(1)
 brand-nfs        needs brand-native(1)
-brand-ops        needs lx(1)
-                 unexplained: brand_setbrand
-brand-process    needs brand-exec(2), zone-kernel(1), zones-admin(1), lx(1), brand-native(1)
-                 unexplained: b_exit_with_sig b_map32limit b_sig_ignorable lwp_ctmpl_clear
-brand-x86        needs brand-process(1)
-                 unexplained: brand_sys_int80 sys_int80
+brand-ops        needs brand-native(1)
+brand-process    needs brand-ops(5), zone-kernel(3), brand-native(2)
 ctf              needs brand-native(1)
 datalink         needs brand-native(1), vnd(1)
 dboot            needs boot(1)
-dtrace           needs zone-kernel(1), zones-tools(1), brand-native(1)
-                 unexplained: b_fsbase
-inotify          needs lx(1), ptools(1)
+dtrace           needs brand-ops(1), zone-kernel(1), zones-tools(1), brand-native(1)
 integration      needs -
-ipf-cfw          needs zones-admin(1), zones-tools(1)
-lx               needs brand-events(2), brand-process(2), brand-x86(1), ptools(1), brand-native(1)
-                 unexplained: BROP PROC_IS_BRANDED zone_get_state
-mdb              needs brand-native(1), zones-admin(1), zones-tools(1)
+ipf-cfw          needs zone-kernel(1), zones-tools(1)
+lx               needs brand-ops(12), brand-process(2), brand-events(2), brand-native(1)
+                 unexplained: BROP PROC_IS_BRANDED __FLXPATH
+mdb              needs brand-native(1), zone-kernel(1), zones-tools(1)
 net-misc         needs -
                  other: arp.c:124:23: error: initialization of 'const char *' from 'int' makes pointer from integer without a cast [-W
 overlay-svp      needs bunyan(1)
 platform-config  needs -
-ptools           needs brand-exec(3), brand-native(1), lx(1)
-                 unexplained: arglen
+ptools           needs brand-ops(3), brand-native(1)
 rtld-sgs         needs brand-native(1)
 smartos-test     needs -
 vnd              needs datalink(2), link-protection(1)
@@ -154,16 +155,14 @@ zfs-cli          needs zfs-props(2)
 zfs-props        needs zfs-zone-io(2)
 zfs-tests        needs -
 zfs-zio          needs zfs-zone-io(1)
-zfs-zone-io      needs -
-                 unexplained: zone_kstat_create_common
+zfs-zone-io      needs zone-kernel(4)
+                 unexplained: add_iop get_zone_io_cnt zfs_zone_delay_dec zfs_zone_delay_inc zone_pdata
 zfs-zvol         needs zone-kernel(4)
 zone-cpu         needs zone-kernel(1)
                  unexplained: zone_pdata
-zone-kernel      needs zone-cpu(4), zones-admin(3), zones-tools(1), brand-process(1), zfs-zone-io(1)
-                 unexplained: ZONE_ATTR_PHYS_MCAP rc_zone_cpu_baseline rc_zone_cpu_burst_time rc_zone_zfs_io_pri zone_cpu_base_ops zone_cpu_burst_time_ops zone_create zone_zfs_io_pri_ops
-zone-memory      needs zone-kernel(4), zones-admin(1)
+zone-memory      needs zone-kernel(5)
                  unexplained: ZPO_ANON ZPO_ANONDIRTY ZPO_DIRTY ZPO_FS zone_num_over_cap zone_pdata
-zones-admin      needs zones-tools(8), zfd(4), zone-kernel(4)
-                 unexplained: ctlfd disconnect ppt_devpath_to_dev snap_hndl uuid_unparse zone_create zone_phys_mcap zonepath
-zones-tools      needs brand-native(1), zone-memory(1)
-                 unexplained: zonecfg_add_res_attr zonecfg_fix_obsolete zonecfg_free_res_attr_list zonecfg_get_did zonecfg_getmcapent zonecfg_notify_create zonecfg_remove_res_attr zonecfg_set_did zonecfg_set_uuid
+zones-admin      needs zfd(11), zones-tools(9), zone-kernel(6), lx(2), net-misc(1), zone-brands(1), zone-memory(1), overlay-svp(1)
+                 unexplained: ZONE_ATTR_PHYS_MCAP ctlfd disconnect in_progress_mcaptab logging_poisoned mcaptab old_mcaptab ppt_devpath_to_dev snap_hndl tmp_mcaptab
+zones-tools      needs brand-native(1)
+                 unexplained: zonecfg_add_res_attr zonecfg_fix_obsolete zonecfg_free_res_attr_list zonecfg_get_did zonecfg_notify_create zonecfg_remove_res_attr zonecfg_set_did zonecfg_set_uuid
