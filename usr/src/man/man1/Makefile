@@ -218,6 +218,7 @@ MANFILES=	acctcom.1			\
 		m4.1				\
 		mac.1				\
 		mach.1				\
+		machid.1			\
 		madv.so.1.1			\
 		mail.1				\
 		mailcompat.1			\
