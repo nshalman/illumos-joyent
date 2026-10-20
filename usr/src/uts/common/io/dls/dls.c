@@ -253,7 +253,7 @@ dls_promisc(dld_str_t *dsp, uint32_t new_flags)
 	int err = 0;
 	uint32_t old_flags = dsp->ds_promisc;
 	const uint32_t option_flags = DLS_PROMISC_RX_ONLY |
-	    DLS_PROMISC_INCOMING | DLS_PROMISC_OUTGOING;
+	    DLS_PROMISC_INCOMING | DLS_PROMISC_OUTGOING | DLS_PROMISC_FIXUPS;
 	uint32_t old_type = old_flags & ~option_flags;
 	uint32_t new_type = new_flags & ~option_flags;
 	mac_client_promisc_type_t mptype = MAC_CLIENT_PROMISC_ALL;
@@ -270,8 +270,14 @@ dls_promisc(dld_str_t *dsp, uint32_t new_flags)
 	if (new_type == DLS_PROMISC_MULTI)
 		mptype = MAC_CLIENT_PROMISC_MULTI;
 
-	/* Can choose only one of Rx-only or incoming/outoing. */
-	if (stdc_count_ones_ui(new_flags & option_flags) > 1)
+	/*
+	 * Can choose only one of Rx-only or incoming/outgoing.
+	 *
+	 * Make sure for SmartOS we ignore vnd-inspired DLS_PROMISC_FIXUPS
+	 * for these purposes.
+	 */
+	if (stdc_count_ones_ui(new_flags & option_flags & ~DLS_PROMISC_FIXUPS) >
+	    1)
 		return (EINVAL);
 
 	/*
@@ -290,6 +296,8 @@ dls_promisc(dld_str_t *dsp, uint32_t new_flags)
 	 */
 	if (new_flags & DLS_PROMISC_RX_ONLY)
 		mac_flags |= MAC_PROMISC_FLAGS_NO_TX_LOOP;
+	if (new_flags & DLS_PROMISC_FIXUPS)
+		mac_flags |= MAC_PROMISC_FLAGS_DO_FIXUPS;
 	if (new_flags & DLS_PROMISC_INCOMING)
 		mac_flags |= MAC_PROMISC_FLAGS_RX_ONLY;
 	if (new_flags & DLS_PROMISC_OUTGOING)
@@ -663,6 +671,22 @@ boolean_t
 dls_accept_promisc(dld_str_t *dsp, mac_header_info_t *mhip, dls_rx_t *ds_rx,
     void **ds_rx_arg, boolean_t loopback)
 {
+	if (dsp->ds_promisc == 0) {
+		/*
+		 * If there are active walkers of the mi_promisc_list when
+		 * promiscuousness is disabled, ds_promisc will be cleared,
+		 * but the DLS will remain on the mi_promisc_list until the
+		 * walk is completed.  If we do not recognize this case here,
+		 * we won't properly execute the ds_promisc case in the common
+		 * accept routine -- and we will potentially accept a packet
+		 * that has originated with this DLS (which in turn can
+		 * induce recursion and death by stack overflow).  If
+		 * ds_promisc is zero, we know that we are in this window --
+		 * and we refuse to accept the packet.
+		 */
+		return (B_FALSE);
+	}
+
 	return (dls_accept_common(dsp, mhip, ds_rx, ds_rx_arg, B_TRUE,
 	    loopback));
 }
@@ -693,7 +717,10 @@ dls_mac_active_set(dls_link_t *dlp)
 		 * Set the function to start receiving packets.
 		 */
 		mac_rx_set(dlp->dl_mch, i_dls_link_rx, dlp);
+	} else if (dlp->dl_exclusive == B_TRUE) {
+		return (EBUSY);
 	}
+
 	dlp->dl_nactive++;
 	return (0);
 }
@@ -719,7 +746,11 @@ dls_active_set(dld_str_t *dsp)
 	if (dsp->ds_passivestate == DLD_PASSIVE)
 		return (0);
 
-	/* If we're already active, then there's nothing more to do. */
+	if (dsp->ds_dlp->dl_exclusive == B_TRUE &&
+	    dsp->ds_passivestate != DLD_EXCLUSIVE)
+		return (EBUSY);
+
+	/* If we're already active, we need to check the link's exclusivity */
 	if ((dsp->ds_nactive == 0) &&
 	    ((err = dls_mac_active_set(dsp->ds_dlp)) != 0)) {
 		/* except for ENXIO all other errors are mapped to EBUSY */
@@ -728,7 +759,8 @@ dls_active_set(dld_str_t *dsp)
 		return (err);
 	}
 
-	dsp->ds_passivestate = DLD_ACTIVE;
+	dsp->ds_passivestate = dsp->ds_dlp->dl_exclusive == B_TRUE ?
+	    DLD_EXCLUSIVE : DLD_ACTIVE;
 	dsp->ds_nactive++;
 	return (0);
 }
@@ -759,7 +791,32 @@ dls_active_clear(dld_str_t *dsp, boolean_t all)
 	if (dsp->ds_nactive != 0)
 		return;
 
-	ASSERT(dsp->ds_passivestate == DLD_ACTIVE);
+	ASSERT(dsp->ds_passivestate == DLD_ACTIVE ||
+	    dsp->ds_passivestate == DLD_EXCLUSIVE);
 	dls_mac_active_clear(dsp->ds_dlp);
+	/*
+	 * We verify below to ensure that no other part of DLS has mucked with
+	 * our exclusive state.
+	 */
+	if (dsp->ds_passivestate == DLD_EXCLUSIVE)
+		VERIFY(dls_exclusive_set(dsp, B_FALSE) == 0);
 	dsp->ds_passivestate = DLD_UNINITIALIZED;
+}
+
+int
+dls_exclusive_set(dld_str_t *dsp, boolean_t enable)
+{
+	ASSERT(MAC_PERIM_HELD(dsp->ds_mh));
+
+	if (enable == B_FALSE) {
+		dsp->ds_dlp->dl_exclusive = B_FALSE;
+		return (0);
+	}
+
+	if (dsp->ds_dlp->dl_nactive != 0)
+		return (EBUSY);
+
+	dsp->ds_dlp->dl_exclusive = B_TRUE;
+
+	return (0);
 }

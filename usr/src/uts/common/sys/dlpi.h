@@ -110,6 +110,7 @@ typedef struct dl_ipnetinfo {
 #define	DL_PASSIVE_REQ		0x114	/* Allow access to aggregated link */
 #define	DL_INTR_MODE_REQ	0x115	/* Request Rx processing in INTR mode */
 #define	DL_NOTIFY_CONF		0x116	/* Notification from upstream */
+#define	DL_EXCLUSIVE_REQ	0x117	/* Make bind active */
 
 /*
  * Primitives used for Connectionless Service
@@ -401,6 +402,7 @@ typedef struct dl_ipnetinfo {
 #define	DL_PROMISC_RX_ONLY	0x04	/* above only enabled for rx */
 #define	DL_PROMISC_INCOMING	0x05	/* above only enabled for incoming */
 #define	DL_PROMISC_OUTGOING	0x06	/* above only enabled for outgoing */
+#define	DL_PROMISC_FIXUPS	0x07	/* above will be fixed up */
 
 /*
  * DLPI notification codes for DL_NOTIFY_REQ primitives.
@@ -1095,6 +1097,13 @@ typedef struct {
 } dl_intr_mode_req_t;
 
 /*
+ * DL_EXCLUSIVE_REQ, M_PROTO type
+ */
+typedef struct {
+	t_uscalar_t	dl_primitive;
+} dl_exclusive_req_t;
+
+/*
  *	CONNECTION-ORIENTED SERVICE PRIMITIVES
  */
 
@@ -1516,6 +1525,7 @@ union DL_primitives {
 	dl_control_ack_t	control_ack;
 	dl_passive_req_t	passive_req;
 	dl_intr_mode_req_t	intr_mode_req;
+	dl_exclusive_req_t	exclusive_req;
 };
 
 #define	DL_INFO_REQ_SIZE	sizeof (dl_info_req_t)
@@ -1584,6 +1594,7 @@ union DL_primitives {
 #define	DL_CONTROL_ACK_SIZE	sizeof (dl_control_ack_t)
 #define	DL_PASSIVE_REQ_SIZE	sizeof (dl_passive_req_t)
 #define	DL_INTR_MODE_REQ_SIZE	sizeof (dl_intr_mode_req_t)
+#define	DL_EXCLUSIVE_REQ_SIZE	sizeof (dl_exclusive_req_t)
 
 #ifdef	_KERNEL
 /*

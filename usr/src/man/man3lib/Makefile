@@ -106,6 +106,7 @@ MANFILES=	libMPAPI.3lib		\
 		libtsol.3lib		\
 		libumem.3lib		\
 		libuuid.3lib		\
+		libvnd.3lib		\
 		libvolmgt.3lib		\
 		libw.3lib		\
 		libxnet.3lib		\

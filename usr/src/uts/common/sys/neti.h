@@ -48,6 +48,8 @@ struct msgb;	/* avoiding sys/stream.h here */
 #define	NHF_INET	"NHF_INET"
 #define	NHF_INET6	"NHF_INET6"
 #define	NHF_ARP		"NHF_ARP"
+#define	NHF_VND_INET	"NHF_VND_INET"
+#define	NHF_VND_INET6	"NHF_VND_INET6"
 #define	NHF_VIONA	"NHF_VIONA"
 
 /*

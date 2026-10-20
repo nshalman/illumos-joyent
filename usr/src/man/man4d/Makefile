@@ -159,6 +159,7 @@ _MANFILES=	aac.4d		\
 		virtualkm.4d	\
 		vni.4d		\
 		vr.4d		\
+		vnd.4d		\
 		wscons.4d	\
 		xge.4d		\
 		yge.4d		\

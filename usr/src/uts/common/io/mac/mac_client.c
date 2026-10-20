@@ -3355,6 +3355,11 @@ mac_promisc_add(mac_client_handle_t mch, mac_client_promisc_type_t type,
 	mac_cb_info_t	*mcbi;
 	int rc;
 
+	if ((flags & MAC_PROMISC_FLAGS_NO_COPY) &&
+	    (flags & MAC_PROMISC_FLAGS_DO_FIXUPS)) {
+		return (EINVAL);
+	}
+
 	boolean_t no_tx_loop = ((flags & MAC_PROMISC_FLAGS_NO_TX_LOOP) != 0);
 	boolean_t rx_only = ((flags & MAC_PROMISC_FLAGS_RX_ONLY) != 0);
 	boolean_t tx_only = ((flags & MAC_PROMISC_FLAGS_TX_ONLY) != 0);
@@ -3410,6 +3415,7 @@ mac_promisc_add(mac_client_handle_t mch, mac_client_promisc_type_t type,
 	mpip->mpi_strip_vlan_tag =
 	    ((flags & MAC_PROMISC_FLAGS_VLAN_TAG_STRIP) != 0);
 	mpip->mpi_no_copy = ((flags & MAC_PROMISC_FLAGS_NO_COPY) != 0);
+	mpip->mpi_do_fixups = ((flags & MAC_PROMISC_FLAGS_DO_FIXUPS) != 0);
 	mpip->mpi_rx_only = rx_only;
 	mpip->mpi_tx_only = tx_only;
 

@@ -37,6 +37,7 @@ extern "C" {
 #include <sys/vfs_opreg.h>
 #include <sys/list.h>
 #include <sys/nvpair.h>
+#include <sys/fs/sdev_plugin.h>
 #include <sys/sunddi.h>
 #include <sys/fs/sdev_plugin.h>
 

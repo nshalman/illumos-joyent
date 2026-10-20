@@ -21,6 +21,7 @@
 /*
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ * Copyright 2015 Joyent, Inc.
  * Copyright 2025 Oxide Computer Company
  */
 
@@ -89,6 +90,7 @@ typedef struct dls_link_s	dls_link_t;
 #define	DLS_PROMISC_RX_ONLY	0x00000008
 #define	DLS_PROMISC_INCOMING	0x00000010
 #define	DLS_PROMISC_OUTGOING	0x00000020
+#define	DLS_PROMISC_FIXUPS	0x00000040
 
 extern int	dls_open(dls_link_t *, dls_dl_handle_t, dld_str_t *);
 extern void	dls_close(dld_str_t *);
@@ -110,6 +112,8 @@ extern void	str_notify(void *, mac_notify_type_t);
 
 extern int		dls_devnet_open(const char *,
 			    dls_dl_handle_t *, dev_t *);
+extern int		dls_devnet_open_in_zone(const char *,
+			    dls_dl_handle_t *, dev_t *, zoneid_t);
 extern void		dls_devnet_close(dls_dl_handle_t);
 extern boolean_t	dls_devnet_rebuild();
 
@@ -146,6 +150,8 @@ extern int		dls_mgmt_update(const char *, uint32_t, boolean_t,
 extern int		dls_mgmt_get_linkinfo(datalink_id_t, char *,
 			    datalink_class_t *, uint32_t *, uint32_t *);
 extern int		dls_mgmt_get_linkid(const char *, datalink_id_t *);
+extern int		dls_mgmt_get_linkid_in_zone(const char *,
+    datalink_id_t *, zoneid_t);
 extern datalink_id_t	dls_mgmt_get_next(datalink_id_t, datalink_class_t,
 			    datalink_media_t, uint32_t);
 extern int		dls_devnet_macname2linkid(const char *,

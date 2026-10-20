@@ -5,7 +5,7 @@
  *
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  *
- * Copyright 2018 Joyent, Inc.
+ * Copyright 2019 Joyent, Inc.
  */
 
 #if !defined(lint)
@@ -85,6 +85,14 @@ static	int	ipf_hook6_loop_out __P((hook_event_token_t, hook_data_t,
 static	int	ipf_hook6_loop_in __P((hook_event_token_t, hook_data_t,
     void *));
 static	int     ipf_hook6 __P((hook_data_t, int, int, void *));
+static	int	ipf_hookvndl3v4_in __P((hook_event_token_t, hook_data_t,
+    void *));
+static	int	ipf_hookvndl3v6_in __P((hook_event_token_t, hook_data_t,
+    void *));
+static	int	ipf_hookvndl3v4_out __P((hook_event_token_t, hook_data_t,
+    void *));
+static	int	ipf_hookvndl3v6_out __P((hook_event_token_t, hook_data_t,
+    void *));
 
 static	int	ipf_hookviona_in __P((hook_event_token_t, hook_data_t, void *));
 static	int	ipf_hookviona_out __P((hook_event_token_t, hook_data_t,
@@ -141,28 +149,38 @@ void 	*ipf_state;	/* DDI state */
  */
 
 /* IPv4 hook names */
-char *hook4_nicevents = 	"ipfilter_hook4_nicevents";
-char *hook4_nicevents_gz = 	"ipfilter_hook4_nicevents_gz";
-char *hook4_in = 		"ipfilter_hook4_in";
-char *hook4_in_gz = 		"ipfilter_hook4_in_gz";
-char *hook4_out = 		"ipfilter_hook4_out";
-char *hook4_out_gz = 		"ipfilter_hook4_out_gz";
-char *hook4_loop_in = 		"ipfilter_hook4_loop_in";
-char *hook4_loop_in_gz = 	"ipfilter_hook4_loop_in_gz";
-char *hook4_loop_out = 		"ipfilter_hook4_loop_out";
-char *hook4_loop_out_gz = 	"ipfilter_hook4_loop_out_gz";
+char *hook4_nicevents =		"ipfilter_hook4_nicevents";
+char *hook4_nicevents_gz =	"ipfilter_hook4_nicevents_gz";
+char *hook4_in =		"ipfilter_hook4_in";
+char *hook4_in_gz =		"ipfilter_hook4_in_gz";
+char *hook4_out =		"ipfilter_hook4_out";
+char *hook4_out_gz =		"ipfilter_hook4_out_gz";
+char *hook4_loop_in =		"ipfilter_hook4_loop_in";
+char *hook4_loop_in_gz =	"ipfilter_hook4_loop_in_gz";
+char *hook4_loop_out =		"ipfilter_hook4_loop_out";
+char *hook4_loop_out_gz =	"ipfilter_hook4_loop_out_gz";
 
 /* IPv6 hook names */
-char *hook6_nicevents = 	"ipfilter_hook6_nicevents";
-char *hook6_nicevents_gz = 	"ipfilter_hook6_nicevents_gz";
-char *hook6_in = 		"ipfilter_hook6_in";
-char *hook6_in_gz = 		"ipfilter_hook6_in_gz";
-char *hook6_out = 		"ipfilter_hook6_out";
-char *hook6_out_gz = 		"ipfilter_hook6_out_gz";
-char *hook6_loop_in = 		"ipfilter_hook6_loop_in";
-char *hook6_loop_in_gz = 	"ipfilter_hook6_loop_in_gz";
-char *hook6_loop_out = 		"ipfilter_hook6_loop_out";
-char *hook6_loop_out_gz = 	"ipfilter_hook6_loop_out_gz";
+char *hook6_nicevents =		"ipfilter_hook6_nicevents";
+char *hook6_nicevents_gz =	"ipfilter_hook6_nicevents_gz";
+char *hook6_in =		"ipfilter_hook6_in";
+char *hook6_in_gz =		"ipfilter_hook6_in_gz";
+char *hook6_out =		"ipfilter_hook6_out";
+char *hook6_out_gz =		"ipfilter_hook6_out_gz";
+char *hook6_loop_in =		"ipfilter_hook6_loop_in";
+char *hook6_loop_in_gz =	"ipfilter_hook6_loop_in_gz";
+char *hook6_loop_out =		"ipfilter_hook6_loop_out";
+char *hook6_loop_out_gz =	"ipfilter_hook6_loop_out_gz";
+
+/* vnd IPv4/v6 hook names */
+char *hook4_vnd_in =		"ipfilter_hookvndl3v4_in";
+char *hook4_vnd_in_gz =		"ipfilter_hookvndl3v4_in_gz";
+char *hook6_vnd_in =		"ipfilter_hookvndl3v6_in";
+char *hook6_vnd_in_gz =		"ipfilter_hookvndl3v6_in_gz";
+char *hook4_vnd_out =		"ipfilter_hookvndl3v4_out";
+char *hook4_vnd_out_gz =	"ipfilter_hookvndl3v4_out_gz";
+char *hook6_vnd_out =		"ipfilter_hookvndl3v6_out";
+char *hook6_vnd_out_gz =	"ipfilter_hookvndl3v6_out_gz";
 
 /* viona hook names */
 char *hook_viona_in =		"ipfilter_hookviona_in";
@@ -264,6 +282,31 @@ ipf_stack_t *ifs;
 		if (net_protocol_release(ifs->ifs_ipf_ipv4) != 0)
 			goto detach_failed;
 		ifs->ifs_ipf_ipv4 = NULL;
+	}
+
+	/*
+	 * Remove VND hooks
+	 */
+	if (ifs->ifs_ipf_vndl3v4 != NULL) {
+		UNDO_HOOK(ifs_ipf_vndl3v4, ifs_hookvndl3v4_physical_in,
+		    NH_PHYSICAL_IN, ifs_ipfhookvndl3v4_in);
+		UNDO_HOOK(ifs_ipf_vndl3v4, ifs_hookvndl3v4_physical_out,
+		    NH_PHYSICAL_OUT, ifs_ipfhookvndl3v4_out);
+
+		if (net_protocol_release(ifs->ifs_ipf_vndl3v4) != 0)
+			goto detach_failed;
+		ifs->ifs_ipf_vndl3v4 = NULL;
+	}
+
+	if (ifs->ifs_ipf_vndl3v6 != NULL) {
+		UNDO_HOOK(ifs_ipf_vndl3v6, ifs_hookvndl3v6_physical_in,
+		    NH_PHYSICAL_IN, ifs_ipfhookvndl3v6_in);
+		UNDO_HOOK(ifs_ipf_vndl3v6, ifs_hookvndl3v6_physical_out,
+		    NH_PHYSICAL_OUT, ifs_ipfhookvndl3v6_out);
+
+		if (net_protocol_release(ifs->ifs_ipf_vndl3v6) != 0)
+			goto detach_failed;
+		ifs->ifs_ipf_vndl3v6 = NULL;
 	}
 
 	/*
@@ -493,6 +536,49 @@ ipf_stack_t *ifs;
 		if (!ifs->ifs_hook6_loopback_out)
 			goto hookup_failed;
 	}
+
+	/*
+	 * Add VND INET hooks
+	 */
+	ifs->ifs_ipf_vndl3v4 = net_protocol_lookup(id, NHF_VND_INET);
+	if (ifs->ifs_ipf_vndl3v4 == NULL)
+		goto hookup_failed;
+
+	HOOK_INIT_GZ_BEFORE(ifs->ifs_ipfhookvndl3v4_in, ipf_hookvndl3v4_in,
+	    hook4_vnd_in, hook4_vnd_in_gz, ifs);
+	HOOK_INIT_GZ_AFTER(ifs->ifs_ipfhookvndl3v4_out, ipf_hookvndl3v4_out,
+	    hook4_vnd_out, hook4_vnd_out_gz, ifs);
+	ifs->ifs_hookvndl3v4_physical_in = (net_hook_register(ifs->ifs_ipf_vndl3v4,
+	    NH_PHYSICAL_IN, ifs->ifs_ipfhookvndl3v4_in) == 0);
+	if (!ifs->ifs_hookvndl3v4_physical_in)
+		goto hookup_failed;
+
+	ifs->ifs_hookvndl3v4_physical_out = (net_hook_register(ifs->ifs_ipf_vndl3v4,
+	    NH_PHYSICAL_OUT, ifs->ifs_ipfhookvndl3v4_out) == 0);
+	if (!ifs->ifs_hookvndl3v4_physical_out)
+		goto hookup_failed;
+
+
+	/*
+	 * VND INET6 hooks
+	 */
+	ifs->ifs_ipf_vndl3v6 = net_protocol_lookup(id, NHF_VND_INET6);
+	if (ifs->ifs_ipf_vndl3v6 == NULL)
+		goto hookup_failed;
+
+	HOOK_INIT_GZ_BEFORE(ifs->ifs_ipfhookvndl3v6_in, ipf_hookvndl3v6_in,
+	    hook6_vnd_in, hook6_vnd_in_gz, ifs);
+	HOOK_INIT_GZ_AFTER(ifs->ifs_ipfhookvndl3v6_out, ipf_hookvndl3v6_out,
+	    hook6_vnd_out, hook6_vnd_out_gz, ifs);
+	ifs->ifs_hookvndl3v6_physical_in = (net_hook_register(ifs->ifs_ipf_vndl3v6,
+	    NH_PHYSICAL_IN, ifs->ifs_ipfhookvndl3v6_in) == 0);
+	if (!ifs->ifs_hookvndl3v6_physical_in)
+		goto hookup_failed;
+
+	ifs->ifs_hookvndl3v6_physical_out = (net_hook_register(ifs->ifs_ipf_vndl3v6,
+	    NH_PHYSICAL_OUT, ifs->ifs_ipfhookvndl3v6_out) == 0);
+	if (!ifs->ifs_hookvndl3v6_physical_out)
+		goto hookup_failed;
 
 	/*
 	 * VIONA INET hooks.  While the nethook framework allows us to register
@@ -2352,6 +2438,42 @@ int ipf_hook_ether(hook_event_token_t token, hook_data_t info, void *arg,
 
 	return (v6 ? ipf_hook6(info, out, 0, arg) :
 	    ipf_hook(info, out, 0, arg));
+}
+
+/* ------------------------------------------------------------------------ */
+/* Function:    ipf_hookvndl3_in					    */
+/* Returns:     int - 0 == packet ok, else problem, free packet if not done */
+/* Parameters:  event(I)     - pointer to event                             */
+/*              info(I)      - pointer to hook information for firewalling  */
+/*                                                                          */
+/* The vnd hooks are private hooks to ON. They represents a layer 2         */
+/* datapath generally used to implement virtual machines. The driver sends  */
+/* along L3 packets of either type IP or IPv6. The ethertype to distinguish */
+/* them is in the upper 16 bits while the remaining bits are the            */
+/* traditional packet hook flags.                                           */
+/*                                                                          */
+/* They end up calling the appropriate traditional ip hooks.                */
+/* ------------------------------------------------------------------------ */
+/*ARGSUSED*/
+int ipf_hookvndl3v4_in(hook_event_token_t token, hook_data_t info, void *arg)
+{
+	return ipf_hook4_in(token, info, arg);
+}
+
+int ipf_hookvndl3v6_in(hook_event_token_t token, hook_data_t info, void *arg)
+{
+	return ipf_hook6_in(token, info, arg);
+}
+
+/*ARGSUSED*/
+int ipf_hookvndl3v4_out(hook_event_token_t token, hook_data_t info, void *arg)
+{
+	return ipf_hook4_out(token, info, arg);
+}
+
+int ipf_hookvndl3v6_out(hook_event_token_t token, hook_data_t info, void *arg)
+{
+	return ipf_hook6_out(token, info, arg);
 }
 
 /* ------------------------------------------------------------------------ */

@@ -19,6 +19,7 @@
 # Copyright 2020 Joyent, Inc.
 # Copyright 2021 OmniOS Community Edition (OmniOSce) Association.
 # Copyright 2022 Garrett D'Amore
+# Copyright 2023 MNX Cloud, Inc.
 # Copyright 2025 Oxide Computer Company
 # Copyright 2025 Peter Tribble
 #
@@ -509,6 +510,8 @@ _MANFILES=	6to4relay.8		\
 		uusched.8		\
 		uuxqt.8			\
 		vmstat.8		\
+		vndadm.8		\
+		vndstat.8		\
 		volcopy.8		\
 		volcopy_ufs.8		\
 		vscanadm.8		\

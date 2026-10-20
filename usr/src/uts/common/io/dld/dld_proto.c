@@ -43,7 +43,7 @@ static proto_reqfunc_t proto_info_req, proto_attach_req, proto_detach_req,
     proto_bind_req, proto_unbind_req, proto_promiscon_req, proto_promiscoff_req,
     proto_enabmulti_req, proto_disabmulti_req, proto_physaddr_req,
     proto_setphysaddr_req, proto_udqos_req, proto_req, proto_capability_req,
-    proto_notify_req, proto_passive_req;
+    proto_notify_req, proto_passive_req, proto_exclusive_req;
 
 static void proto_capability_advertise(dld_str_t *, mblk_t *);
 static int dld_capab_poll_disable(dld_str_t *, dld_capab_poll_t *);
@@ -122,6 +122,9 @@ dld_proto(dld_str_t *dsp, mblk_t *mp)
 		break;
 	case DL_PASSIVE_REQ:
 		proto_passive_req(dsp, mp);
+		break;
+	case DL_EXCLUSIVE_REQ:
+		proto_exclusive_req(dsp, mp);
 		break;
 	default:
 		proto_req(dsp, mp);
@@ -611,6 +614,10 @@ proto_promiscon_req(dld_str_t *dsp, mblk_t *mp)
 		new_flags |= DLS_PROMISC_RX_ONLY;
 		break;
 
+	case DL_PROMISC_FIXUPS:
+		new_flags |= DLS_PROMISC_FIXUPS;
+		break;
+
 	case DL_PROMISC_INCOMING:
 		new_flags |= DLS_PROMISC_INCOMING;
 		break;
@@ -712,6 +719,14 @@ proto_promiscoff_req(dld_str_t *dsp, mblk_t *mp)
 			goto failed2;
 		}
 		new_flags &= ~DLS_PROMISC_RX_ONLY;
+		break;
+
+	case DL_PROMISC_FIXUPS:
+		if (!(dsp->ds_promisc & DLS_PROMISC_FIXUPS)) {
+			dl_err = DL_NOTENAB;
+			goto failed2;
+		}
+		new_flags &= ~DLS_PROMISC_FIXUPS;
 		break;
 
 	case DL_PROMISC_INCOMING:
@@ -1330,7 +1345,8 @@ proto_passive_req(dld_str_t *dsp, mblk_t *mp)
 	 * If we've already become active by issuing an active primitive,
 	 * then it's too late to try to become passive.
 	 */
-	if (dsp->ds_passivestate == DLD_ACTIVE) {
+	if (dsp->ds_passivestate == DLD_ACTIVE ||
+	    dsp->ds_passivestate == DLD_EXCLUSIVE) {
 		dl_err = DL_OUTSTATE;
 		goto failed;
 	}
@@ -1389,7 +1405,12 @@ dld_capab_direct(dld_str_t *dsp, void *data, uint_t flags)
 		dls_rx_set(dsp, (dls_rx_t)direct->di_rx_cf,
 		    direct->di_rx_ch);
 
-		direct->di_tx_df = (uintptr_t)str_mdata_fastpath_put;
+		if (direct->di_flags & DI_DIRECT_RAW) {
+			direct->di_tx_df =
+			    (uintptr_t)str_mdata_raw_fastpath_put;
+		} else {
+			direct->di_tx_df = (uintptr_t)str_mdata_fastpath_put;
+		}
 		direct->di_tx_dh = dsp;
 		direct->di_tx_cb_df = (uintptr_t)mac_client_tx_notify;
 		direct->di_tx_cb_dh = dsp->ds_mch;
@@ -1644,10 +1665,15 @@ proto_capability_advertise(dld_str_t *dsp, mblk_t *mp)
 	}
 
 	/*
-	 * Direct capability negotiation interface between IP and DLD
+	 * Direct capability negotiation interface between IP/VND and DLD. Note
+	 * that for vnd we only allow the case where the media type is the
+	 * native media type so we know that there are no transformations that
+	 * would have to happen to the mac header that it receives.
 	 */
-	if ((dsp->ds_sap == ETHERTYPE_IP || dsp->ds_sap == ETHERTYPE_IPV6) &&
-	    check_mod_above(dsp->ds_rq, "ip")) {
+	if (((dsp->ds_sap == ETHERTYPE_IP || dsp->ds_sap == ETHERTYPE_IPV6) &&
+	    check_mod_above(dsp->ds_rq, "ip")) ||
+	    (check_mod_above(dsp->ds_rq, "vnd") &&
+	    dsp->ds_mip->mi_media == dsp->ds_mip->mi_nativemedia)) {
 		dld_capable = B_TRUE;
 		subsize += sizeof (dl_capability_sub_t) +
 		    sizeof (dl_capab_dld_t);
@@ -1765,4 +1791,37 @@ dld_capabilities_disable(dld_str_t *dsp)
 {
 	if (dsp->ds_polling)
 		(void) dld_capab_poll_disable(dsp, NULL);
+}
+
+static void
+proto_exclusive_req(dld_str_t *dsp, mblk_t *mp)
+{
+	int ret = 0;
+	t_uscalar_t dl_err;
+	mac_perim_handle_t mph;
+
+	if (dsp->ds_passivestate != DLD_UNINITIALIZED) {
+		dl_err = DL_OUTSTATE;
+		goto failed;
+	}
+
+	if (MBLKL(mp) < DL_EXCLUSIVE_REQ_SIZE) {
+		dl_err = DL_BADPRIM;
+		goto failed;
+	}
+
+	mac_perim_enter_by_mh(dsp->ds_mh, &mph);
+	ret = dls_exclusive_set(dsp, B_TRUE);
+	mac_perim_exit(mph);
+
+	if (ret != 0) {
+		dl_err = DL_SYSERR;
+		goto failed;
+	}
+
+	dsp->ds_passivestate = DLD_EXCLUSIVE;
+	dlokack(dsp->ds_wq, mp, DL_EXCLUSIVE_REQ);
+	return;
+failed:
+	dlerrorack(dsp->ds_wq, mp, DL_EXCLUSIVE_REQ, dl_err, (t_uscalar_t)ret);
 }

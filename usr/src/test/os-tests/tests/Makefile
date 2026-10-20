@@ -72,6 +72,7 @@ PROGS = \
 	eventfd \
 	fifo-tvnsec \
 	odirectory \
+	OS-6097 \
 	ucontext \
 	getcontext_extd \
 	writev
@@ -87,6 +88,9 @@ ROOTOPTPROGS = $(PROGS32:%=$(ROOTOPTDIR)/%) \
 
 odirectory.32 :=	LDLIBS += -lsocket
 odirectory.64 :=	LDLIBS64 += -lsocket
+
+OS-6097.32 :=	LDLIBS += -ldlpi
+OS-6097.64 :=	LDLIBS64 += -ldlpi
 
 clock_gettime.32 :=	LDLIBS += -lproc
 clock_gettime.32 :=	CSTD = $(CSTD_GNU99)

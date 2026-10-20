@@ -391,6 +391,7 @@ typedef struct dld_ioc_led {
  */
 typedef	int	(*dld_capab_func_t)(void *, uint_t, void *, uint_t);
 
+#define	DI_DIRECT_RAW	0x1
 /*
  * Direct Tx/Rx capability.
  */

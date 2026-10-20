@@ -232,6 +232,7 @@ SUBDIRS +=				\
 	libutempter	\
 	libuuid		\
 	libuutil	\
+	libvnd		\
 	libvolmgt	\
 	libvrrpadm	\
 	libvscan	\
@@ -474,6 +475,7 @@ HDRSUBDIRS=				\
 	libumem		\
 	libutempter	\
 	libuutil	\
+	libvnd		\
 	libvolmgt	\
 	libvrrpadm	\
 	libvscan	\
