@@ -153,6 +153,7 @@ route			:=	CPPFLAGS += -DNDEBUG
 ndd			:=	LDLIBS += -ldladm -lipadm
 $(RELEASE_BUILD)ndd	:=	CERRWARN += -_gcc=-Wno-unused
 in.comsat		:=	LDFLAGS += $(MAPFILE.NGB:%=-Wl,-M%)
+route			:=	LDLIBS += -lzonecfg -lcontract
 
 .KEEP_STATE:
 

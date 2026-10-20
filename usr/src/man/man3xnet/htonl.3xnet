@@ -58,6 +58,11 @@ order
 
 .LP
 .nf
+\fBuint64_t\fR \fBhtonll\fR(\fBuint64_t\fR \fIhostlonglong\fR);
+.fi
+
+.LP
+.nf
 \fBuint16_t\fR \fBhtons\fR(\fBuint16_t\fR \fIhostshort\fR);
 .fi
 
@@ -68,18 +73,23 @@ order
 
 .LP
 .nf
+\fBuint64_t\fR \fBntohll\fR(\fBuint64_t\fR \fInetlonglong\fR);
+.fi
+
+.LP
+.nf
 \fBuint16_t\fR  \fBntohs\fR(\fBuint16_t\fR \fI netshort\fR);
 .fi
 
 .SH DESCRIPTION
 .sp
 .LP
-These functions convert 16-bit and 32-bit quantities between network byte order
-and host byte order.
+These functions convert 16-bit, 32-bit, and 64-bit quantities between network
+byte order and host byte order.
 .sp
 .LP
-The  \fBuint32_t\fR and  \fBuint16_t\fR types are made available by inclusion
-of \fB<inttypes.h>\fR\&.
+The \fBuint32_t\fR, \fBuint16_t\fR, and \fBuint64_t\fR types are made available
+by inclusion of \fB<inttypes.h>\fR\&.
 .SH USAGE
 .sp
 .LP
@@ -92,12 +102,12 @@ value of their argument.
 .SH RETURN VALUES
 .sp
 .LP
-The \fBhtonl()\fR and \fBhtons()\fR functions return the argument value
-converted from host to network byte order.
+The \fBhtonl()\fR, \fBhtonll()\fR, and \fBhtons()\fR functions return the
+argument value converted from host to network byte order.
 .sp
 .LP
-The \fBntohl()\fR and \fBntohs()\fR functions return the argument value
-converted from network to host byte order.
+The \fBntohl()\fR, \fBntohll()\fR, and \fBntohs()\fR functions return the
+argument value converted from network to host byte order.
 .SH ERRORS
 .sp
 .LP

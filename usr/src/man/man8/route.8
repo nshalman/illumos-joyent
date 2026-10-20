@@ -9,34 +9,34 @@
 route \- manually manipulate the routing tables
 .SH SYNOPSIS
 .nf
-\fBroute\fR [\fB-fnvq\fR] \fIsub-command\fR [ [\fImodifiers\fR] \fIargs\fR]
+\fBroute\fR [\fB-fnvq\fR] [\fB-z\fR \fIzone\fR] \fIsub-command\fR [ [\fImodifiers\fR] \fIargs\fR]
 .fi
 
 .LP
 .nf
-\fBroute\fR [\fB-fnvq\fR] [\fB-p\fR [\fB-R\fR \fIroot-dir\fR]] add | delete [\fImodifiers\fR] \fIdestination\fR \fIgateway\fR
+\fBroute\fR [\fB-fnvq\fR] [\fB-z\fR \fIzone\fR] [\fB-p\fR [\fB-R\fR \fIroot-dir\fR]] add | delete [\fImodifiers\fR] \fIdestination\fR \fIgateway\fR
      [\fIargs\fR]
 .fi
 
 .LP
 .nf
-\fBroute\fR [\fB-fnvq\fR] change | get [\fImodifiers\fR] \fIdestination\fR
+\fBroute\fR [\fB-fnvq\fR] [\fB-z\fR \fIzone\fR] change | get [\fImodifiers\fR] \fIdestination\fR
      [\fIgateway\fR [\fIargs\fR]]
 .fi
 
 .LP
 .nf
-\fBroute\fR [\fB-fn\fR] monitor [\fImodifiers\fR]
+\fBroute\fR [\fB-fn\fR] [\fB-z\fR \fIzone\fR] monitor [\fImodifiers\fR]
 .fi
 
 .LP
 .nf
-\fBroute\fR [\fB-fnvq\fR] flush [\fImodifiers\fR]
+\fBroute\fR [\fB-fnvq\fR] [\fB-z\fR \fIzone\fR] flush [\fImodifiers\fR]
 .fi
 
 .LP
 .nf
-\fBroute\fR \fB-p\fR [\fB-R\fR \fIroot-dir\fR] show
+\fBroute\fR \fB-p\fR [\fB-R\fR \fIroot-dir\fR] [\fB-z\fR \fIzone\fR] show
 .fi
 
 .SH DESCRIPTION
@@ -125,6 +125,16 @@ addition, certain checks, such as the existence of network interfaces used with
 .ad
 .RS 15n
 Print additional details in verbose mode.
+.RE
+
+.sp
+.ne 2
+.na
+\fB\fB-z\fR \fIzone\fR\fR
+.ad
+.RS 15n
+Apply commands to the zone \fIzone\fR.  The zone must be running and must not
+be a shared-\fBIP\fR zone.
 .RE
 
 .SS "Subcommands"
