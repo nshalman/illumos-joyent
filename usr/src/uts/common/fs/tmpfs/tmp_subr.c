@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 1990, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2015 Joyent, Inc.
+ * Copyright 2016 Joyent, Inc.
  */
 
 #include <sys/types.h>
@@ -43,6 +43,7 @@
 #include <sys/fs/tmpnode.h>
 #include <sys/ddi.h>
 #include <sys/sunddi.h>
+#include <vm/anon.h>
 
 #define	KILOBYTE	1024
 #define	MEGABYTE	(1024 * KILOBYTE)
@@ -53,6 +54,80 @@
 #define	VALIDMODEBITS	07777
 
 extern pgcnt_t swapfs_minfree;
+
+void *
+tmp_kmem_zalloc(struct tmount *tm, size_t size, int flag)
+{
+	void *buf;
+	zone_t *zone;
+	size_t pages;
+
+	mutex_enter(&tm->tm_contents);
+	zone = tm->tm_vfsp->vfs_zone;
+	if (tm->tm_anonmem + size > tm->tm_anonmax ||
+	    tm->tm_anonmem + size < tm->tm_anonmem ||
+	    size + ptob(tmpfs_minfree) <= size ||
+	    !anon_checkspace(size + ptob(tmpfs_minfree), zone)) {
+		mutex_exit(&tm->tm_contents);
+		return (NULL);
+	}
+
+	/*
+	 * Only make anonymous memory reservations when a page boundary is
+	 * crossed.  This is necessary since the anon_resv functions rounds up
+	 * to PAGESIZE internally.
+	 */
+	pages = btopr(tm->tm_allocmem + size);
+	pages -= btopr(tm->tm_allocmem);
+	if (pages > 0 && anon_try_resv_zone(ptob(pages), zone) == 0) {
+		mutex_exit(&tm->tm_contents);
+		return (NULL);
+	}
+
+	tm->tm_allocmem += size;
+	tm->tm_anonmem += size;
+	mutex_exit(&tm->tm_contents);
+
+	buf = kmem_zalloc(size, flag);
+	if (buf == NULL) {
+		mutex_enter(&tm->tm_contents);
+		ASSERT(tm->tm_anonmem > tm->tm_anonmem - size);
+		tm->tm_anonmem -= size;
+		if (pages > 0) {
+			/*
+			 * Re-chasing the zone pointer is necessary since a
+			 * forced umount could have been performed while the
+			 * tm_contents lock was dropped during allocation.
+			 */
+			anon_unresv_zone(ptob(pages), tm->tm_vfsp->vfs_zone);
+		}
+		mutex_exit(&tm->tm_contents);
+	}
+
+	return (buf);
+}
+
+void
+tmp_kmem_free(struct tmount *tm, void *buf, size_t size)
+{
+	size_t pages;
+
+	kmem_free(buf, size);
+	mutex_enter(&tm->tm_contents);
+	ASSERT(tm->tm_anonmem > tm->tm_anonmem - size);
+	tm->tm_anonmem -= size;
+	pages = btopr(tm->tm_allocmem);
+	tm->tm_allocmem -= size;
+	pages -= btopr(tm->tm_allocmem);
+	/*
+	 * Like the tmp_kmem_zalloc case, only unreserve anonymous memory when
+	 * a page boundary has been crossed.
+	 */
+	if (pages > 0) {
+		anon_unresv_zone(size, tm->tm_vfsp->vfs_zone);
+	}
+	mutex_exit(&tm->tm_contents);
+}
 
 int
 tmp_taccess(void *vtp, int mode, struct cred *cred)
@@ -99,42 +174,8 @@ tmp_sticky_remove_access(struct tmpnode *dir, struct tmpnode *entry,
 }
 
 /*
- * Allocate zeroed memory if tmpfs_maxkmem has not been exceeded
- * or the 'musthave' flag is set.  'musthave' allocations should
- * always be subordinate to normal allocations so that tmpfs_maxkmem
- * can't be exceeded by more than a few KB.  Example: when creating
- * a new directory, the tmpnode is a normal allocation; if that
- * succeeds, the dirents for "." and ".." are 'musthave' allocations.
- */
-void *
-tmp_memalloc(size_t size, int musthave)
-{
-	static time_t last_warning;
-	time_t now;
-
-	if (atomic_add_long_nv(&tmp_kmemspace, size) < tmpfs_maxkmem ||
-	    musthave)
-		return (kmem_zalloc(size, KM_SLEEP));
-
-	atomic_add_long(&tmp_kmemspace, -size);
-	now = gethrestime_sec();
-	if (last_warning != now) {
-		last_warning = now;
-		cmn_err(CE_WARN, "tmp_memalloc: tmpfs over memory limit");
-	}
-	return (NULL);
-}
-
-void
-tmp_memfree(void *cp, size_t size)
-{
-	kmem_free(cp, size);
-	atomic_add_long(&tmp_kmemspace, -size);
-}
-
-/*
- * Convert a string containing a number (number of bytes) to a pgcnt_t,
- * containing the corresponding number of pages. On 32-bit kernels, the
+ * Convert a string containing a number (number of bytes) to a size_t,
+ * containing the corresponding number of bytes. On 32-bit kernels, the
  * maximum value encoded in 'str' is PAGESIZE * ULONG_MAX, while the value
  * returned in 'maxpg' is at most ULONG_MAX.
  *
@@ -152,7 +193,7 @@ tmp_memfree(void *cp, size_t size)
  * error.
  */
 int
-tmp_convnum(char *str, pgcnt_t *maxpg)
+tmp_convnum(char *str, size_t *maxbytes)
 {
 	u_longlong_t num = 0;
 #ifdef _LP64
@@ -160,6 +201,7 @@ tmp_convnum(char *str, pgcnt_t *maxpg)
 #else
 	u_longlong_t max_bytes = PAGESIZE * (uint64_t)ULONG_MAX;
 #endif
+	size_t pages;
 	char *c;
 	const struct convchar {
 		char *cc_char;
@@ -250,13 +292,21 @@ valid_char:
 
 done:
 	/*
-	 * Since btopr() rounds up to page granularity, this round-up can
-	 * cause an overflow only if 'num' is between (max_bytes - PAGESIZE)
-	 * and (max_bytes). In this case the resulting number is zero, which
-	 * is what we check for below.
+	 * We've been given a size in bytes; however, we want to make sure that
+	 * we have at least one page worth no matter what. Therefore we use
+	 * btopr to round up. However, this may cause an overflow only if 'num'
+	 * is between (max_bytes - PAGESIZE) and (max_bytes). In this case the
+	 * resulting number is zero, which is what we check for below. Note, we
+	 * require at least one page, so if pages is zero, well, it wasn't going
+	 * to work anyways.
 	 */
-	if ((*maxpg = (pgcnt_t)btopr(num)) == 0 && num != 0)
+	pages = btopr(num);
+	if (pages == 0) {
 		return (EINVAL);
+	}
+
+	*maxbytes = ptob(pages);
+
 	return (0);
 }
 

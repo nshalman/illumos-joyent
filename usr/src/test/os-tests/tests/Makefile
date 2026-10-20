@@ -62,6 +62,7 @@ SUBDIRS =       \
 		syscall \
 		tcpsig \
 		timer \
+		tmpfs \
 		uccid \
 		vfs \
 		$(SUBDIRS_$(MACH))

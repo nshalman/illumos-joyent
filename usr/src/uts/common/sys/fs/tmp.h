@@ -23,7 +23,7 @@
  * All rights reserved.  Use is subject to license terms.
  */
 /*
- * Copyright 2015 Joyent, Inc.
+ * Copyright 2016 Joyent, Inc.
  */
 
 #ifndef	_SYS_FS_TMP_H
@@ -43,8 +43,10 @@ struct tmount {
 	struct vfs	*tm_vfsp;	/* filesystem's vfs struct */
 	struct tmpnode	*tm_rootnode;	/* root tmpnode */
 	char 		*tm_mntpath;	/* name of tmpfs mount point */
-	ulong_t		tm_anonmax;	/* file system max anon reservation */
-	pgcnt_t		tm_anonmem;	/* pages of reserved anon memory */
+	size_t		tm_anonmax;	/* file system max anon reservation */
+	size_t		tm_anonmem;	/* bytes of reserved anon memory */
+					/* and allocated kmem for the fs */
+	size_t		tm_allocmem;	/* bytes alloced from tmp_kmem_ funcs */
 	dev_t		tm_dev;		/* unique dev # of mounted `device' */
 	uint_t		tm_gen;		/* pseudo generation number for files */
 	kmutex_t	tm_contents;	/* lock for tmount structure */
@@ -58,6 +60,7 @@ struct tmount {
 #define	VTOTM(vp)		((struct tmount *)(vp)->v_vfsp->vfs_data)
 #define	VTOTN(vp)		((struct tmpnode *)(vp)->v_data)
 #define	TNTOV(tp)		((tp)->tn_vnode)
+#define	TNTOTM(tp)		(VTOTM(TNTOV(tp)))
 #define	tmpnode_hold(tp)	VN_HOLD(TNTOV(tp))
 #define	tmpnode_rele(tp)	VN_RELE(TNTOV(tp))
 
@@ -69,41 +72,39 @@ enum dr_op	{ DR_REMOVE, DR_RMDIR, DR_RENAME };	/* dirremove ops */
 
 /*
  * tmpfs_minfree is the amount (in pages) of anonymous memory that tmpfs
- * leaves free for the rest of the system.  E.g. in a system with 32MB of
- * configured swap space, if 16MB were reserved (leaving 16MB free),
- * tmpfs could allocate up to 16MB - tmpfs_minfree.  The default value
- * for tmpfs_minfree is btopr(TMPMINFREE) but it can cautiously patched
- * to a different number of pages.
- * NB: If tmpfs allocates too much swap space, other processes will be
- * unable to execute.
+ * leaves free for the rest of the system.  In antiquity, this number could be
+ * relevant on a system-wide basis, as physical DRAM was routinely exhausted;
+ * however, in more modern times, the relative growth of DRAM with respect to
+ * application footprint means that this number is only likely to become
+ * factor in a virtualized OS environment (e.g., a zone) -- and even then only
+ * when DRAM and swap have both been capped low to allow for maximum tenancy.
+ * TMPMINFREE -- the value from which tmpfs_minfree is derived -- should
+ * therefore be configured to a value that is roughly the smallest practical
+ * value for memory + swap minus the largest reasonable size for tmpfs in such
+ * a configuration.  As of this writing, the smallest practical memory + swap
+ * configuration is 128MB, and it seems reasonable to allow tmpfs to consume
+ * no more than seven-eighths of this, yielding a TMPMINFREE of 16MB.  Care
+ * should be exercised in changing this:  tuning this value too high will
+ * result in spurious ENOSPC errors in tmpfs in small zones (a problem that
+ * can induce cascading failure surprisingly often); tuning this value too low
+ * will result in tmpfs consumption alone to alone induce application-level
+ * memory allocation failure.
  */
-#define	TMPMINFREE	2 * 1024 * 1024	/* 2 Megabytes */
+#define	TMPMINFREE	16 * 1024 * 1024	/* 16 Megabytes */
 
 extern size_t	tmpfs_minfree;		/* Anonymous memory in pages */
 
-/*
- * tmpfs can allocate only a certain percentage of kernel memory,
- * which is used for tmpnodes, directories, file names, etc.
- * This is statically set as TMPMAXFRACKMEM of physical memory.
- * The actual number of allocatable bytes can be patched in tmpfs_maxkmem.
- */
-#define	TMPMAXFRACKMEM	25	/* 1/25 of physical memory */
-
-extern size_t 	tmp_kmemspace;
-extern size_t	tmpfs_maxkmem;	/* Allocatable kernel memory in bytes */
-
 extern	void	tmpnode_init(struct tmount *, struct tmpnode *,
 	struct vattr *, struct cred *);
+extern	void	tmpnode_cleanup(struct tmpnode *tp);
 extern	int	tmpnode_trunc(struct tmount *, struct tmpnode *, ulong_t);
 extern	void	tmpnode_growmap(struct tmpnode *, ulong_t);
 extern	int	tdirlookup(struct tmpnode *, char *, struct tmpnode **,
     struct cred *);
 extern	int	tdirdelete(struct tmpnode *, struct tmpnode *, char *,
 	enum dr_op, struct cred *);
-extern	void	tdirinit(struct tmpnode *, struct tmpnode *);
+extern	int	tdirinit(struct tmpnode *, struct tmpnode *);
 extern	void	tdirtrunc(struct tmpnode *);
-extern	void	*tmp_memalloc(size_t, int);
-extern	void	tmp_memfree(void *, size_t);
 extern	int	tmp_resv(struct tmount *, struct tmpnode *, size_t, int);
 extern	int	tmp_taccess(void *, int, struct cred *);
 extern	int	tmp_sticky_remove_access(struct tmpnode *, struct tmpnode *,
@@ -113,6 +114,9 @@ extern	int	tmp_convmode(char *, mode_t *);
 extern	int	tdirenter(struct tmount *, struct tmpnode *, char *,
 	enum de_op, struct tmpnode *, struct tmpnode *, struct vattr *,
 	struct tmpnode **, struct cred *, caller_context_t *);
+
+extern void	*tmp_kmem_zalloc(struct tmount *, size_t, int);
+extern void	tmp_kmem_free(struct tmount *, void *, size_t);
 
 #define	TMP_MUSTHAVE	0x01
 
