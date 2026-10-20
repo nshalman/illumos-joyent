@@ -404,7 +404,9 @@ file path=usr/share/man/man9f/ddi_driver_name.9f
 file path=usr/share/man/man9f/ddi_enter_critical.9f
 link path=usr/share/man/man9f/ddi_exit_critical.9f target=ddi_enter_critical.9f
 file path=usr/share/man/man9f/ddi_ffs.9f
+link path=usr/share/man/man9f/ddi_ffsll.9f target=ddi_ffs.9f
 link path=usr/share/man/man9f/ddi_fls.9f target=ddi_ffs.9f
+link path=usr/share/man/man9f/ddi_flsll.9f target=ddi_ffs.9f
 file path=usr/share/man/man9f/ddi_fm_acc_err_clear.9f
 file path=usr/share/man/man9f/ddi_fm_acc_err_get.9f
 link path=usr/share/man/man9f/ddi_fm_capable.9f target=ddi_fm_init.9f

@@ -11,9 +11,12 @@
 
 #
 # Copyright 2025 Oxide Computer Company
+# Copryight 2025 MNX Cloud, Inc.
 #
 
 dlpi_enabmulti.3dlpi
 	dlpi_disabmulti.3dlpi
 dlpi_promiscon.3dlpi
 	dlpi_promiscoff.3dlpi
+dlpi_open.3dlpi
+	dlpi_open_zone.3dlpi

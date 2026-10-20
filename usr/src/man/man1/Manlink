@@ -10,6 +10,7 @@
 #
 
 #
+# Copyright 2025 MNX Cloud, Inc.
 # Copyright 2026 Oxide Computer Company
 #
 
@@ -131,6 +132,12 @@ loadkeys.1
 	dumpkeys.1
 mail.1
 	rmail.1
+machid.1
+	i286.1
+	i386.1
+	i486.1
+	sparc.1
+	sun.1
 make.1
 	dmake.1
 more.1
