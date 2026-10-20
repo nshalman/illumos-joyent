@@ -389,7 +389,7 @@ typedef struct zone_dataset {
 } zone_dataset_t;
 
 /*
- * structure for zone kstats
+ * structure for rctl zone kstats
  */
 typedef struct zone_kstat {
 	kstat_named_t zk_zonename;

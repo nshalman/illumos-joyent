@@ -38,6 +38,7 @@
  * Copyright 2017 RackTop Systems.
  * Copyright (c) 2017, Datto, Inc. All rights reserved.
  * Copyright 2021 The University of Queensland
+ * Copyright 2025 Edgecast Cloud LLC.
  * Copyright 2026 Oxide Computer Company
  */
 
@@ -5329,6 +5330,12 @@ zfs_ioc_send_progress(zfs_cmd_t *zc)
 	dsl_dataset_rele(ds, FTAG);
 	dsl_pool_rele(dp, FTAG);
 	return (error);
+}
+
+static int
+zfs_ioc_arc(zfs_cmd_t *zc)
+{
+	return (arc_dynamic_resize(zc));
 }
 
 static int

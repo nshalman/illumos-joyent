@@ -44,6 +44,7 @@
 #include <sys/zfs_znode.h>
 #include <sys/spa_impl.h>
 #include <sys/dsl_deadlist.h>
+#include <sys/zfs_zone.h>
 #include <sys/vdev_impl.h>
 #include <sys/metaslab_impl.h>
 #include <sys/bptree.h>
@@ -905,7 +906,7 @@ dsl_pool_undirty_space(dsl_pool_t *dp, int64_t space, uint64_t txg)
 	}
 	ASSERT3U(dp->dp_dirty_pertxg[txg & TXG_MASK], >=, space);
 	dp->dp_dirty_pertxg[txg & TXG_MASK] -= space;
-	ASSERT3U(dp->dp_dirty_total, >=, space);
+	VERIFY3U(dp->dp_dirty_total, >=, space);
 	dsl_pool_dirty_delta(dp, -space);
 	mutex_exit(&dp->dp_lock);
 }
