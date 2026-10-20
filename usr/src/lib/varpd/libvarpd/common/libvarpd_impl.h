@@ -53,6 +53,7 @@ typedef struct varpd_impl {
 	avl_tree_t	vdi_linstances;	/* vdi_lock */
 	id_space_t	*vdi_idspace;	/* RO */
 	umem_cache_t	*vdi_qcache;	/* RO */
+	bunyan_logger_t	*vdi_bunyan;	/* RO */
 	int		vdi_overlayfd;	/* RO */
 	int		vdi_doorfd;	/* vdi_lock */
 	int		vdi_persistfd;	/* vdi_plock */

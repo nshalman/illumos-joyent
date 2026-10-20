@@ -98,6 +98,14 @@ libvarpd_create(varpd_handle_t **vphp)
 		return (ret);
 	}
 
+	if ((ret = bunyan_init("varpd", &vip->vdi_bunyan)) != 0) {
+		libvarpd_overlay_fini(vip);
+		umem_cache_destroy(vip->vdi_qcache);
+		id_space_destroy(vip->vdi_idspace);
+		umem_free(vip, sizeof (varpd_impl_t));
+		return (ret);
+	}
+
 	libvarpd_persist_init(vip);
 
 	avl_create(&vip->vdi_plugins, libvarpd_plugin_comparator,
@@ -313,6 +321,13 @@ libvarpd_instance_activate(varpd_instance_handle_t *ihp)
 out:
 	mutex_exit(&inst->vri_lock);
 	return (ret);
+}
+
+const bunyan_logger_t *
+libvarpd_plugin_bunyan(varpd_provider_handle_t *vhp)
+{
+	varpd_instance_t *inst = (varpd_instance_t *)vhp;
+	return (inst->vri_impl->vdi_bunyan);
 }
 
 static void

@@ -193,6 +193,7 @@ SUBDIRS +=				\
 	libpthread	\
 	libraidcfg	\
 	librcm		\
+	librefhash	\
 	librename	\
 	libreparse	\
 	libresolv	\
@@ -665,6 +666,7 @@ libprtdiag:	libkstat libdevinfo
 libprtdiag_psr:	libprtdiag
 libraidcfg:	libdevinfo
 librcm:		libnvpair
+librefhash:	libumem
 librestart:	libuutil libscf libpool libproject libsecdb libsysevent
 libsasl:	libgss pkcs11
 libsaveargs:	libdisasm

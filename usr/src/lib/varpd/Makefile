@@ -10,10 +10,10 @@
 #
 
 #
-# Copyright 2018 Joyent, Inc.
+# Copyright 2021 Joyent, Inc.
 #
 
-SUBDIRS = libvarpd direct files
+SUBDIRS = libvarpd direct files svp
 
 all :=		TARGET = all
 clean :=	TARGET = clean

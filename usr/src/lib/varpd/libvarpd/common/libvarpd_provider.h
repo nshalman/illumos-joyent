@@ -36,8 +36,8 @@
  * succeeds, then it should proceed to fill out the registration and then call,
  * libvarpd_plugin_register() with it. Regardless of whether it succeeds or
  * fails, it should call libvarpd_plugin_free(). In the case of failure, there
- * is not much that the module should do, other than log some message to
- * stderr.
+ * is not much that the module should do, other than log some message to the
+ * standard bunyan logger that exists.
  *
  * Once libvarpd_plugin_register() returns, the module should assume that any
  * of the operations it defined in the operation vector may be called and
@@ -287,6 +287,7 @@
  * context, including from the operation vectors.
  */
 
+#include <bunyan.h>
 #include <libvarpd.h>
 #include <libnvpair.h>
 #include <sys/socket.h>
@@ -366,6 +367,7 @@ extern int libvarpd_plugin_register(varpd_plugin_register_t *);
  * Blowing up and logging
  */
 extern void libvarpd_panic(const char *, ...) __NORETURN;
+extern const bunyan_logger_t *libvarpd_plugin_bunyan(varpd_provider_handle_t *);
 
 /*
  * Misc. Information APIs

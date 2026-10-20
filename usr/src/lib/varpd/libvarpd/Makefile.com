@@ -10,7 +10,7 @@
 #
 
 #
-# Copyright 2015 Joyent, Inc.
+# Copyright 2021 Joyent, Inc.
 #
 
 LIBRARY =	libvarpd.a
@@ -32,7 +32,8 @@ include ../../../Makefile.lib
 include ../../../Makefile.rootfs
 
 LIBS =		$(DYNLIB)
-LDLIBS +=	-lc -lavl -lumem -lidspace -lnvpair -lmd -lrename
+LDLIBS +=	-lc -lavl -lumem -lidspace -lnvpair -lmd -lrename \
+		-lbunyan
 CPPFLAGS +=	-I../common
 
 CSTD=		$(CSTD_GNU99)
