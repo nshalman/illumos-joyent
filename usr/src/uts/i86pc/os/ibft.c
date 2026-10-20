@@ -39,6 +39,7 @@
 #include <sys/kmem.h>
 #include <sys/psm.h>
 #include <sys/bootconf.h>
+#include <sys/reboot.h>
 
 typedef enum ibft_structure_type {
 	Reserved	=	0,
@@ -206,6 +207,7 @@ static ibft_status_t iscsi_parse_ibft_NIC(iscsi_ibft_nic_t *nicp);
 static ibft_status_t iscsi_parse_ibft_target(char *begin_of_ibft,
     iscsi_ibft_tgt_t *tgtp);
 
+extern int boothowto;
 
 /*
  * Return value:
@@ -759,7 +761,9 @@ ld_ib_prop()
 		 * 1) pass "-B ibft-noprobe=1" on kernel command line
 		 * 2) add line "set ibft_noprobe=1" in /etc/system
 		 */
-		cmn_err(CE_NOTE, IBFT_NOPROBE_MSG);
+		if (boothowto & RB_VERBOSE) {
+			cmn_err(CE_NOTE, IBFT_NOPROBE_MSG);
+		}
 		return;
 	}
 

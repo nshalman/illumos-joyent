@@ -23,6 +23,10 @@
  */
 
 /*
+ * Copyright 2019 Joyent, Inc.
+ */
+
+/*
  * Platform specific implementation code
  * Currently only suspend to RAM is supported (ACPI S3)
  */
@@ -737,6 +741,20 @@ i_cpr_is_supported(int sleeptype)
 	if (sleeptype != CPR_TORAM)
 		return (0);
 
+        /*
+         * Unfortunately, the x86 resume code was never implemented for GAS.
+         * The only obvious problem is that a trick necessary to appease Sun
+         * Studio does the wrong thing for GAS.  Doubley unfortunate is that
+         * the condition used to detect GAS is incorrect, so we do in fact
+         * compile the Studio path, it just immediately fails in resume.
+         *
+         * Given that, if we were built using GCC, never allow CPR to be
+         * attempted.
+         */
+#ifdef __GNUC__
+        return (0);
+#else
+
 	/*
 	 * The next statement tests if a specific platform has turned off
 	 * cpr support.
@@ -751,6 +769,7 @@ i_cpr_is_supported(int sleeptype)
 		return (1);
 
 	return (pm_S3_enabled);
+#endif
 }
 
 void

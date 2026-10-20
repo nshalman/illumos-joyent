@@ -22,6 +22,7 @@
 /*
  * Copyright 2014 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 1983, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2017, Joyent, Inc.
  * Copyright 2012 Milan Jurik. All rights reserved.
  * Copyright 2022 Garrett D'Amore <garrett@damore.org>
  */
@@ -537,8 +538,8 @@ char *isa_list = architecture;
 static pgcnt_t original_physmem = 0;
 
 #define	MIN_DEFAULT_MAXUSERS	8u
-#define	MAX_DEFAULT_MAXUSERS	2048u
-#define	MAX_MAXUSERS		4096u
+#define	MAX_DEFAULT_MAXUSERS	10000u
+#define	MAX_MAXUSERS		20000u
 
 void
 param_preset(void)
@@ -550,7 +551,7 @@ void
 param_calc(int platform_max_nprocs)
 {
 	/*
-	 * Default to about one "user" per megabyte, taking into
+	 * Default to about one "user" per 8MB, taking into
 	 * account both physical and virtual constraints.
 	 * Note: 2^20 is a meg; shifting right by (20 - PAGESHIFT)
 	 * converts pages to megs without integer overflow.
@@ -564,8 +565,9 @@ param_calc(int platform_max_nprocs)
 	if (maxusers == 0) {
 		pgcnt_t physmegs = physmem >> (20 - PAGESHIFT);
 		pgcnt_t virtmegs = vmem_size(heap_arena, VMEM_FREE) >> 20;
-		maxusers = MIN(MAX(MIN(physmegs, virtmegs),
-		    MIN_DEFAULT_MAXUSERS), MAX_DEFAULT_MAXUSERS);
+		maxusers = MIN(physmegs, virtmegs) >> 3; /* divide by 8 */
+		maxusers = MAX(maxusers, MIN_DEFAULT_MAXUSERS);
+		maxusers = MIN(maxusers, MAX_DEFAULT_MAXUSERS);
 	}
 	if (maxusers > MAX_MAXUSERS) {
 		maxusers = MAX_MAXUSERS;
@@ -582,15 +584,26 @@ param_calc(int platform_max_nprocs)
 
 	/*
 	 * We need to dynamically change any variables now so that
-	 * the setting of maxusers and pidmax propagate to the other
+	 * the setting of maxusers and maxpid propagate to the other
 	 * variables that are dependent on them.
 	 */
 	if (reserved_procs == 0)
 		reserved_procs = 5;
-	if (pidmax < reserved_procs || pidmax > MAX_MAXPID)
+	if (pidmax < reserved_procs || pidmax > MAX_MAXPID) {
 		maxpid = MAX_MAXPID;
-	else
+	} else {
+		/*
+		 * If pidmax has not been explicity set in /etc/system, then
+		 * increase it to the maximum on larger machines. We choose a
+		 * 128GB memory size as the threshold to increase pidmax.
+		 */
+		if (pidmax == DEFAULT_MAXPID) {
+			if (physmem > (btop(128ULL * 0x40000000ULL))) {
+				pidmax = MAX_MAXPID;
+			}
+		}
 		maxpid = pidmax;
+	}
 
 	/*
 	 * This allows platform-dependent code to constrain the maximum

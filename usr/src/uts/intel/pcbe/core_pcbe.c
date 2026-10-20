@@ -819,7 +819,7 @@ core_pcbe_init(void)
 		for (i = 0; i < num_gpc; i++) {
 
 			/*
-			 * Determine length of all supported event names
+			 * determine length of all supported event names
 			 * (architectural + non-architectural)
 			 */
 			size = arch_events_string_length;
