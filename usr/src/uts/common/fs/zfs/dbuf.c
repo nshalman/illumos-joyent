@@ -1125,8 +1125,17 @@ dbuf_read_impl(dmu_buf_impl_t *db, zio_t *zio, uint32_t flags,
 		arc_space_consume(max_bonuslen, ARC_SPACE_BONUS);
 		if (bonuslen < max_bonuslen)
 			bzero(db->db.db_data, max_bonuslen);
-		if (bonuslen)
-			bcopy(DN_BONUS(dn->dn_phys), db->db.db_data, bonuslen);
+		if (bonuslen) {
+			/*
+			 * Absent byzantine on-disk corruption, we fully expect
+			 * our bonuslen to be no more than max_bonuslen --
+			 * but we nonetheless explicitly clamp it on the bcopy()
+			 * to prevent any on-disk corruption from becoming
+			 * rampant in-kernel corruption.
+			 */
+			bcopy(DN_BONUS(dn->dn_phys), db->db.db_data,
+			    MIN(bonuslen, max_bonuslen));
+		}
 		DB_DNODE_EXIT(db);
 		db->db_state = DB_CACHED;
 		mutex_exit(&db->db_mtx);
