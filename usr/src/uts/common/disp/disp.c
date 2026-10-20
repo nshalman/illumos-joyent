@@ -2256,7 +2256,7 @@ disp_getbest(disp_t *dp)
 		 * placed earlier.
 		 */
 		if (tcp == NULL ||
-		    pri >= minclsyspri ||
+		    (pri >= minclsyspri && tp->t_procp == &p0) ||
 		    tp->t_cpu != tcp)
 			break;
 
