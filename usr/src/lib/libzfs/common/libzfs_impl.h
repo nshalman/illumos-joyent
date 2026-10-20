@@ -22,6 +22,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011 Pawel Jakub Dawidek. All rights reserved.
+ * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
  * Copyright 2020 Joyent, Inc.
  */
@@ -90,6 +91,7 @@ struct libzfs_handle {
 	libzfs_fru_t **libzfs_fru_hash;
 	libzfs_fru_t *libzfs_fru_list;
 	char libzfs_chassis_id[256];
+	boolean_t libzfs_cachedprops;
 	boolean_t libzfs_prop_debug;
 	di_devlink_handle_t libzfs_devlink;
 	regex_t libzfs_urire;
@@ -209,6 +211,7 @@ int get_dependents(libzfs_handle_t *, boolean_t, const char *, char ***,
     size_t *);
 zfs_handle_t *make_dataset_handle_zc(libzfs_handle_t *, zfs_cmd_t *);
 zfs_handle_t *make_dataset_simple_handle_zc(zfs_handle_t *, zfs_cmd_t *);
+int libzfs_cmd_set_cachedprops(libzfs_handle_t *, zfs_cmd_t *);
 
 int zprop_parse_value(libzfs_handle_t *, nvpair_t *, int, zfs_type_t,
     nvlist_t *, char **, uint64_t *, const char *);

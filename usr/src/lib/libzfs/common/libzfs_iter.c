@@ -24,6 +24,7 @@
  * Copyright (c) 2013, 2015 by Delphix. All rights reserved.
  * Copyright (c) 2012 Pawel Jakub Dawidek. All rights reserved.
  * Copyright 2014 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  */
 
 #include <stdio.h>
@@ -112,6 +113,10 @@ zfs_iter_filesystems(zfs_handle_t *zhp, zfs_iter_f func, void *data)
 	if (zhp->zfs_type != ZFS_TYPE_FILESYSTEM)
 		return (0);
 
+	if (zhp->zfs_hdl->libzfs_cachedprops &&
+	    libzfs_cmd_set_cachedprops(zhp->zfs_hdl, &zc) != 0)
+		return (-1);
+
 	if (zcmd_alloc_dst_nvlist(zhp->zfs_hdl, &zc, 0) != 0)
 		return (-1);
 
@@ -122,9 +127,8 @@ zfs_iter_filesystems(zfs_handle_t *zhp, zfs_iter_f func, void *data)
 		 * that the pool has since been removed.
 		 */
 		if ((nzhp = make_dataset_handle_zc(zhp->zfs_hdl,
-		    &zc)) == NULL) {
+		    &zc)) == NULL)
 			continue;
-		}
 
 		if ((ret = func(nzhp, data)) != 0) {
 			zcmd_free_nvlists(&zc);
@@ -150,10 +154,17 @@ zfs_iter_snapshots(zfs_handle_t *zhp, boolean_t simple, zfs_iter_f func,
 	    zhp->zfs_type == ZFS_TYPE_BOOKMARK)
 		return (0);
 
+
+	if (zhp->zfs_hdl->libzfs_cachedprops &&
+	    libzfs_cmd_set_cachedprops(zhp->zfs_hdl, &zc) != 0)
+		return (-1);
+
 	zc.zc_simple = simple;
+
 
 	if (zcmd_alloc_dst_nvlist(zhp->zfs_hdl, &zc, 0) != 0)
 		return (-1);
+
 	while ((ret = zfs_do_list_ioctl(zhp, ZFS_IOC_SNAPSHOT_LIST_NEXT,
 	    &zc)) == 0) {
 

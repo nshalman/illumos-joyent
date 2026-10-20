@@ -261,7 +261,7 @@ get_usage(zfs_help_t idx)
 		    "<filesystem|volume>@<snap>[%<snap>][,...]\n"
 		    "\tdestroy <filesystem|volume>#<bookmark>\n"));
 	case HELP_GET:
-		return (gettext("\tget [-rHp] [-d max] "
+		return (gettext("\tget [-crHp] [-d max] "
 		    "[-o \"all\" | field[,...]]\n"
 		    "\t    [-t type[,...]] [-s source[,...]]\n"
 		    "\t    <\"all\" | property[,...]> "
@@ -1817,8 +1817,11 @@ zfs_do_get(int argc, char **argv)
 	cb.cb_type = ZFS_TYPE_DATASET;
 
 	/* check options */
-	while ((c = getopt(argc, argv, ":d:o:s:rt:Hp")) != -1) {
+	while ((c = getopt(argc, argv, ":d:o:s:rt:Hcp")) != -1) {
 		switch (c) {
+		case 'c':
+			libzfs_set_cachedprops(g_zfs, B_TRUE);
+			break;
 		case 'p':
 			cb.cb_literal = B_TRUE;
 			break;
