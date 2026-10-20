@@ -21,6 +21,7 @@
 /*
  * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ * Copyright 2012 Joyent, Inc.  All rights reserved.
  *
  * Copyright 2017 RackTop Systems.
  */
@@ -188,6 +189,7 @@ struct biostats {
 #define	B_STARTED	0x2000000	/* io:::start probe called for buf */
 #define	B_ABRWRITE	0x4000000	/* Application based recovery active */
 #define	B_PAGE_NOWAIT	0x8000000	/* Skip the page if it is locked */
+#define	B_INVALCURONLY	0x10000000	/* invalidate only for curproc */
 
 /*
  * There is some confusion over the meaning of B_FREE and B_INVAL and what
@@ -199,6 +201,12 @@ struct biostats {
  * vnode) and placed on the freelist.  Beyond this, there is no difference
  * between the sole use of these two flags.  In both cases, IO will be done
  * if the page is not yet committed to storage.
+ *
+ * The B_INVALCURONLY flag modifies the behavior of the B_INVAL flag and is
+ * intended to be used in conjunction with B_INVAL.  B_INVALCURONLY has no
+ * meaning on its own.  When both B_INVALCURONLY and B_INVAL are set, then
+ * the mapping for the page is only invalidated for the current process.
+ * In this case, the page is not destroyed unless this was the final mapping.
  *
  * In order to discard pages without writing them back, (B_INVAL | B_TRUNC)
  * should be used.

@@ -337,6 +337,7 @@ struct memcntl_mha32 {
 #define	MS_SYNC		0x4		/* wait for msync */
 #define	MS_ASYNC	0x1		/* return immediately */
 #define	MS_INVALIDATE	0x2		/* invalidate caches */
+#define	MS_INVALCURPROC	0x8		/* invalidate cache for curproc only */
 
 #if !defined(_STRICT_POSIX) || (_POSIX_C_SOURCE > 2) || defined(_XPG5)
 /* flags to mlockall */

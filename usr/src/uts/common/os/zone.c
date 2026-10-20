@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2015, Joyent Inc. All rights reserved.
+ * Copyright 2019 Joyent, Inc.
  * Copyright (c) 2016 by Delphix. All rights reserved.
  * Copyright 2018 OmniOS Community Edition (OmniOSce) Association.
  */
@@ -1942,9 +1942,12 @@ zone_misc_kstat_update(kstat_t *ksp, int rw)
 	zmp->zm_ffnomem.value.ui32 = zone->zone_ffnomem;
 	zmp->zm_ffmisc.value.ui32 = zone->zone_ffmisc;
 
+	zmp->zm_mfseglim.value.ui32 = zone->zone_mfseglim;
+
 	zmp->zm_nested_intp.value.ui32 = zone->zone_nested_intp;
 
 	zmp->zm_init_pid.value.ui32 = zone->zone_proc_initpid;
+	zmp->zm_init_restarts.value.ui32 = zone->zone_proc_init_restarts;
 	zmp->zm_boot_time.value.ui64 = (uint64_t)zone->zone_boot_time;
 
 	return (0);

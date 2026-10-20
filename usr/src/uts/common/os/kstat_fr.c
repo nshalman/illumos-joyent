@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 1992, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2014, Joyent, Inc. All rights reserved.
+ * Copyright 2017, Joyent, Inc. All rights reserved.
  * Copyright 2015 Nexenta Systems, Inc. All rights reserved.
  */
 
@@ -199,6 +199,7 @@ struct {
 	kstat_named_t pageslocked;
 	kstat_named_t pagestotal;
 	kstat_named_t lowmemscan;
+	kstat_named_t zonecapscan;
 	kstat_named_t nthrottle;
 } system_pages_kstat = {
 	{ "physmem",		KSTAT_DATA_ULONG },
@@ -222,6 +223,7 @@ struct {
 	{ "pageslocked",	KSTAT_DATA_ULONG },
 	{ "pagestotal",		KSTAT_DATA_ULONG },
 	{ "low_mem_scan",	KSTAT_DATA_ULONG },
+	{ "zone_cap_scan",	KSTAT_DATA_ULONG },
 	{ "n_throttle",		KSTAT_DATA_ULONG },
 };
 
@@ -917,6 +919,7 @@ system_pages_kstat_update(kstat_t *ksp, int rw)
 	    availrmem);
 	system_pages_kstat.pagestotal.value.ul	= (ulong_t)total_pages;
 	system_pages_kstat.lowmemscan.value.ul	= (ulong_t)low_mem_scan;
+	system_pages_kstat.zonecapscan.value.ul	= (ulong_t)zone_cap_scan;
 	system_pages_kstat.nthrottle.value.ul	= (ulong_t)n_throttle;
 	/*
 	 * pp_kernel represents total pages used by the kernel since the

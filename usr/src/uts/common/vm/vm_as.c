@@ -57,6 +57,7 @@
 #include <sys/cmn_err.h>
 #include <sys/debug.h>
 #include <sys/vtrace.h>
+#include <sys/ddi.h>
 
 #include <vm/hat.h>
 #include <vm/as.h>
@@ -70,6 +71,8 @@
 #include <vm/page.h>
 
 clock_t deadlk_wait = 1; /* number of ticks to wait before retrying */
+
+ulong_t as_user_seg_limit = 0xffff; /* max segments in an (non-kas) AS */
 
 static struct kmem_cache *as_cache;
 
@@ -837,8 +840,6 @@ as_fault(struct hat *hat, struct as *as, caddr_t addr, size_t size,
 	struct seg *segsav;
 	int as_lock_held;
 	klwp_t *lwp = ttolwp(curthread);
-
-
 
 retry:
 	/*
@@ -1701,6 +1702,20 @@ as_map_locked(struct as *as, caddr_t addr, size_t size, segcreate_func_t crfp,
 
 			(void) rctl_action(rctlproc_legacy[RLIMIT_VMEM],
 			    p->p_rctls, p, RCA_UNSAFE_ALL);
+			return (ENOMEM);
+		}
+
+		/*
+		 * Keep the number of segments in a userspace AS constrained to
+		 * a reasonable limit.  Linux enforces a value slightly less
+		 * than 64k in order to avoid ELF limits if/when a process
+		 * dumps core.  While SunOS avoids that specific problem with
+		 * other tricks, the limit is still valuable to keep kernel
+		 * memory consumption in check.
+		 */
+		if (avl_numnodes(&as->a_segtree) >= as_user_seg_limit) {
+			AS_LOCK_EXIT(as);
+			atomic_inc_32(&p->p_zone->zone_mfseglim);
 			return (ENOMEM);
 		}
 	}

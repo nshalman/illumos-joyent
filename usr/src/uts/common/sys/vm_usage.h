@@ -21,6 +21,7 @@
 /*
  * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ * Copyright 2017 Joyent, Inc.  All rights reserved.
  * Copyright 2026 Oxide Computer Company
  */
 
@@ -81,8 +82,12 @@ extern "C" {
 					/* zoneid */
 #define	VMUSAGE_COL_EUSERS	0x2000	/* same as VMUSAGE_COL_RUSERS, but by */
 					/* euser */
+#define	VMUSAGE_A_ZONE		0x4000	/* rss/swap for a specified zone */
 
-#define	VMUSAGE_MASK		0x3fff  /* all valid flags for getvmusage() */
+#define	VMUSAGE_MASK		0x7fff  /* all valid flags for getvmusage() */
+
+#define	VMUSAGE_ZONE_FLAGS	(VMUSAGE_ZONE | VMUSAGE_ALL_ZONES | \
+				VMUSAGE_A_ZONE)
 
 typedef struct vmusage {
 	id_t	vmu_zoneid;		/* zoneid, or ALL_ZONES for */

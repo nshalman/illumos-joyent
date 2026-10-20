@@ -613,6 +613,8 @@ typedef struct zone {
 	uint32_t	zone_ffnomem;		/* as_dup/memory error */
 	uint32_t	zone_ffmisc;		/* misc. other error */
 
+	uint32_t	zone_mfseglim;		/* map failure (# segs limit) */
+
 	uint32_t	zone_nested_intp;	/* nested interp. kstat */
 
 	struct loadavg_s zone_loadavg;		/* loadavg for this zone */

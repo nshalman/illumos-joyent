@@ -22,7 +22,9 @@
 # Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #
+# Copyright 2020 Joyent, Inc.
 # Copyright 2025 Hans Rosenfeld
+#
 
 .KEEP_STATE:
 .SUFFIXES:
@@ -41,7 +43,7 @@ CLEANFILES +=	$(OBJS) $(COMMON_OBJS:%.o=%.c)
 
 $(NOT_RELEASE_BUILD)CPPFLAGS	+= -DDEBUG
 CPPFLAGS			+= -I$(COMMON_DIR)
-LDLIBS				+= -lumem -lzonecfg -lscf
+LDLIBS				+= -lumem -lscf
 
 POFILES =			$(OBJS:%.o=%.po)
 POFILE =			p$(PROG).po

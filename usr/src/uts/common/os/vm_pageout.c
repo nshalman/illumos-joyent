@@ -64,6 +64,7 @@
 #include <sys/callb.h>
 #include <sys/mem_cage.h>
 #include <sys/time.h>
+#include <sys/zone.h>
 #include <sys/stdbool.h>
 
 #include <vm/hat.h>
@@ -247,14 +248,15 @@ pgcnt_t		desscan;
 
 /* kstats */
 uint64_t	low_mem_scan;
+uint64_t	zone_cap_scan;
 
 /* The maximum supported number of page_scanner() threads */
 #define	MAX_PSCAN_THREADS	16
 
 /*
- * Values for min_pageout_nsec, max_pageout_nsec and pageout_nsec are the
- * number of nanoseconds in each wakeup cycle that gives the equivalent of some
- * underlying %CPU duty cycle.
+ * Values for min_pageout_nsec, max_pageout_nsec, pageout_nsec and
+ * zone_pageout_nsec are the number of nanoseconds in each wakeup cycle
+ * that gives the equivalent of some underlying %CPU duty cycle.
  *
  * min_pageout_nsec:
  *     nanoseconds/wakeup equivalent of min_percent_cpu.
@@ -266,11 +268,17 @@ uint64_t	low_mem_scan;
  *     Number of nanoseconds budgeted for each wakeup cycle.
  *     Computed each time around by schedpaging().
  *     Varies between min_pageout_nsec and max_pageout_nsec,
- *     depending on memory pressure.
+ *     depending on memory pressure or zones over their cap.
+ *
+ * zone_pageout_nsec:
+ *      Number of nanoseconds budget for each cycle when a zone
+ *      is over its memory cap. If this is zero, then the value
+ *      of max_pageout_nsec is used instead.
  */
 static hrtime_t	min_pageout_nsec;
 static hrtime_t	max_pageout_nsec;
 static hrtime_t	pageout_nsec;
+static hrtime_t	zone_pageout_nsec;
 
 static bool	reset_hands[MAX_PSCAN_THREADS];
 
@@ -345,7 +353,8 @@ static uint_t pageouts_running;
 /*
  * Record number of times a pageout_scanner() wakeup cycle finished because it
  * timed out (exceeded its CPU budget), rather than because it visited
- * its budgeted number of pages.
+ * its budgeted number of pages. This is only done when scanning under low
+ * free memory conditions, not when scanning for zones over their cap.
  */
 uint64_t	pageout_timeouts = 0;
 
@@ -470,6 +479,17 @@ recalc_pagescanners(void)
 	despagescanners = clamp(des, 1,
 	    clamp(max_scanners, 1, MAX_PSCAN_THREADS));
 }
+
+/*
+ * Local boolean to control scanning when zones are over their cap. Avoids
+ * accessing the zone_num_over_cap variable except within schedpaging(), which
+ * only runs periodically. This is here only to reduce our access to
+ * zone_num_over_cap, since it is already accessed a lot during paging, and
+ * the page scanner accesses the zones_over variable on each page during a
+ * scan. There is no lock needed for zone_num_over_cap since schedpaging()
+ * doesn't modify the variable, it only cares if the variable is 0 or non-0.
+ */
+static boolean_t zones_over = B_FALSE;
 
 /*
  * Set up the paging constants for the clock algorithm used by
@@ -896,6 +916,8 @@ schedpaging(void *arg)
 			}
 		}
 
+		zones_over = B_FALSE;
+
 		if (pageout_sampling) {
 			/*
 			 * We still need to measure the rate at which the
@@ -914,6 +936,27 @@ schedpaging(void *arg)
 			 */
 			low_mem_scan++;
 			WAKE_PAGEOUT_SCANNER(lowmem);
+		} else if (zone_num_over_cap > 0) {
+			/*
+			 * One or more zones are over their cap.
+			 */
+
+			/* No page limit */
+			desscan = total_pages;
+
+			/*
+			 * Increase the scanning CPU% to the max. This implies
+			 * 80% of one CPU/sec if the scanner can run each
+			 * opportunity. Can also be tuned via setting
+			 * zone_pageout_nsec in /etc/system or with mdb.
+			 */
+			pageout_nsec = (zone_pageout_nsec != 0) ?
+			    zone_pageout_nsec : max_pageout_nsec;
+
+			zones_over = B_TRUE;
+			zone_cap_scan++;
+
+			WAKE_PAGEOUT_SCANNER(zone);
 		} else {
 			/*
 			 * There are enough free pages, no need to
@@ -1239,7 +1282,14 @@ loop:
 	while (nscan_cnt < desscan) {
 		checkpage_result_t rvfront, rvback;
 
-		if (!pageout_sampling && freemem >= lotsfree + needfree) {
+		/*
+		 * Only scan while at least one of these is true:
+		 *  1) one or more zones is over its cap
+		 *  2) there is not enough free memory
+		 *  3) during page scan startup when determining sample data
+		 */
+		if (!pageout_sampling && freemem >= lotsfree + needfree &&
+		    !zones_over) {
 			/*
 			 * We are not sampling and enough memory has become
 			 * available that scanning is no longer required.
@@ -1259,7 +1309,8 @@ loop:
 
 			pageout_cycle_nsec = gethrtime() - sample_start;
 			if (pageout_cycle_nsec >= pageout_nsec) {
-				atomic_inc_64(&pageout_timeouts);
+				if (!zones_over)
+					atomic_inc_64(&pageout_timeouts);
 				DTRACE_PROBE1(pageout__timeout, uint_t, inst);
 				break;
 			}
@@ -1310,7 +1361,13 @@ loop:
 			 */
 			CPU_STATS_ADDQ(CPU, vm, rev, 1);
 
-			if (laps > 1) {
+			/*
+			 * then when we wraparound memory we want to try to
+			 * reclaim more pages.
+			 * If scanning only because zones are over their cap,
+			 * then wrapping is common and we simply keep going.
+			 */
+			if (laps > 1 && freemem < lotsfree + needfree) {
 				/*
 				 * Extremely unlikely, but it happens.
 				 * We went around the loop at least once
@@ -1424,6 +1481,7 @@ checkpage(page_t *pp, pageout_hand_t whichhand)
 	int isfs = 0;
 	int isexec = 0;
 	int pagesync_flag;
+	zoneid_t zid = ALL_ZONES;
 
 	/*
 	 * Skip pages:
@@ -1464,6 +1522,21 @@ checkpage(page_t *pp, pageout_hand_t whichhand)
 	if (pp->p_lckcnt != 0 || pp->p_cowcnt != 0) {
 		page_unlock(pp);
 		return (CKP_INELIGIBLE);
+	}
+
+	if (zones_over) {
+		ASSERT(pp->p_zoneid == ALL_ZONES ||
+		    pp->p_zoneid >= 0 && pp->p_zoneid <= MAX_ZONEID);
+		if (pp->p_zoneid == ALL_ZONES ||
+		    zone_pdata[pp->p_zoneid].zpers_over == 0) {
+			/*
+			 * Cross-zone shared page, or zone not over it's cap.
+			 * Leave the page alone.
+			 */
+			page_unlock(pp);
+			return (CKP_INELIGIBLE);
+		}
+		zid = pp->p_zoneid;
 	}
 
 	/*
@@ -1573,6 +1646,11 @@ recheck:
 			VN_RELE(vp);
 			return (CKP_NOT_FREED);
 		}
+		if (isfs) {
+			zone_pageout_stat(zid, ZPO_DIRTY);
+		} else {
+			zone_pageout_stat(zid, ZPO_ANONDIRTY);
+		}
 		return (CKP_FREED);
 	}
 
@@ -1599,8 +1677,10 @@ recheck:
 		} else {
 			CPU_STATS_ADD_K(vm, fsfree, 1);
 		}
+		zone_pageout_stat(zid, ZPO_FS);
 	} else {
 		CPU_STATS_ADD_K(vm, anonfree, 1);
+		zone_pageout_stat(zid, ZPO_ANON);
 	}
 
 	return (CKP_FREED);
