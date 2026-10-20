@@ -22,6 +22,8 @@
 /*
  * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ *
+ * Copyright 2020 Joyent, Inc.
  */
 
 #ifndef	_DBOOT_PRINTF_H
