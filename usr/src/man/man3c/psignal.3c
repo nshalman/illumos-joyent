@@ -11,7 +11,7 @@ psignal, psiginfo \- system signal messages
 .SH SYNOPSIS
 .LP
 .nf
-#include <siginfo.h>
+#include <signal.h>
 
 \fBvoid\fR \fBpsignal\fR(\fBint\fR \fIsig\fR, \fBconst char *\fR\fIs\fR);
 .fi
