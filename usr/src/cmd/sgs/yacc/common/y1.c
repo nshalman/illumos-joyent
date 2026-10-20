@@ -26,12 +26,17 @@
 /* Copyright (c) 1988 AT&T */
 /* All Rights Reserved */
 
+/*
+ * Copyright (c) 2013, Joyent, Inc.  All rights reserved.
+ */
+
 #include "dextern.h"
 #include <sys/param.h>
 #include <sys/errno.h>
 #include <unistd.h>
 #include <locale.h>
 #include <stdarg.h>	/* For error() */
+#include <libgen.h>
 
 static void mktbls(void);
 static void others(void);
@@ -235,6 +240,25 @@ mktbls(void)
 	lsetsize = INIT_LSIZE + 1;
 }
 
+static int
+yacc_assemble_path(char *buf, size_t size, const char *file, int type)
+{
+	int ret;
+	char origin[PATH_MAX];
+
+	if (type != 0) {
+		ret = readlink("/proc/self/path/a.out", origin, PATH_MAX - 1);
+		if (ret < 0)
+			error(gettext(
+			    "yacc: failed to read origin from /proc\n"));
+		origin[ret] = '\0';
+		return (snprintf(buf, size, "%s/../%s", dirname(origin),
+		    file));
+	}
+
+	return (snprintf(buf, size, "%s/%s", PARSERPREFIX, file));
+}
+
 /* put out other arrays, copy the parsers */
 static void
 others(void)
@@ -243,7 +267,17 @@ others(void)
 	int c, i, j;
 	int tmpline;
 
-	finput = fopen(parser, "r");
+	if (parser == NULL) {
+		parser = pbuf;
+		(void) yacc_assemble_path(pbuf, PBUFSIZE, PARSER, 1);
+		finput = fopen(parser, "r");
+		if (finput == NULL) {
+			(void) yacc_assemble_path(pbuf, PBUFSIZE, PARSER, 0);
+			finput = fopen(parser, "r");
+		}
+	} else {
+		finput = fopen(parser, "r");
+	}
 	if (finput == NULL)
 /*
  * TRANSLATION_NOTE  -- This is a message from yacc.

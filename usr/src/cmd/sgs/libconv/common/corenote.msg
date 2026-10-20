@@ -25,6 +25,7 @@
 #
 # Copyright 2012 DEY Storage Systems, Inc.  All rights reserved.
 # Copyright (c) 2018 Joyent, Inc.
+# Copyright 2021 OmniOS Community Edition (OmniOSce) Association.
 # Copyright 2026 Oxide Computer Company
 #
 
@@ -1116,6 +1117,7 @@
 @ MSG_PR_O_XATTR			"O_XATTR"
 @ MSG_PR_O_NOFOLLOW			"O_NOFOLLOW"
 @ MSG_PR_O_NOLINKS			"O_NOLINKS"
+@ MSG_PR___FLXPATH			"__FLXPATH"
 
 @ MSG_FD_CLOEXEC			"FD_CLOEXEC"
 @ MSG_FD_CLOFORK			"FD_CLOFORK"

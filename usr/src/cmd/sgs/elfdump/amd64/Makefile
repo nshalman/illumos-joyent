@@ -32,6 +32,8 @@ include		../Makefile.com
 
 ARCH =		amd64
 
+install:	all $(ROOTPROG64)
+
 include		../Makefile.targ
 include		$(SRC)/Makefile.master.64
 

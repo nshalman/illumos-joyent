@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 1990, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2015, Joyent, Inc.
  */
 
 /*
@@ -830,6 +831,57 @@ is_so_loaded(Lm_list *lml, const char *name, int *in_nfavl)
 		}
 	}
 	return (NULL);
+}
+
+/*
+ * Walk the toxic path list and determine if the object in question has violated
+ * the toxic path. When evaluating the toxic path we need to ensure that we
+ * match any path that's a subdirectory of a listed entry. In other words if
+ * /foo/bar is toxic, something in /foo/bar/baz/ is no good. However, we need to
+ * ensure that we don't mark /foo/barbaz/ as bad.
+ */
+static int
+is_load_toxic(Lm_list *lml, Rt_map *nlmp)
+{
+	const char	*fpath;
+	size_t		flen;
+	Pdesc 		*pdp;
+	Aliste 		idx;
+
+	fpath = PATHNAME(nlmp);
+
+	/*
+	 * If we have a NULL path name, that indicates that rtld is processing
+	 * an in-memory shared object. For example, trying to run ldd or doing
+	 * an LD_PRELOAD on an object file. In those cases, we'll always allow
+	 * it.
+	 */
+	if (fpath == NULL)
+		return (0);
+
+	flen = strlen(fpath);
+
+	for (ALIST_TRAVERSE(rpl_toxdirs, idx, pdp)) {
+		if (pdp->pd_plen == 0)
+			continue;
+
+		if (strncmp(pdp->pd_pname, fpath, pdp->pd_plen) == 0) {
+			if (pdp->pd_pname[pdp->pd_plen-1] != '/') {
+				/*
+				 * Path didn't end in a /, make sure
+				 * we're at a directory boundary
+				 * nonetheless.
+				 */
+				if (flen > pdp->pd_plen &&
+				    fpath[pdp->pd_plen] == '/')
+					return (1);
+				continue;
+			}
+			return (1);
+		}
+	}
+
+	return (0);
 }
 
 /*
@@ -2157,6 +2209,17 @@ load_finish(Lm_list *lml, const char *name, Rt_map *clmp, int nmode,
 	Grp_hdl		*ghp;
 	int		promote;
 	uint_t		rdflags;
+
+	/*
+	 * If this dependency is associated with a toxic path, then we must
+	 * honor the user's request to die.
+	 */
+	if (is_load_toxic(lml, nlmp) != 0) {
+		eprintf(lml, ERR_FATAL, MSG_INTL(MSG_TOXIC_FILE),
+		    PATHNAME(nlmp));
+		rtldexit(lml, 1);
+
+	}
 
 	/*
 	 * If this dependency is associated with a required version ensure that

@@ -304,6 +304,12 @@ export BUILD_TOOLS='/opt'
 # if the 'N' option is not specified, is to run this test.
 #CHECK_PATHS='y'
 
+#
+# These checks ensure that if we accidentally run a program linked against the
+# proto area, that we then fail the build.
+#
+export LD_TOXIC_PATH="$ROOT/lib:$ROOT/usr/lib"
+
 if [[ "$ENABLE_SMATCH" == "1" ]]; then
 	SMATCHBIN=$CODEMGR_WS/usr/src/tools/proto/root_$MACH-nd/opt/onbld/bin/$MACH/smatch
 	export SHADOW_CCS="$SHADOW_CCS smatch,$SMATCHBIN,smatch"
