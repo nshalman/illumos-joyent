@@ -29,6 +29,7 @@
  * Copyright 2026 Edgecast Cloud LLC.
  * Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright 2017 Joyent, Inc.  All rights reserved.
  */
 
 /*
@@ -2388,6 +2389,13 @@ nlm_svc_starting(struct nlm_globals *g, struct file *fp,
 	VERIFY(g->run_status == NLM_ST_STARTING);
 	VERIFY(g->nlm_gc_thread == NULL);
 
+	if (g->nlm_v4_only) {
+		NLM_WARN("Zone %d has no rpcbind, NLM is v4 only", getzoneid());
+		bzero(&g->nlm_nsm, sizeof (struct nlm_nsm));
+		g->nlm_nsm.ns_addr_handle = (void *)-1;
+		goto v4_only;
+	}
+
 	error = nlm_nsm_init_local(&g->nlm_nsm);
 	if (error != 0) {
 		NLM_ERR("Failed to initialize NSM handler "
@@ -2424,6 +2432,7 @@ nlm_svc_starting(struct nlm_globals *g, struct file *fp,
 		    "(rpcerr=%d)\n", stat);
 		goto shutdown_lm;
 	}
+v4_only:
 
 	g->grace_threshold = ddi_get_lbolt() +
 	    SEC_TO_TICK(g->grace_period);
@@ -2547,7 +2556,9 @@ nlm_svc_stopping(struct nlm_globals *g)
 
 	ASSERT(TAILQ_EMPTY(&g->nlm_slocks));
 
-	nlm_nsm_fini(&g->nlm_nsm);
+	/* If started with rpcbind (the normal case) */
+	if (g->nlm_nsm.ns_addr_handle != (void *)-1)
+		nlm_nsm_fini(&g->nlm_nsm);
 	g->lockd_pid = 0;
 	g->run_status = NLM_ST_DOWN;
 }
