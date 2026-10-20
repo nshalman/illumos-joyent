@@ -26,6 +26,7 @@
  * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  * Copyright (c) 2016 by Delphix. All rights reserved.
+ * Copyright 2018 Joyent, Inc.
  * Copyright 2018 OmniOS Community Edition (OmniOSce) Association.
  * Copyright 2018 Joyent, Inc.
  * Copyright 2022 Garrett D'Amore

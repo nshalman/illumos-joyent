@@ -46,7 +46,7 @@ IPFSTAT_OBJS=	ipfstat.o ipfzone.o
 IPMON_OBJS=	ipmon.o ipfzone.o ipmon_y.o ipmon_l.o
 IPNAT_OBJS=	ipnat.o ipfzone.o ipnat_y.o ipnat_l.o
 IPPOOL_OBJS=	ippool.o ipfzone.o ippool_y.o ippool_l.o
-IPFTEST_OBJS=	ipftest.o ipfzone.o \
+IPFTEST_OBJS=	cfw.o ipftest.o ipfzone.o \
 		ip_fil.o ip_state.o ip_compat.o \
 		ip_frag.o ip_nat.o ip_nat6.o fil.o \
 		ip_htable.o ip_lookup.o \
@@ -72,18 +72,18 @@ CPPFLAGS	+= -I. -DIPFILTER_LOOKUP -DIPFILTER_LOG
 ipfstat.o	:=	CPPFLAGS += -DSTATETOP
 ipfstat		:=	LDLIBS += -lcurses
 
-ipf		:=	LDLIBS += -lsocket -lnsl
+ipf		:=	LDLIBS += -lsocket -lnsl -luuid
 ipf		:=	OBJS += $(IPF_OBJS)
 ipfs		:=	OBJS += $(IPFS_OBJS)
-ipftest		:=	LDLIBS += -lsocket -lnsl -lmd
+ipftest		:=	LDLIBS += -lsocket -lnsl -lmd -luuid
 ipftest		:=	OBJS += $(IPFTEST_OBJS)
-ipfstat		:=	LDLIBS += -lsocket -lnsl -lkvm -lelf
+ipfstat		:=	LDLIBS += -lsocket -lnsl -lkvm -lelf -luuid
 ipfstat		:=	OBJS += $(IPFSTAT_OBJS)
-ipmon		:=	LDLIBS += -lsocket -lnsl
+ipmon		:=	LDLIBS += -lsocket -lnsl -luuid
 ipmon		:=	OBJS += $(IPMON_OBJS)
-ipnat		:=	LDLIBS += -lsocket -lnsl -lkvm -lelf
+ipnat		:=	LDLIBS += -lsocket -lnsl -lkvm -lelf -luuid
 ipnat		:=	OBJS += $(IPNAT_OBJS)
-ippool		:=	LDLIBS += -lsocket -lnsl -lkvm -lelf
+ippool		:=	LDLIBS += -lsocket -lnsl -lkvm -lelf -luuid
 ippool		:=	OBJS += $(IPPOOL_OBJS)
 
 # because of labels from yacc

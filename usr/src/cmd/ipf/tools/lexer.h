@@ -1,3 +1,7 @@
+/*
+ * Copyright 2019 Joyent, Inc.
+ */
+
 #ifndef LEXER_H
 #define	LEXER_H
 
@@ -18,6 +22,7 @@ typedef	struct	wordtab	{
 #define	YY_IPV6		1008
 #define	YY_STR		1009
 #define	YY_IPADDR	1010
+#define	YY_UUID		1011
 #endif
 
 #define	YYBUFSIZ	8192

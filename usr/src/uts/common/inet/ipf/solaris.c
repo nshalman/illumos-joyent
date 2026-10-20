@@ -6,7 +6,7 @@
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  *
- * Copyright (c) 2014, Joyent, Inc.  All rights reserved.
+ * Copyright 2019 Joyent, Inc.
  */
 
 /*
@@ -116,7 +116,7 @@ static	void	ipf_stack_shutdown __P((const netid_t, void *));
 static	int	ipf_property_g_update __P((dev_info_t *));
 static	char	*ipf_devfiles[] = { IPL_NAME, IPNAT_NAME, IPSTATE_NAME,
 				    IPAUTH_NAME, IPSYNC_NAME, IPSCAN_NAME,
-				    IPLOOKUP_NAME, NULL };
+				    IPLOOKUP_NAME, IPFEV_NAME, NULL };
 extern void 	*ipf_state;	/* DDI state */
 extern vmem_t	*ipf_minor;	/* minor number arena */
 
@@ -625,7 +625,6 @@ ipf_stack_shutdown(const netid_t id, void *arg)
 /*
  * Destroy things for ipf for one stack.
  */
-/* ARGSUSED */
 static void
 ipf_stack_destroy_one(const netid_t id, ipf_stack_t *ifs)
 {
@@ -742,6 +741,9 @@ ddi_attach_cmd_t cmd;
 
 		ipf_dev_info = dip;
 
+		if (ipf_cfw_ring_resize(IPF_CFW_RING_ALLOCATE) != 0)
+			goto attach_failed;
+
 		ipfncb = net_instance_alloc(NETINFO_VERSION);
 		if (ipfncb == NULL)
 			goto attach_failed;
@@ -769,6 +771,7 @@ ddi_attach_cmd_t cmd;
 	}
 
 attach_failed:
+	(void) ipf_cfw_ring_resize(IPF_CFW_RING_DESTROY);
 	ddi_remove_minor_node(dip, NULL);
 	ddi_prop_remove_all(dip);
 	ddi_soft_state_fini(&ipf_state);
@@ -796,6 +799,7 @@ ddi_detach_cmd_t cmd;
 		 * framework guarantees we are not active with this devinfo
 		 * node in any other entry points at this time.
 		 */
+		(void) ipf_cfw_ring_resize(IPF_CFW_RING_DESTROY);
 		ddi_prop_remove_all(dip);
 		i = ddi_get_instance(dip);
 		ddi_remove_minor_node(dip, NULL);

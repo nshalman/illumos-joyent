@@ -5,7 +5,7 @@
  *
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  *
- * Copyright 2018 Joyent, Inc.
+ * Copyright 2019 Joyent, Inc.
  */
 
 #if !defined(lint)
@@ -116,7 +116,7 @@ u_long		*ip_forwarding = NULL;
 #endif
 
 vmem_t	*ipf_minor;	/* minor number arena */
-void 	*ipf_state;	/* DDI state */
+void	*ipf_state;	/* DDI state */
 
 /*
  * GZ-controlled and per-zone stacks:
@@ -169,6 +169,39 @@ char *hook_viona_in =		"ipfilter_hookviona_in";
 char *hook_viona_in_gz =	"ipfilter_hookviona_in_gz";
 char *hook_viona_out =		"ipfilter_hookviona_out";
 char *hook_viona_out_gz =	"ipfilter_hookviona_out_gz";
+
+/*
+ * For VIONA. The net_{instance,protocol}_notify_register() functions only
+ * deal with per-callback-function granularity. We need two wrapper functions
+ * for GZ-controlled and per-zone instances.
+ */
+static int
+ipf_hook_instance_notify_gz(hook_notify_cmd_t command, void *arg,
+    const char *netid, const char *dummy, const char *instance)
+{
+	return (ipf_hook_instance_notify(command, arg, netid, dummy, instance));
+}
+
+static int
+ipf_hook_instance_notify_ngz(hook_notify_cmd_t command, void *arg,
+    const char *netid, const char *dummy, const char *instance)
+{
+	return (ipf_hook_instance_notify(command, arg, netid, dummy, instance));
+}
+
+static int
+ipf_hook_protocol_notify_gz(hook_notify_cmd_t command, void *arg,
+    const char *name, const char *dummy, const char *he_name)
+{
+	return (ipf_hook_protocol_notify(command, arg, name, dummy, he_name));
+}
+
+static int
+ipf_hook_protocol_notify_ngz(hook_notify_cmd_t command, void *arg,
+    const char *name, const char *dummy, const char *he_name)
+{
+	return (ipf_hook_protocol_notify(command, arg, name, dummy, he_name));
+}
 
 /* ------------------------------------------------------------------------ */
 /* Function:    ipldetach                                                   */
@@ -270,7 +303,8 @@ ipf_stack_t *ifs;
 	 * Remove notification of viona hooks
 	 */
 	net_instance_notify_unregister(ifs->ifs_netid,
-	    ipf_hook_instance_notify);
+	    ifs->ifs_gz_controlled ? ipf_hook_instance_notify_gz :
+	    ipf_hook_instance_notify_ngz);
 
 #undef UNDO_HOOK
 
@@ -278,6 +312,10 @@ ipf_stack_t *ifs;
 	 * Normally, viona will unregister itself before ipldetach() is called,
 	 * so these will be no-ops, but out of caution, we try to make sure
 	 * we've removed any of our references.
+	 *
+	 * For now, the _gz and _ngz versions are both wrappers to what's
+	 * below.  Just call it directly, but if that changes fix here as
+	 * well.
 	 */
 	(void) ipf_hook_protocol_notify(HN_UNREGISTER, ifs, Hn_VIONA, NULL,
 	    NH_PHYSICAL_IN);
@@ -295,6 +333,10 @@ ipf_stack_t *ifs;
 		 * traced, we pass the same value the nethook framework would
 		 * pass, even though the callback does not currently use the
 		 * value.
+		 *
+		 * For now, the _gz and _ngz versions are both wrappers to
+		 * what's below.  Just call it directly, but if that changes
+		 * fix here as well.
 		 */
 		(void) ipf_hook_instance_notify(HN_UNREGISTER, ifs, netidstr,
 		    NULL, Hn_VIONA);
@@ -504,9 +546,15 @@ ipf_stack_t *ifs;
 	 * is unloaded, the viona module cannot later re-register them if it
 	 * gets reloaded.  As the ip, vnd, and ipf modules are rarely unloaded
 	 * even on DEBUG kernels, they do not experience this issue.
+	 *
+	 * Today, the per-zone ones don't matter for a BHYVE-branded zone, BUT
+	 * the ipf_hook_protocol_notify() function is GZ vs. per-zone aware.
+	 * Employ two different versions of ipf_hook_instance_notify(), one for
+	 * the GZ-controlled, and one for the per-zone one.
 	 */
-	if (net_instance_notify_register(id, ipf_hook_instance_notify,
-	    ifs) != 0)
+	if (net_instance_notify_register(id, ifs->ifs_gz_controlled ?
+	    ipf_hook_instance_notify_gz : ipf_hook_instance_notify_ngz, ifs) !=
+	    0)
 		goto hookup_failed;
 
 	/*
@@ -688,6 +736,7 @@ ipf_hook_instance_notify(hook_notify_cmd_t command, void *arg,
 {
 	ipf_stack_t *ifs = arg;
 	int ret = 0;
+	const boolean_t gz = ifs->ifs_gz_controlled;
 
 	/* We currently only care about viona hooks */
 	if (strcmp(instance, Hn_VIONA) != 0)
@@ -705,14 +754,16 @@ ipf_hook_instance_notify(hook_notify_cmd_t command, void *arg,
 			return (EPROTONOSUPPORT);
 
 		ret = net_protocol_notify_register(ifs->ifs_ipf_viona,
-		    ipf_hook_protocol_notify, ifs);
+		    gz ? ipf_hook_protocol_notify_gz :
+		    ipf_hook_protocol_notify_ngz, ifs);
 		VERIFY(ret == 0 || ret == ESHUTDOWN);
 		break;
 	case HN_UNREGISTER:
 		if (ifs->ifs_ipf_viona == NULL)
 			break;
 		VERIFY0(net_protocol_notify_unregister(ifs->ifs_ipf_viona,
-		    ipf_hook_protocol_notify));
+		    gz ? ipf_hook_protocol_notify_gz :
+		    ipf_hook_protocol_notify_ngz));
 		VERIFY0(net_protocol_release(ifs->ifs_ipf_viona));
 		ifs->ifs_ipf_viona = NULL;
 		break;
@@ -820,6 +871,9 @@ int *rp;
 	if (isp == NULL)
 		return ENXIO;
 	unit = isp->ipfs_minor;
+
+	if (unit == IPL_LOGEV)
+		return (ipf_cfwlog_ioctl(dev, cmd, data, mode, cp, rp));
 
 	zid = crgetzoneid(cp);
 	if (cmd == SIOCIPFZONESET) {
@@ -1128,15 +1182,15 @@ int v;
 ipf_stack_t *ifs;
 {
 	net_handle_t nif;
+ 
+ 	if (v == 4)
+		nif = ifs->ifs_ipf_ipv4;
+ 	else if (v == 6)
+		nif = ifs->ifs_ipf_ipv6;
+ 	else
+		return 0;
 
-  	if (v == 4)
- 		nif = ifs->ifs_ipf_ipv4;
-  	else if (v == 6)
- 		nif = ifs->ifs_ipf_ipv6;
-  	else
- 		return 0;
-
- 	return (net_phylookup(nif, name));
+	return (net_phylookup(nif, name));
 }
 
 /*
@@ -1161,11 +1215,35 @@ cred_t *cred;
 	if (IPL_LOGMAX < min)
 		return ENXIO;
 
+	/* Special-case ipfev: global-zone-open only. */
+	if (min == IPL_LOGEV) {
+		if (crgetzoneid(cred) != GLOBAL_ZONEID)
+			return (ENXIO);
+		/*
+		 * Else enable the CFW logging of events.
+		 * NOTE: For now, we only allow one open at a time.
+		 * Use atomic_cas to confirm/deny. And also for now,
+		 * assume sizeof (boolean_t) == sizeof (uint_t).
+		 *
+		 * Per the *_{refrele,REFRELE}() in other parts of inet,
+		 * ensure all loads/stores complete before calling cas.
+		 * membar_exit() does this.
+		 */
+		membar_exit();
+		if (atomic_cas_uint(&ipf_cfwlog_enabled, 0, 1) != 0)
+			return (EBUSY);
+	}
+
 	minor = (minor_t)(uintptr_t)vmem_alloc(ipf_minor, 1,
 	    VM_BESTFIT | VM_SLEEP);
 
 	if (ddi_soft_state_zalloc(ipf_state, minor) != 0) {
 		vmem_free(ipf_minor, (void *)(uintptr_t)minor, 1);
+		if (min == IPL_LOGEV) {
+			/* See above... */
+			membar_exit();
+			VERIFY(atomic_cas_uint(&ipf_cfwlog_enabled, 1, 0) == 1);
+		}
 		return ENXIO;
 	}
 
@@ -1187,6 +1265,7 @@ int flags, otype;
 cred_t *cred;
 {
 	minor_t	min = getminor(dev);
+	ipf_devstate_t *isp;
 
 #ifdef	IPFDEBUG
 	cmn_err(CE_CONT, "iplclose(%x,%x,%x,%x)\n", dev, flags, otype, cred);
@@ -1194,6 +1273,15 @@ cred_t *cred;
 
 	if (IPL_LOGMAX < min)
 		return ENXIO;
+
+	isp = ddi_get_soft_state(ipf_state, min);
+	if (isp != NULL && isp->ipfs_minor == IPL_LOGEV) {
+		/*
+		 * Disable CFW logging.  See iplopen() for details.
+		 */
+		membar_exit();
+		VERIFY(atomic_cas_uint(&ipf_cfwlog_enabled, 1, 0) == 1);
+	}
 
 	ddi_soft_state_free(ipf_state, min);
 	vmem_free(ipf_minor, (void *)(uintptr_t)min, 1);
@@ -1225,6 +1313,8 @@ cred_t *cp;
 		return ENXIO;
 	unit = isp->ipfs_minor;
 
+	if (unit == IPL_LOGEV)
+		return (ipf_cfwlog_read(dev, uio, cp));
 
         /*
 	 * ipf_find_stack returns with a read lock on ifs_ipf_global
@@ -1276,6 +1366,9 @@ cred_t *cp;
 	if (isp == NULL)
 		return ENXIO;
 	unit = isp->ipfs_minor;
+
+	if (unit == IPL_LOGEV)
+		return (EIO);	/* ipfev doesn't support write yet. */
 
         /*
 	 * ipf_find_stack returns with a read lock on ifs_ipf_global
@@ -2068,8 +2161,11 @@ frdest_t *fdp;
 		return (-1);
 	}
 
-	/* Check the src here, fin_ifp is the src interface. */
-	if (!(fin->fin_flx & FI_GENERATED) &&
+	/*
+	 * If we're forwarding (vs. injecting), check the src here, fin_ifp is
+	 * the src interface.
+	 */
+	if (fdp != NULL && !(fin->fin_flx & FI_GENERATED) &&
 	    !fr_forwarding_enabled((phy_if_t)fin->fin_ifp, net_data_p)) {
 		return (-1);
 	}
@@ -2138,8 +2234,8 @@ frdest_t *fdp;
 		inj->ni_physical = net_routeto(net_data_p, sinp, NULL);
 	}
 
-	/* we're checking the destination here */
-	if (!(fin->fin_flx & FI_GENERATED) &&
+	/* If we're forwarding (vs. injecting), check the destinatation here. */
+	if (fdp != NULL && !(fin->fin_flx & FI_GENERATED) &&
 	    !fr_forwarding_enabled(inj->ni_physical, net_data_p)) {
 		goto bad_fastroute;
 	}
@@ -3120,16 +3216,16 @@ fr_info_t *fin;
 /* both IP versions. The details are going to be explained here.	    */
 /*                                                                          */
 /* The packet looks as follows:						    */
-/*    xxx | IP hdr | IP payload    ...	| 				    */
-/*    ^   ^        ^            	^				    */
-/*    |   |        |            	|				    */
+/*    xxx | IP hdr | IP payload    ...	|				    */
+/*    ^   ^        ^           	        ^				    */
+/*    |   |        |           	        |				    */
 /*    |   |        |		fin_m->b_wptr = fin->fin_dp + fin->fin_dlen */
 /*    |   |        |							    */
 /*    |   |        `- fin_m->fin_dp (in case of IPv4 points to L4 header)   */
 /*    |   |								    */
 /*    |   `- fin_m->b_rptr + fin_ipoff (fin_ipoff is most likely 0 in case  */
 /*    |      of loopback)						    */
-/*    |   								    */
+/*    |  								    */
 /*    `- fin_m->b_rptr -  points to L2 header in case of physical NIC	    */
 /*                                                                          */
 /* All relevant IP headers are pulled up into the first mblk. It happened   */

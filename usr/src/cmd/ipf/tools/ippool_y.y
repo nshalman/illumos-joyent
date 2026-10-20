@@ -6,6 +6,7 @@
  *
  * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
+ * Copyright 2019 Joyent, Inc.
  */
 
 #include <sys/types.h>
@@ -32,6 +33,7 @@
 #include <netdb.h>
 #include <ctype.h>
 #include <unistd.h>
+#include <uuid/uuid.h>
 
 #include "ipf.h"
 #include "netinet/ip_lookup.h"
@@ -64,6 +66,7 @@ static	int		set_ipv6_addr = 0;
 	iphtent_t	*ipe;
 	ip_pool_node_t	*ipp;
 	union	i6addr	ip6;
+	uuid_t	uuid;
 }
 
 %token  <num>   YY_NUMBER YY_HEX
@@ -72,6 +75,7 @@ static	int		set_ipv6_addr = 0;
 %token	  YY_CMP_EQ YY_CMP_NE YY_CMP_LE YY_CMP_GE YY_CMP_LT YY_CMP_GT
 %token	  YY_RANGE_OUT YY_RANGE_IN
 %token  <ip6>   YY_IPV6
+%token  <uuid>	YY_UUID
 
 %token	IPT_IPF IPT_NAT IPT_COUNT IPT_AUTH IPT_IN IPT_OUT
 %token	IPT_TABLE IPT_GROUPMAP IPT_HASH
