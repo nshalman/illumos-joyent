@@ -907,6 +907,22 @@ smb_server_enum(smb_server_t *sv, smb_ioc_svcenum_t *ioc)
 {
 	smb_svcenum_t	*svcenum = &ioc->svcenum;
 	int		rc = 0;
+	uint32_t	buflen_adjusted;
+
+	/*
+	 * Reality check that the buffer-length insize the enum doesn't
+	 * overrun the ioctl's total length.
+	 *
+	 * NOTE: Assume se_buf is at the end of smb_svcenum_t.
+	 */
+	buflen_adjusted = svcenum->se_buflen +
+	    offsetof(smb_svcenum_t, se_buf) + sizeof (ioc->hdr);
+	if (buflen_adjusted < svcenum->se_buflen ||	/* Overflow check 1, */
+	    buflen_adjusted < offsetof(smb_svcenum_t, se_buf) || /* check 2, */
+	    buflen_adjusted < sizeof (ioc->hdr) ||	/* check 3. */
+	    buflen_adjusted > ioc->hdr.len) {
+		return (EINVAL);
+	}
 
 	/*
 	 * Reality check that the buffer-length insize the enum doesn't

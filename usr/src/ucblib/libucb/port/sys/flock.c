@@ -34,9 +34,9 @@
 
 /*LINTLIBRARY*/
 
+#include <sys/fcntl.h>
 #include <sys/types.h>
 #include <sys/file.h>
-#include <sys/fcntl.h>
 #include <errno.h>
 
 int

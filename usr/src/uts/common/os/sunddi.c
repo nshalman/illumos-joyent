@@ -5850,6 +5850,12 @@ ddi_ffs(long mask)
 	return (ffs(mask));
 }
 
+int
+ddi_ffsll(long long mask)
+{
+	return (ffs(mask));
+}
+
 /*
  * Find last bit set. Take mask and clear
  * all but the most significant bit, and
@@ -5861,8 +5867,14 @@ ddi_ffs(long mask)
 int
 ddi_fls(long mask)
 {
+	return (ddi_flsll(mask));
+}
+
+int
+ddi_flsll(long long mask)
+{
 	while (mask) {
-		long nx;
+		long long nx;
 
 		if ((nx = (mask & (mask - 1))) == 0)
 			break;

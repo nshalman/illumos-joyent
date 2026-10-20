@@ -244,6 +244,12 @@ main(int argc, char **argv)
 		    command);
 		usage();
 	}
+	if (glob_pattern != NULL && glob_pattern[0] != '/') {
+		(void) fprintf(stderr, gettext(
+		    "%s: The -g option must specify an absolute path\n"),
+		    command);
+		usage();
+	}
 	if ((proc_pattern != NULL || proc_content != CC_CONTENT_INVALID) &&
 	    npids == 0) {
 		(void) sprintf(curpid, "%u", (uint_t)getppid());

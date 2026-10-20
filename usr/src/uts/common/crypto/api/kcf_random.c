@@ -70,6 +70,7 @@
 #include <sys/cpuvar.h>
 #include <sys/taskq.h>
 #include <rng/fips_random.h>
+#include <sys/strlog.h>
 
 #define	RNDPOOLSIZE		1024	/* Pool size in bytes */
 #define	MINEXTRACTBYTES		20
