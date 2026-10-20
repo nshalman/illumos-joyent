@@ -24,6 +24,9 @@
  * Copyright (c) 2013, Joyent, Inc.  All rights reserved.
  * Copyright (c) 2016 by Delphix. All rights reserved.
  */
+/*
+ * Copyright (c) 2013, Joyent, Inc.  All rights reserved.
+ */
 
 /*
  * rc_node.c - In-memory SCF object management

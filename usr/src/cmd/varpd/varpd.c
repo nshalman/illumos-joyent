@@ -10,7 +10,7 @@
  */
 
 /*
- * Copyright (c) 2021 Joyent, Inc.
+ * Copyright 2021 Joyent, Inc.
  */
 
 /*

@@ -25,6 +25,7 @@
 /*
  * Copyright 2012 Garrett D'Amore <garrett@damore.org>.  All rights reserved.
  * Copyright 2013 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright (c) 2017, Joyent, Inc.
  * Copyright 2017 RackTop Systems.
  * Copyright 2018, Joyent, Inc.
  */

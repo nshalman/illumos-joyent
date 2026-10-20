@@ -42,4 +42,3 @@
 #define REVVERSION 25
 
 #endif  /* !_QEDE_VERSION_H */
-

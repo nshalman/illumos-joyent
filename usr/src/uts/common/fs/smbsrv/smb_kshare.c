@@ -351,6 +351,7 @@ smb_kshare_g_fini(void)
 	kmem_cache_destroy(smb_kshare_cache_share);
 }
 
+
 /*
  * A list of shares in nvlist format can be sent down
  * from userspace thourgh the IOCTL interface. The nvlist

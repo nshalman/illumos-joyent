@@ -176,4 +176,3 @@ qede_list_splice_tail(qede_list_t *list,
 #define	QEDE_LIST_FOR_EACH_ENTRY_SAFE	OSAL_LIST_FOR_EACH_ENTRY_SAFE
 
 #endif  /* !_QEDE_LIST_H */
-

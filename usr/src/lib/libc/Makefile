@@ -26,6 +26,8 @@
 # Copyright 2019 OmniOS Community Edition (OmniOSce) Association.
 # Copyright 2026 Oxide Computer Company
 #
+# Copyright (c) 2018, Joyent, Inc.
+#
 
 LIBBASENAME=	libc
 LIBRARY=	$(LIBBASENAME:%=%.a)
@@ -139,7 +141,7 @@ all:	all_h lib32 $(BUILD64) .WAIT lib64 .WAIT etc THIRDPARTYLICENSE
 
 THIRDPARTYLICENSE: extract-copyright
 	$(RM) $@
-	./extract-copyright . > $@
+	$(PERL) ./extract-copyright . > $@
 
 etc:	$($(MACH)_ETC)
 

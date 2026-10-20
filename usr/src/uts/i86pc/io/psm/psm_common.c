@@ -23,6 +23,7 @@
  */
 /*
  * Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2016, Joyent, Inc.
  */
 
 #include <sys/types.h>

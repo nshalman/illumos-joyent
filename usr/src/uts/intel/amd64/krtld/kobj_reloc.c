@@ -26,6 +26,9 @@
  * Copyright 2020 Joyent, Inc.
  * Copyright 2025 Oxide Computer Company
  */
+/*
+ * Copyright (c) 2017 Joyent, Inc.
+ */
 
 /*
  * x86 relocation code.
