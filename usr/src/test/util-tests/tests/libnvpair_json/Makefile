@@ -17,7 +17,7 @@ include $(SRC)/Makefile.master
 
 ROOTOPTPKG = $(ROOT)/opt/util-tests
 TESTDIR = $(ROOTOPTPKG)/tests/libnvpair_json
-ROOTBINDIR = $(ROOTOPTPKG)/bin
+TESTBIN = $(ROOTOPTPKG)/bin
 
 PROG = print_json
 
@@ -38,8 +38,10 @@ include $(SRC)/test/Makefile.com
 OBJS = $(PROG:%=%.o)
 SRCS = $(OBJS:%.o=%.c)
 
-CMDS = $(PROG:%=$(ROOTBINDIR)/%) $(SCRIPTS:%=$(TESTDIR)/%)
+CMDS = $(PROG:%=$(TESTBIN)/%) $(SCRIPTS:%=$(TESTDIR)/%)
 $(CMDS) := FILEMODE = 0555
+
+DIRS = $(TESTDIR) $(TESTBIN)
 
 LDLIBS += -lnvpair
 
@@ -62,16 +64,13 @@ clobber: clean
 clean:
 	-$(RM) $(OBJS)
 
-$(CMDS): $(TESTDIR) $(PROG)
+$(CMDS): $(DIRS)
 
-$(ROOTBINDIR):
-	$(INS.dir)
-
-$(ROOTBINDIR)/%: %
-	$(INS.file)
-
-$(TESTDIR):
+$(DIRS):
 	$(INS.dir)
 
 $(TESTDIR)/%: %.ksh
 	$(INS.rename)
+
+$(TESTBIN)/%: %
+	$(INS.file)
