@@ -168,6 +168,24 @@ class IntegrateTest(FtTest):
         self.assertEqual(res.conflicts, [('f2', ['b.c'])])
 
 
+class LineMapTest(FtTest):
+
+    def blob(self, *a):
+        return self.r.git('hash-object', '-w', '--stdin', input=lines(*a)
+                          .encode())
+
+    def test_insert_delete_and_change(self):
+        a = self.blob('1', '2', '3', '4', '5', '6')
+        b = self.blob('1', 'new', '2', '4', 'FIVE', '6', '7')
+        # 1->1, 2->3, 3 deleted, 4->4, 5 changed, 6->6
+        self.assertEqual(ft.line_map(self.g, a, b),
+                         {1: 1, 2: 3, 4: 4, 6: 6})
+
+    def test_identical(self):
+        a = self.blob('x', 'y')
+        self.assertEqual(ft.line_map(self.g, a, a), {1: 1, 2: 2})
+
+
 class RouteTest(FtTest):
     """route() must make the integration equal the target tree."""
 
@@ -304,6 +322,25 @@ class RouteTest(FtTest):
             msg='target')
         res = ft.route(self.g, gate, feats, self.r.tree(target), msg='m')
         self.assertEqual([u.path for u in res.unrouted], ['x.c'])
+
+    def test_ownership_is_by_position_not_by_text(self):
+        # 57dd2952050: master removed brand-ops' 'int error;' in exec.c;
+        # lx adds an identical line elsewhere in the file and must not
+        # be counted as an owner.
+        body = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k']
+        gate = self.r.commit(dict(GATE, **{'y.c': lines(*body)}), msg='gate')
+        f1 = self.r.commit(dict(GATE, **{'y.c': lines(
+            'a', 'int error;', *body[1:])}), parent=gate)
+        f2 = self.r.commit(dict(GATE, **{'y.c': lines(
+            *body[:8], 'F2 start', 'int error;', 'F2 end', *body[8:])}),
+            parent=gate)
+        feats = {'f1': f1, 'f2': f2}
+        target = self.r.commit(dict(GATE, **{'y.c': lines(
+            'a', 'int error;', *body[1:8], 'F2 start', 'F2 end',
+            *body[8:])}), msg='target')
+        res = ft.route(self.g, gate, feats, self.r.tree(target), msg='m')
+        self.assertEqual(res.unrouted, [])
+        self.assertEqual(sorted(res.commits), ['f2'])
 
     def test_decision_can_start_a_new_feature(self):
         # A fix carried ahead of gate (18158) starts its own feature.

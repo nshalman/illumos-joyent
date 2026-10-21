@@ -227,16 +227,39 @@ def added_lines(g, base, blob):
     return out
 
 
-def owners_of_lines(g, gate, integ, features):
-    """For each line INTEG adds over GATE, the FEATURES that add it.
+def line_map(g, a, b):
+    """{line in blob A: the same line in blob B}, for lines left unchanged."""
+    out = {}
+    ai = bi = 1
+    for os_, ol, ns, nl in hunks(g, a, b) or []:
+        end = os_ if ol == 0 else os_ - 1
+        while ai <= end:
+            out[ai] = bi
+            ai, bi = ai + 1, bi + 1
+        ai = os_ + ol if ol else os_ + 1
+        bi = ns + nl if nl else ns + 1
+    for _ in range(ai, len(split_lines(g.blob(a))) + 1):
+        out[ai] = bi
+        ai, bi = ai + 1, bi + 1
+    return out
 
-    FEATURES maps name to that feature's blob.  A line several features
-    add identically, like a copyright line, belongs to all of them.
+
+def owners_of_lines(g, gate, integ, features):
+    """For each line of INTEG, the FEATURES that added it over GATE.
+
+    FEATURES maps name to that feature's blob.  Each feature's added
+    lines are found in INTEG by aligning the two files, so a line is
+    owned where it sits, not wherever the same text appears.  A line
+    several features add identically at the same place, like a copyright
+    line, belongs to all of them.
     """
-    texts = {n: set(added_lines(g, gate, b).values())
-             for n, b in features.items()}
-    return {i: set(n for n, t in texts.items() if text in t)
-            for i, text in added_lines(g, gate, integ).items()}
+    owners = collections.defaultdict(set)
+    for n, blob in features.items():
+        where = line_map(g, blob, integ)
+        for line in added_lines(g, gate, blob):
+            if line in where:
+                owners[where[line]].add(n)
+    return dict(owners)
 
 
 def apply_hunks(old, new, selected):
