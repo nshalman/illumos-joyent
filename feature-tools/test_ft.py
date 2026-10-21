@@ -354,6 +354,15 @@ class RouteTest(FtTest):
                            sorted(dict(self.feats, **res.commits).items()))
         self.assertEqual(self.r.tree(out.commit), self.r.tree(target))
 
+    def test_decision_does_not_override_owners(self):
+        # 0821a720ccf: a decision for a file features now touch must not
+        # send the whole change to the decided feature.
+        text = self.r.files(self.integ)['a.c'].replace('F2b\n', 'F2b x\n')
+        target = self.target({'a.c': text})
+        res = ft.route(self.g, self.gate, self.feats, self.r.tree(target),
+                       msg='m', decide={'a.c': 'f1'})
+        self.assertEqual(sorted(res.commits), ['f2'])
+
     def test_deleting_a_single_owner_file(self):
         f3 = self.feature({'only3.c': lines('x')})
         self.feats['f3'] = f3

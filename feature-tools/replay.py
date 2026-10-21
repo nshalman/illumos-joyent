@@ -190,6 +190,10 @@ def main():
                                            sync=manifest.sync_feature)
     res = replay(g, feats, g.rev(a.gate), g.rev(a.start), g.rev(a.end),
                  decide, a.gate_ref, log, **tools)
+    for line in g.out('for-each-ref', '--format=%(refname)',
+                      a.out_prefix).splitlines():
+        if line[len(a.out_prefix):] not in res.features:
+            g.run('update-ref', '-d', line)
     for n, c in res.features.items():
         g.run('update-ref', a.out_prefix + n, c)
     ok = res.steps and all(s.equal for s in res.steps)

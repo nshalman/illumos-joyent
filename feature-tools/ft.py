@@ -284,8 +284,9 @@ def route(g, gate, features, target, msg, author=None, decide=None):
     A file no feature touches goes to the one feature whose added lines,
     found elsewhere, include every line the change adds: gate moved code
     that feature had changed.  DECIDE maps a path to the feature that
-    takes all of its change; it covers what the rules cannot place: new
-    files, and the rest of the files no feature touches.  A feature it
+    takes all of its change when no feature touches it; it covers what
+    the rules cannot place: new files, and the rest of the files no
+    feature touches.  A feature it
     names that does not exist yet is started on GATE, as for a gate fix
     carried until gate lands it.  Returns the new commit for each changed
     feature, made on top of it with MSG and AUTHOR, and the paths left
@@ -315,18 +316,10 @@ def route(g, gate, features, target, msg, author=None, decide=None):
     for path in paths:
         touched = sorted(n for n in features
                          if feat[n].get(path) != base.get(path))
-        if path in decide:
-            owner = decide[path]
-            ours = feat[owner].get(path)
-            if ours is None or path not in have or path not in want:
-                changes[owner][path] = want.get(path)
-                continue
-            merged = merge_file(g, ours[1], have[path][1], want[path][1])
-            if merged is None:
-                unrouted.append(Unrouted(path, 'conflict applying to %s'
-                                         % owner))
-            else:
-                changes[owner][path] = (want[path][0], merged)
+        if path in decide and not touched:
+            # No feature has the file, so it is gate's: the decided
+            # feature takes the target's version whole.
+            changes[decide[path]][path] = want.get(path)
         elif not touched:
             routed = None
             if path in have and path in want:
