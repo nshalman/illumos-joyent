@@ -6,7 +6,9 @@ commit FROM, and walk master's first-parent history to TO.  A merge is
 a gate merge: every feature is rebased onto its second parent.  Any
 other commit is a joyent change, routed to the features it touches.
 Then whatever still differs from master's tree is routed as well: that
-is the work a person would have done, such as resolving a conflict.
+is the work a person would have done, such as resolving a conflict.  A
+feature left with no changes after a gate merge has landed upstream and
+is retired.
 After each step the integration must equal master's tree; the replay
 stops at the first step where it does not.
 
@@ -36,8 +38,8 @@ class ReplayError(Exception):
 
 
 Step = collections.namedtuple(
-    'Step', 'commit kind conflicts resolved synced emptied held routed '
-    'unrouted equal integration')
+    'Step', 'commit kind conflicts resolved synced emptied retired held '
+    'routed unrouted equal integration')
 Result = collections.namedtuple('Result', 'steps features gate')
 
 
@@ -64,6 +66,7 @@ def replay(g, features, gate, start, end, decide=None, gate_ref=None,
                    '%s..%s' % (start, end)).split():
         parents = g.out('rev-list', '--parents', '-n1', m).split()[1:]
         conflicts, resolved, synced, emptied = {}, {}, {}, {}
+        retired = []
         if len(parents) == 2:
             kind, new_gate = 'gate', parents[1]
             if not ancestor(g, gate, new_gate):
@@ -89,6 +92,10 @@ def replay(g, features, gate, start, end, decide=None, gate_ref=None,
                         synced[n] = {k: len(v) for k, v in report.items()
                                      if v and k in ('added', 'changed',
                                                     'removed')}
+            retired = sorted(n for n in feats
+                             if g.tree(feats[n]) == g.tree(new_gate))
+            for n in retired:
+                del feats[n]
             gate = new_gate
             msg, author = 'Resolve as master did in %s\n' % m, None
         elif len(parents) == 1:
@@ -106,8 +113,8 @@ def replay(g, features, gate, start, end, decide=None, gate_ref=None,
             integ = ft.integrate(g, gate, sorted(feats.items()))
         equal = (not integ.conflicts and
                  g.tree(integ.commit) == g.tree(m))
-        step = Step(m, kind, conflicts, resolved, synced, emptied, held,
-                    routed, unrouted, equal, integ.commit)
+        step = Step(m, kind, conflicts, resolved, synced, emptied, retired,
+                    held, routed, unrouted, equal, integ.commit)
         steps.append(step)
         if log:
             log(step)
@@ -130,6 +137,9 @@ def describe(g, step):
             '%s %d' % kv for kv in sorted(counts.items()))))
     for n, cs in sorted(step.emptied.items()):
         out.append('    emptied   %s: %d commit(s)' % (n, len(cs)))
+    if step.retired:
+        out.append('    retired   %s (gate has all of it)' %
+                   ' '.join(step.retired))
     for n, paths in step.held:
         out.append('    held back %s: %s' % (n, ' '.join(paths)))
     if step.routed:

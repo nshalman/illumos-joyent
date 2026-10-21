@@ -258,8 +258,11 @@ def route(g, gate, features, target, msg, author=None, decide=None):
     found elsewhere, include every line the change adds: gate moved code
     that feature had changed.  DECIDE maps a path to the feature that
     takes all of its change; it covers what the rules cannot place: new
-    files, and the rest of the files no feature touches.  Returns the new commit for each changed feature, made on
-    top of it with MSG and AUTHOR, and the paths left unrouted.
+    files, and the rest of the files no feature touches.  A feature it
+    names that does not exist yet is started on GATE, as for a gate fix
+    carried until gate lands it.  Returns the new commit for each changed
+    feature, made on top of it with MSG and AUTHOR, and the paths left
+    unrouted.
     """
     decide = decide or {}
     integ = integrate(g, gate, sorted(features.items()))
@@ -275,6 +278,10 @@ def route(g, gate, features, target, msg, author=None, decide=None):
     have = g.entries(itree, paths)
     base = g.entries(gate, paths)
     feat = {n: g.entries(c, paths) for n, c in features.items()}
+    tips = dict(features)
+    for owner in set(decide.values()) - set(features):
+        tips[owner] = gate
+        feat[owner] = base
     changes = collections.defaultdict(dict)
     unrouted = []
     added = None
@@ -320,9 +327,9 @@ def route(g, gate, features, target, msg, author=None, decide=None):
                     changes[n][path] = entry
     commits = {}
     for n, edits in sorted(changes.items()):
-        tree = edit_tree(g, features[n], edits)
-        if tree != g.tree(features[n]):
-            commits[n] = g.commit_tree(tree, [features[n]], msg, author)
+        tree = edit_tree(g, tips[n], edits)
+        if tree != g.tree(tips[n]):
+            commits[n] = g.commit_tree(tree, [tips[n]], msg, author)
     return Route(commits, unrouted)
 
 

@@ -152,6 +152,19 @@ class ReplayTest(FtTest):
         self.assertEqual(step.synced, {'f': {'added': 1}})
         self.assertEqual(step.routed, [])
 
+    def test_fix_carried_ahead_of_gate_retires_when_gate_lands_it(self):
+        # Joyent commits a gate fix first (a new feature, by decision);
+        # later gate lands the same change, and the feature empties.
+        fix = {'gate.c': lines('g1', 'FIX', 'g3')}
+        m1 = self.joyent(self.m0, fix, msg='18158 fix')
+        m2, g1 = self.gate_merge(m1, self.gate, fix)
+        res = replay.replay(self.g, self.feats, self.gate, self.m0, m2,
+                            decide={'gate.c': 'upstream-18158'})
+        self.assertTrue(all(s.equal for s in res.steps))
+        self.assertEqual(res.steps[0].routed, ['upstream-18158'])
+        self.assertEqual(res.steps[1].retired, ['upstream-18158'])
+        self.assertEqual(sorted(res.features), ['f1', 'f2'])
+
     def test_start_must_match(self):
         other = self.joyent(self.m0, {'b.c': lines('x')})
         with self.assertRaises(replay.ReplayError):

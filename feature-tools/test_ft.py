@@ -271,6 +271,18 @@ class RouteTest(FtTest):
         self.assertEqual(self.r.files(res.commits['f1'])['gate.c'],
                          lines('g1', 'CHANGED', 'g3'))
 
+    def test_decision_can_start_a_new_feature(self):
+        # A fix carried ahead of gate (18158) starts its own feature.
+        target = self.target({'gate.c': lines('g1', 'FIX', 'g3')})
+        res = ft.route(self.g, self.gate, self.feats, self.r.tree(target),
+                       msg='18158 fix', decide={'gate.c': 'upstream-18158'})
+        self.assertEqual(sorted(res.commits), ['upstream-18158'])
+        new = res.commits['upstream-18158']
+        self.assertEqual(self.r.git('rev-parse', new + '^'), self.gate)
+        out = ft.integrate(self.g, self.gate,
+                           sorted(dict(self.feats, **res.commits).items()))
+        self.assertEqual(self.r.tree(out.commit), self.r.tree(target))
+
     def test_deleting_a_single_owner_file(self):
         f3 = self.feature({'only3.c': lines('x')})
         self.feats['f3'] = f3
