@@ -129,6 +129,16 @@ class SyncTest(FtTest):
         self.assertEqual(text.decode(), MANIFEST)
         self.assertEqual(report['added'], [])
 
+    def test_path_declared_by_several_packages(self):
+        # Directories are often declared by many packages, with and
+        # without attributes.
+        dirs = {PKG + 'one.p5m': 'dir path=usr/share/x mode=0755\n',
+                PKG + 'two.p5m': 'dir path=usr/share/x\n'}
+        old = self.r.commit(dict(OLD_GATE, **dirs), msg='old')
+        new = self.r.commit(dict(NEW_GATE, **dirs), parent=old, msg='new')
+        text, report = manifest.sync(self.g, old, new, MANIFEST.encode())
+        self.assertEqual(text.decode(), SYNCED)
+
     def test_sync_feature_commits_on_the_owner(self):
         rebased = self.r.commit(dict(NEW_GATE, manifest=MANIFEST),
                                 parent=self.new, msg='manifest feature')

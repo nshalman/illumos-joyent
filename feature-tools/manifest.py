@@ -96,8 +96,9 @@ def shape(decls):
     """What of a path's package actions shows in the manifest."""
     if not decls:
         return None
-    return sorted(set((k, a.get('mode'), a.get('owner'), a.get('group'),
-                       a.get('target')) for _, k, a in decls))
+    return sorted(set((k, a.get('mode', ''), a.get('owner', ''),
+                       a.get('group', ''), a.get('target', ''))
+                      for _, k, a in decls))
 
 
 def key(line):
