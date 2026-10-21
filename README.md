@@ -1,0 +1,28 @@
+# meta/state
+
+Sync state for the illumos-joyent feature branches. This is an orphan
+branch: it shares no history with illumos-gate, and it is never merged
+or rebased. Each sync, and each shadow-mode run, adds a commit here.
+
+The features themselves are the `features/*` branches, each based on an
+illumos-gate commit. The tooling that maintains them will live on
+`features/tooling`. The analysis that produced the first split is on
+the `meta/restructure` branch.
+
+## Files
+
+- `gate`: the illumos-gate commit every feature branch is based on.
+- `reference`: in shadow mode, the illumos-joyent master commit whose
+  tree the integration of all features must equal. Removed when
+  features become the source of truth.
+- `features.tsv`: one line per feature, its name and its branch tip at
+  the time of this commit.
+
+Planned, as the tooling arrives: the shared rerere cache, per-sync
+reports, and the conflict log.
+
+## Bootstrap
+
+The first commit records the split produced by `meta/restructure`:
+78 features on gate 479a4a914dc, whose merge equals illumos-joyent
+master da512a7e2e6 tree for tree.
