@@ -50,6 +50,21 @@ class Git:
     def blob(self, oid):
         return self.run('cat-file', 'blob', oid).stdout
 
+    def blobs(self, oids):
+        """{oid: contents} for many blobs, read in one process."""
+        oids = list(dict.fromkeys(oids))
+        if not oids:
+            return {}
+        data = self.run('cat-file', '--batch',
+                        input=('\n'.join(oids) + '\n').encode()).stdout
+        out, pos = {}, 0
+        for oid in oids:
+            nl = data.index(b'\n', pos)
+            size = int(data[pos:nl].split()[2])
+            out[oid] = data[nl + 1:nl + 1 + size]
+            pos = nl + 1 + size + 1
+        return out
+
     def hash_blob(self, data):
         return self.out('hash-object', '-w', '--stdin', input=data)
 
@@ -101,33 +116,52 @@ def merge_tree(g, ours, theirs, base=None, favor=None):
     return parts[0].strip(), sorted(set(p for p in parts[1:] if p))
 
 
-Rebase = collections.namedtuple('Rebase', 'tip conflicts emptied')
+Rebase = collections.namedtuple('Rebase', 'tip conflicts resolved emptied')
 
 
-def rebase(g, old_base, tip, new_base):
+def rebase(g, old_base, tip, new_base, resolve=None):
     """Replay the commits OLD_BASE..TIP onto NEW_BASE.
 
-    A commit that conflicts is still replayed, keeping the feature's side
-    of each conflict, and is listed in `conflicts` as (commit, paths) so
-    a person can check the result.  A commit that becomes empty is
-    dropped and listed in `emptied`: gate may already have its change.
+    RESOLVE, if given, is tried on each conflicted file as
+    RESOLVE(g, path, base blob, ours blob, theirs blob) and returns
+    (merged blob, resolver names) or None; see resolve.resolve_file.
+    Files it resolves are listed in `resolved` as (commit, path, names).
+    A commit with conflicts left is still replayed, keeping the feature's
+    side of each, and is listed in `conflicts` as (commit, paths) so a
+    person can check the result.  A commit that becomes empty is dropped
+    and listed in `emptied`: gate may already have its change.
     """
     commits = g.out('rev-list', '--reverse', '--topo-order',
                     '%s..%s' % (old_base, tip)).split()
     if g.out('rev-list', '--merges', '%s..%s' % (old_base, tip)):
         raise GitError('%s..%s contains merges' % (old_base, tip))
     cur = new_base
-    conflicts, emptied = [], []
+    conflicts, resolved, emptied = [], [], []
     for c in commits:
         tree, paths = merge_tree(g, cur, c, base=c + '^')
         if paths:
-            conflicts.append((c, paths))
             tree, _ = merge_tree(g, cur, c, base=c + '^', favor='theirs')
+            fixed = {}
+            if resolve:
+                base, ours, theirs = (g.entries(r, paths)
+                                      for r in (c + '^', cur, c))
+                for p in paths:
+                    if p in base and p in ours and p in theirs:
+                        r = resolve(g, p, base[p][1], ours[p][1],
+                                    theirs[p][1])
+                        if r:
+                            fixed[p] = (theirs[p][0], r[0])
+                            resolved.append((c, p, r[1]))
+            if fixed:
+                tree = edit_tree(g, tree, fixed)
+            left = [p for p in paths if p not in fixed]
+            if left:
+                conflicts.append((c, left))
         if tree == g.tree(cur):
             emptied.append(c)
             continue
         cur = g.commit_tree(tree, [cur], g.message(c), g.author(c))
-    return Rebase(cur, conflicts, emptied)
+    return Rebase(cur, conflicts, resolved, emptied)
 
 
 Integration = collections.namedtuple('Integration', 'commit conflicts')
@@ -328,11 +362,11 @@ def merge_file(g, ours, base, theirs):
     return g.hash_blob(r.stdout)
 
 
-def edit_tree(g, commit, edits):
-    """COMMIT's tree with EDITS ({path: (mode, oid) or None}) applied."""
+def edit_tree(g, treeish, edits):
+    """TREEISH with EDITS ({path: (mode, oid) or None}) applied."""
     with tempfile.TemporaryDirectory() as tmp:
         env = dict(os.environ, GIT_INDEX_FILE=os.path.join(tmp, 'index'))
-        g.run('read-tree', commit, env=env)
+        g.run('read-tree', treeish, env=env)
         recs = []
         for path, entry in sorted(edits.items()):
             if entry is None:

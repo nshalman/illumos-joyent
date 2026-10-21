@@ -9,7 +9,9 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ft  # noqa: E402
+import manifest  # noqa: E402
 import replay  # noqa: E402
+import resolve  # noqa: E402
 from test_ft import GATE, FtTest, lines  # noqa: E402
 
 A = GATE['a.c'].split()
@@ -107,6 +109,48 @@ class ReplayTest(FtTest):
                             decide={'new.c': 'f2'})
         self.assertTrue(res.steps[0].equal)
         self.assertEqual(res.steps[0].routed, ['f2'])
+
+    def history(self, gate_files, feat_files, new_gate_files, merged_files):
+        """Master on one feature F, then one gate merge into it."""
+        gate = self.r.commit(gate_files, msg='gate')
+        feat = self.r.commit(feat_files, parent=gate, msg='feature')
+        m0 = ft.integrate(self.g, gate, [('f', feat)]).commit
+        new_gate = self.r.commit(new_gate_files, parent=gate, msg='gate 2')
+        tree = self.r.tree(self.r.commit(merged_files, msg='tree'))
+        m1 = self.g.commit_tree(tree, [m0, new_gate], '[illumos-gate merge]\n')
+        return gate, {'f': feat}, m0, m1
+
+    def test_resolver_takes_a_copyright_conflict(self):
+        head = ['/*', ' * Copyright 2010 Sun', ' */', 'a', 'b', 'c']
+        gate, feats, m0, m1 = self.history(
+            {'c.c': lines(*head[:2], *head[2:])},
+            {'c.c': lines(*head[:2], ' * Copyright 2011 Joyent', *head[2:])},
+            {'c.c': lines(*head[:2], ' * Copyright 2026 Oxide', *head[2:])},
+            {'c.c': lines(*head[:2], ' * Copyright 2011 Joyent',
+                          ' * Copyright 2026 Oxide', *head[2:])})
+        res = replay.replay(self.g, feats, gate, m0, m1,
+                            resolve=resolve.resolve_file)
+        step = res.steps[0]
+        self.assertTrue(step.equal)
+        self.assertEqual(step.conflicts, {})
+        self.assertEqual(step.resolved, {'f': [['c.c', ['copyright']]]})
+        self.assertEqual(step.routed, [])
+
+    def test_manifest_follows_gate(self):
+        pkg = 'usr/src/pkg/manifests/SUNWcs.man1.inc'
+        old = 'file path=usr/share/man/man1/a.1\n'
+        new = old + 'file path=usr/share/man/man1/b.1\n'
+        mf = 'f usr/share/man/man1/a.1 0444 root bin\n'
+        gate, feats, m0, m1 = self.history(
+            {pkg: old}, {pkg: old, 'manifest': mf}, {pkg: new},
+            {pkg: new, 'manifest': mf + 'f usr/share/man/man1/b.1 0444 '
+             'root bin\n'})
+        res = replay.replay(self.g, feats, gate, m0, m1,
+                            sync=manifest.sync_feature)
+        step = res.steps[0]
+        self.assertTrue(step.equal)
+        self.assertEqual(step.synced, {'f': {'added': 1}})
+        self.assertEqual(step.routed, [])
 
     def test_start_must_match(self):
         other = self.joyent(self.m0, {'b.c': lines('x')})

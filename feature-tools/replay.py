@@ -13,10 +13,13 @@ stops at the first step where it does not.
   replay.py --repo DIR --gate GATE --from FROM --to TO
             [--prefix refs/heads/features/] [--gate-ref illumos/master]
             [--decide FILE] [--log FILE] [--out-prefix refs/replay/]
+            [--no-resolvers]
 
 --decide names a file of "path feature" lines for changes the routing
 rules cannot place.  --log writes each step as JSON.  The replayed
-features are written under --out-prefix.
+features are written under --out-prefix.  At gate merges the
+conflict resolvers (resolve.py) and the manifest sync (manifest.py)
+run unless --no-resolvers is given.
 """
 import argparse
 import collections
@@ -24,6 +27,8 @@ import json
 import sys
 
 import ft
+import manifest
+import resolve
 
 
 class ReplayError(Exception):
@@ -31,8 +36,8 @@ class ReplayError(Exception):
 
 
 Step = collections.namedtuple(
-    'Step', 'commit kind conflicts emptied held routed unrouted equal '
-    'integration')
+    'Step', 'commit kind conflicts resolved synced emptied held routed '
+    'unrouted equal integration')
 Result = collections.namedtuple('Result', 'steps features gate')
 
 
@@ -42,8 +47,13 @@ def ancestor(g, a, b):
 
 
 def replay(g, features, gate, start, end, decide=None, gate_ref=None,
-           log=None):
-    """Replay START..END onto FEATURES ({name: commit}) based on GATE."""
+           log=None, resolve=None, sync=None):
+    """Replay START..END onto FEATURES ({name: commit}) based on GATE.
+
+    RESOLVE is passed to ft.rebase() for each feature at a gate merge.
+    SYNC(g, old gate, new gate, feature) is then run on every feature and
+    returns (new commit or None, report); see manifest.sync_feature.
+    """
     feats = dict(features)
     integ = ft.integrate(g, gate, sorted(feats.items()))
     if integ.conflicts or g.tree(integ.commit) != g.tree(start):
@@ -53,7 +63,7 @@ def replay(g, features, gate, start, end, decide=None, gate_ref=None,
     for m in g.out('rev-list', '--first-parent', '--reverse',
                    '%s..%s' % (start, end)).split():
         parents = g.out('rev-list', '--parents', '-n1', m).split()[1:]
-        conflicts, emptied = {}, {}
+        conflicts, resolved, synced, emptied = {}, {}, {}, {}
         if len(parents) == 2:
             kind, new_gate = 'gate', parents[1]
             if not ancestor(g, gate, new_gate):
@@ -63,13 +73,22 @@ def replay(g, features, gate, start, end, decide=None, gate_ref=None,
                 raise ReplayError('%s: %s is not on %s' %
                                   (m, new_gate, gate_ref))
             for n in sorted(feats):
-                r = ft.rebase(g, gate, feats[n], new_gate)
+                r = ft.rebase(g, gate, feats[n], new_gate, resolve=resolve)
                 feats[n] = r.tip
                 if r.conflicts:
                     conflicts[n] = sorted(set(p for _, ps in r.conflicts
                                               for p in ps))
+                if r.resolved:
+                    resolved[n] = [[p, names] for _, p, names in r.resolved]
                 if r.emptied:
                     emptied[n] = r.emptied
+                if sync:
+                    commit, report = sync(g, gate, new_gate, feats[n])
+                    if commit:
+                        feats[n] = commit
+                        synced[n] = {k: len(v) for k, v in report.items()
+                                     if v and k in ('added', 'changed',
+                                                    'removed')}
             gate = new_gate
             msg, author = 'Resolve as master did in %s\n' % m, None
         elif len(parents) == 1:
@@ -87,8 +106,8 @@ def replay(g, features, gate, start, end, decide=None, gate_ref=None,
             integ = ft.integrate(g, gate, sorted(feats.items()))
         equal = (not integ.conflicts and
                  g.tree(integ.commit) == g.tree(m))
-        step = Step(m, kind, conflicts, emptied, held, routed, unrouted,
-                    equal, integ.commit)
+        step = Step(m, kind, conflicts, resolved, synced, emptied, held,
+                    routed, unrouted, equal, integ.commit)
         steps.append(step)
         if log:
             log(step)
@@ -103,6 +122,12 @@ def describe(g, step):
                               'ok  ' if step.equal else 'FAIL', subject[:60])]
     for n, paths in sorted(step.conflicts.items()):
         out.append('    conflict  %s: %s' % (n, ' '.join(paths)))
+    for n, rs in sorted(step.resolved.items()):
+        out.append('    resolved  %s: %s' % (n, ' '.join(
+            '%s (%s)' % (p, ','.join(names)) for p, names in rs)))
+    for n, counts in sorted(step.synced.items()):
+        out.append('    synced    %s: %s' % (n, ' '.join(
+            '%s %d' % kv for kv in sorted(counts.items()))))
     for n, cs in sorted(step.emptied.items()):
         out.append('    emptied   %s: %d commit(s)' % (n, len(cs)))
     for n, paths in step.held:
@@ -125,6 +150,9 @@ def main():
     ap.add_argument('--decide')
     ap.add_argument('--log')
     ap.add_argument('--out-prefix', default='refs/replay/')
+    ap.add_argument('--no-resolvers', action='store_true',
+                    help='plain rebase only: no conflict resolvers or '
+                    'manifest sync')
     a = ap.parse_args()
     g = ft.Git(a.repo)
     feats = {}
@@ -148,8 +176,10 @@ def main():
             logf.write(json.dumps(d, sort_keys=True) + '\n')
             logf.flush()
 
+    tools = {} if a.no_resolvers else dict(resolve=resolve.resolve_file,
+                                           sync=manifest.sync_feature)
     res = replay(g, feats, g.rev(a.gate), g.rev(a.start), g.rev(a.end),
-                 decide, a.gate_ref, log)
+                 decide, a.gate_ref, log, **tools)
     for n, c in res.features.items():
         g.run('update-ref', a.out_prefix + n, c)
     ok = res.steps and all(s.equal for s in res.steps)
