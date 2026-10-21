@@ -76,6 +76,7 @@ tooling itself.
 | `stackplan.py` | Plans stacked builds (each failing feature with its transitive needs); `--cycles` lists dependency cycles |
 | `stack-plan.txt` | Stacked builds (`buildcheck.sh stacks stack-plan.txt`): each failing feature with everything it needs |
 | `buildcheck-results.txt` | Per-feature and stacked results, and the provider analysis |
+| `WORKFLOW.md` | Phase 2 design: features on gate, syncing, publishing, builds, replaying history; living document |
 
 ## How files are placed
 

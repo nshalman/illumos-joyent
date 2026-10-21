@@ -17,6 +17,10 @@ builds once merged with the features it needs.
 Suspected bugs, deliberate divergences from upstream and cleanup
 candidates found along the way are in `FINDINGS.md`.
 
+Phase 2, maintaining these features as branches on illumos-gate with
+tooling, is designed in `WORKFLOW.md`, a living document.  Decisions it
+reaches land as tools on the `features/tooling` branch.
+
 ## Running it
 
 You need an illumos-joyent clone with `master`, an `illumos` remote
