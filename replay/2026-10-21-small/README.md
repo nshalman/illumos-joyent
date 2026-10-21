@@ -8,8 +8,11 @@ the 78 phase 1 features computed directly at da512a7e2e6.
 
 - Bootstrap: the phase 1 pipeline (meta/restructure f36dd83) rerun with
   JOYENT=feb8a55d8d3 (release-20260903's branch point), gate base
-  a330f55b6c6, and OMNIOS=441c91326c0 (the last omniosce commit before
-  feb8a55d8d3). It produced the same 78 feature names as today's split,
+  a330f55b6c6, and OMNIOS=441c91326c0. That was meant to be the last
+  omniosce/master commit before feb8a55d8d3, but `rev-list --before`
+  without `--first-parent` picked a commit from a merged side branch.
+  The first-parent pick, acb45c42696, has the same lx tree, so the
+  results do not change; later runs use `--first-parent`. It produced the same 78 feature names as today's split,
   with no override changes, and their merge equals feb8a55d8d3.
 - Tools: features/tooling 133822d2ddb (`feature-tools/replay.py`).
 - Command:
