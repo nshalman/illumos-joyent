@@ -1,0 +1,27 @@
+eab31c4851f gate   ok   [illumos-gate merge]
+    routed    smartos-test
+6033178c30f gate   ok   [illumos-gate merge]
+4012001854b gate   ok   [illumos-gate merge]
+a2098682c51 gate   ok   [illumos-gate merge]
+    conflict  integration: usr/src/test/libc-tests/tests/Makefile
+    routed    integration integration-manifest
+0c4fef4daef gate   ok   [illumos-gate merge]
+    routed    integration-manifest
+6d878317161 gate   ok   [illumos-gate merge]
+91ff288f38f gate   ok   [illumos-gate merge]
+eb7e560a400 joyent ok   manifest: add zoneinfo permissions
+    routed    integration-manifest
+19b7ca37dec gate   ok   [illumos-gate merge]
+58331869a28 gate   ok   [illumos-gate merge]
+1d3f6e8ccbf gate   ok   [illumos-gate merge]
+8030cf275cf gate   ok   [illumos-gate merge]
+3d97d1d7245 gate   ok   [illumos-gate merge]
+    conflict  zones-tools: usr/src/cmd/zonestat/zonestatd/zonestatd.c
+    routed    zones-tools
+0ff88a4e83b joyent ok   ipmgmtd double-frees caller credentials on authorization fai
+    routed    lx
+da512a7e2e6 gate   ok   [illumos-gate merge]
+    conflict  brand-ops: usr/src/cmd/sgs/libconv/common/corenote.c usr/src/cmd/sgs/libconv/common/corenote.msg
+    conflict  rtld-sgs: usr/src/cmd/sgs/libconv/common/corenote.c usr/src/cmd/sgs/libconv/common/corenote.msg
+    routed    brand-ops integration-manifest rtld-sgs
+15 step(s), all equal to master; features under refs/replay/

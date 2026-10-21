@@ -17,6 +17,9 @@ the `meta/restructure` branch.
   features become the source of truth.
 - `features.tsv`: one line per feature, its name and its branch tip at
   the time of this commit.
+- `replay/<date>-<name>/`: replays of past master history through the
+  tools, kept apart from live sync state. Each has a README with the
+  setup and results, and the tool's step log.
 
 Planned, as the tooling arrives: the shared rerere cache, per-sync
 reports, and the conflict log.
