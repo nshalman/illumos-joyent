@@ -121,7 +121,8 @@ On `nshalman/illumos-joyent`:
   two README-SmartOS.md commits from PR #547, cherry-picked unchanged (OS-8751,
   then "Last batch, I think."). They stay as-is through every rebase; the
   tooling builds on top of them, in a top-level `feature-tools/` directory:
-  `ft.py` (rebase, integrate, route) and `replay.py`, each with tests.
+  `ft.py` (rebase, integrate, route), `resolve.py` (conflict resolvers),
+  `manifest.py` (manifest sync) and `replay.py`, each with tests.
 - `meta/state`: orphan; a bootstrap commit recording the gate commit, the
   reference master commit, and each feature's tip, and a `replay/`
   directory with the record of each replay.
@@ -552,8 +553,25 @@ What this changes:
   resolvers (manifest). Sync cannot stop at "rebase was clean"; the manifest
   check and the tests are part of it.
 
-Next: build the resolvers, rerun this window to confirm they reproduce
-master's choices, then widen the window back to release-20260416.
+### Second run: the same window with resolvers (2026-10-21)
+
+Done with `features/tooling` 1ad185d0f20; the record is
+`replay/2026-10-21-small-resolvers/` on `meta/state`.
+
+- `resolve.py` (copyright lines, Makefile list entries) and `manifest.py`
+  (the top-level `manifest` following gate's package manifests) now run at
+  every gate merge.
+- All 15 steps again equal master, and the end state again matches phase
+  1's split for all 78 features.
+- Seven of the eight pieces of person-made work now need no person. The
+  one left is smartos-test.
+- At a2098682c51 the manifest sync wrote the four zoneinfo lines correctly
+  (`0644 root bin`) where master's merge left them without mode, owner or
+  group. Master fixed that four commits later in eb7e560a400. Replay had to
+  route master's broken lines back in to stay equal; with the tool running,
+  the bug and its fix would not have happened.
+
+Next: widen the window back to release-20260416.
 
 ## Open questions
 
