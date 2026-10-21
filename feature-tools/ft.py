@@ -244,24 +244,6 @@ def line_map(g, a, b):
     return out
 
 
-def owners_of_lines(g, gate, integ, features):
-    """For each line of INTEG, the FEATURES that added it over GATE.
-
-    FEATURES maps name to that feature's blob.  Each feature's added
-    lines are found in INTEG by aligning the two files, so a line is
-    owned where it sits, not wherever the same text appears.  A line
-    several features add identically at the same place, like a copyright
-    line, belongs to all of them.
-    """
-    owners = collections.defaultdict(set)
-    for n, blob in features.items():
-        where = line_map(g, blob, integ)
-        for line in added_lines(g, gate, blob):
-            if line in where:
-                owners[where[line]].add(n)
-    return dict(owners)
-
-
 def apply_hunks(old, new, selected):
     """OLD with only the SELECTED hunks of the diff OLD -> NEW applied."""
     out = list(old)
@@ -389,63 +371,86 @@ def route_moved(g, path, have, want, added):
             for n, hs in mine.items()}
 
 
+def span(hunk):
+    """The gate lines a hunk covers, as (low, high); an insertion sits
+    between two lines."""
+    os_, ol, _, _ = hunk
+    return (os_, os_ + ol - 1) if ol else (os_ + 0.5, os_ + 0.5)
+
+
+def overlaps(a, b, slack=0):
+    return a[0] <= b[1] + slack and b[0] <= a[1] + slack
+
+
 def route_lines(g, path, base, have, want, features):
-    """Split one shared file's change among the FEATURES owning its lines.
+    """Split one shared file's change among the FEATURES owning it.
 
     BASE, HAVE and WANT are the (mode, oid) of the file on gate, in the
     integration and in the target; FEATURES maps name to (mode, oid).
+    Each feature's new file is built from gate: gate's lines plus the
+    hunks of the gate-to-target diff that it owns.  Hunks of one diff do
+    not overlap, so the features merge back to the target, and nothing
+    a feature held before carries over unless the target still has it.
+
+    A hunk belongs to the features whose own changes to the file, in
+    gate's line numbers, overlap it, or else sit next to it.  When
+    several qualify, it goes to those that already hold its lines at that
+    place; when that is none of them, to those whose changes overlap it,
+    else to those just before it, else just after.  Lines of different
+    features that git can merge only together, such as both sides of a
+    deleted gate line, end up in each of those features.  A copyright
+    line nobody owns goes with the features whose file changes anyway.
     Returns {name: new (mode, oid)} or an Unrouted.
     """
-    if have is None or want is None:
+    if base is None or want is None:
         return Unrouted(path, 'shared file added or deleted')
-    hs = hunks(g, have[1], want[1])
+    hs = hunks(g, base[1], want[1])
     if hs is None:
         return Unrouted(path, 'shared binary file')
-    owners = owners_of_lines(g, base and base[1], have[1],
-                             {n: e[1] for n, e in features.items()})
-    old = split_lines(g.blob(have[1]))
+    foot, held = {}, {}
+    for n, entry in features.items():
+        fh = hunks(g, base[1], entry[1])
+        if fh is None:
+            return Unrouted(path, 'shared binary file')
+        foot[n] = [span(h) for h in fh]
+        where = line_map(g, entry[1], want[1])
+        held[n] = set(where[x] for x in added_lines(g, base[1], entry[1])
+                      if x in where)
+    gate_lines = split_lines(g.blob(base[1]))
     new = split_lines(g.blob(want[1]))
     mine = collections.defaultdict(list)
     orphans = []
     for h in hs:
-        os_, ol, _, _ = h
-        who = set()
-        for i in range(os_, os_ + ol):
-            who |= owners.get(i, set())
-        if not who:
-            before = os_ if ol == 0 else os_ - 1
-            after = os_ + 1 if ol == 0 else os_ + ol
-            who = owners.get(before, set()) | owners.get(after, set())
-        if not who:
+        s = span(h)
+        _, _, ns, nl = h
+        over = [n for n in features if any(overlaps(s, t) for t in foot[n])]
+        near = [n for n in features
+                if any(overlaps(s, t, 1) for t in foot[n])]
+        if not near:
             orphans.append(h)
+            continue
+        claim = [n for n in near if held[n] & set(range(ns, ns + nl))]
+        before = [n for n in near if any(t[1] < s[0] for t in foot[n]
+                                         if overlaps(s, t, 1))]
+        who = (near if len(near) == 1 else claim or over or before or near)
         for n in who:
             mine[n].append(h)
-    # A copyright line nobody owns goes with the rest of the change to
-    # this file: the line records who made that change.
+    current = {n: g.blob(e[1]) for n, e in features.items()}
+    built = {n: apply_hunks(gate_lines, new, mine.get(n, []))
+             for n in features}
+    changed = [n for n in features if built[n] != current[n]]
     for h in orphans:
         os_, ol, ns, nl = h
-        changed = old[os_ - 1:os_ - 1 + ol] + new[ns - 1:ns - 1 + nl]
-        if not mine or not all(COPYRIGHT.match(l) for l in changed):
+        lines = gate_lines[os_ - 1:os_ - 1 + ol] + new[ns - 1:ns - 1 + nl]
+        if not changed or not all(COPYRIGHT.match(l) for l in lines):
             return Unrouted(path, 'hunk at line %d has no owner' % os_)
-        for n in list(mine):
+        for n in changed:
             mine[n].append(h)
     out = {}
-    for n, hs in mine.items():
-        theirs = g.hash_blob(apply_hunks(old, new, hs))
-        merged = merge_file(g, features[n][1], have[1], theirs)
-        if merged is None:
-            return Unrouted(path, 'conflict applying to %s' % n)
-        out[n] = (want[0], merged)
+    for n in features:
+        data = apply_hunks(gate_lines, new, mine.get(n, []))
+        out[n] = (want[0], g.hash_blob(data))
     return out
-
-
-def merge_file(g, ours, base, theirs):
-    """Three-way merge of blobs; the merged blob, or None on conflict."""
-    r = g.run('merge-file', '-p', '--object-id', ours, base, theirs,
-              ok=range(0, 128))
-    if r.returncode != 0:
-        return None
-    return g.hash_blob(r.stdout)
 
 
 def edit_tree(g, treeish, edits):

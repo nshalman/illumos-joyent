@@ -342,6 +342,42 @@ class RouteTest(FtTest):
         self.assertEqual(res.unrouted, [])
         self.assertEqual(sorted(res.commits), ['f2'])
 
+    def round_trip(self, f2_at, dropped_body):
+        """Drop gate line d, then restore it; return the features."""
+        body = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
+        gate = self.r.commit(dict(GATE, **{'z.run': lines(*body)}), msg='g')
+        f1 = self.r.commit(dict(GATE, **{'z.run': lines(
+            'a', 'b', 'c', 'X', *body[3:])}), parent=gate)
+        f2 = self.r.commit(dict(GATE, **{'z.run': lines(
+            *body[:f2_at], 'Y', *body[f2_at:])}), parent=gate)
+        feats = {'f1': f1, 'f2': f2}
+        start = ft.integrate(self.g, gate, sorted(feats.items())).commit
+        dropped = self.r.commit(dict(GATE, **{'z.run': lines(
+            *dropped_body)}), msg='drop d')
+        trees = []
+        for target in (dropped, start):
+            res = ft.route(self.g, gate, feats, self.r.tree(target), msg='m')
+            self.assertEqual(res.unrouted, [])
+            feats = dict(feats, **res.commits)
+            out = ft.integrate(self.g, gate, sorted(feats.items()))
+            self.assertEqual(out.conflicts, [])
+            self.assertEqual(self.r.tree(out.commit), self.r.tree(target))
+        return {'f1': f1, 'f2': f2}, feats
+
+    def test_gate_line_change_next_to_one_feature_round_trips(self):
+        # 0821a720ccf: master dropped, then restored, gate lines next to
+        # features' changes in os-tests' default.run.
+        old, new = self.round_trip(5, ['a', 'b', 'c', 'X', 'e', 'Y', 'f',
+                                       'g', 'h'])
+        for n in old:
+            self.assertEqual(self.r.tree(new[n]), self.r.tree(old[n]), n)
+
+    def test_gate_line_between_two_features_stays_correct(self):
+        # With d between X and Y, git can merge "drop d" only if one
+        # feature holds X and Y together; the integration must stay
+        # right through the round trip, with no duplicated lines.
+        self.round_trip(4, ['a', 'b', 'c', 'X', 'Y', 'e', 'f', 'g', 'h'])
+
     def test_decision_can_start_a_new_feature(self):
         # A fix carried ahead of gate (18158) starts its own feature.
         target = self.target({'gate.c': lines('g1', 'FIX', 'g3')})
