@@ -274,7 +274,8 @@ def route(g, gate, features, target, msg, author=None, decide=None):
     commits = {}
     for n, edits in sorted(changes.items()):
         tree = edit_tree(g, features[n], edits)
-        commits[n] = g.commit_tree(tree, [features[n]], msg, author)
+        if tree != g.tree(features[n]):
+            commits[n] = g.commit_tree(tree, [features[n]], msg, author)
     return Route(commits, unrouted)
 
 
