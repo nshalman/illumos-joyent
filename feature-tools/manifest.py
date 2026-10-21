@@ -21,9 +21,10 @@ action changed between the old and new gate commit:
   whole: os-tests is out), right after the largest key below it.
 
 Mode, owner and group come from the package action, or else from the
-nearest listed entry of the same type in the same directory.  Master's
-own updates in 2026 follow these rules; see replay/2026-10-21-small on
-the meta/state branch.
+nearest listed entry of the same type in the same directory, or in the
+closest directory above it that has one.  Master's own updates in 2026
+follow these rules; see replay/2026-10-21-small on the meta/state
+branch.
 """
 import bisect
 import collections
@@ -132,12 +133,20 @@ class Listing:
             v.sort()
 
     def sibling(self, letter, path):
-        """Mode, owner and group of the nearest entry like PATH."""
-        near = self.bydir.get((letter, posixpath.dirname(path)))
-        if not near:
-            return None
-        i = bisect.bisect_left(near, (path,))
-        return near[i - 1][1] if i > 0 else near[0][1]
+        """Mode, owner and group of the nearest entry like PATH.
+
+        The nearest entry of the same type in PATH's directory, or else
+        in the closest directory above it that has one.
+        """
+        d = posixpath.dirname(path)
+        while True:
+            near = self.bydir.get((letter, d))
+            if near:
+                i = bisect.bisect_left(near, (path,))
+                return near[i - 1][1] if i > 0 else near[0][1]
+            if not d:
+                return None
+            d = posixpath.dirname(d)
 
 
 def line_for(path, kind, attrs, listing):

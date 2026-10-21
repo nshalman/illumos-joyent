@@ -139,6 +139,27 @@ class SyncTest(FtTest):
         text, report = manifest.sync(self.g, old, new, MANIFEST.encode())
         self.assertEqual(text.decode(), SYNCED)
 
+    def test_new_directory_takes_attributes_from_above(self):
+        # 17974 added usr/lib/fm/topo/plugins/$(ARCH64)/: nothing is
+        # listed there yet, so owner and group come from the parent.
+        fm = PKG + 'service-fault-management.p5m'
+        old_pkg = lines('dir path=usr/lib/fm/topo/plugins',
+                        'file path=usr/lib/fm/topo/plugins/dimm.so mode=0555')
+        new_pkg = old_pkg + lines(
+            'dir path=usr/lib/fm/topo/plugins/$(ARCH64)',
+            'file path=usr/lib/fm/topo/plugins/$(ARCH64)/dimm.so mode=0555')
+        old = self.r.commit({fm: old_pkg}, msg='old')
+        new = self.r.commit({fm: new_pkg}, parent=old, msg='new')
+        listed = lines('d usr/lib/fm/topo/plugins 0755 root bin',
+                       'f usr/lib/fm/topo/plugins/dimm.so 0555 root bin')
+        text, report = manifest.sync(self.g, old, new, listed.encode())
+        self.assertEqual(text.decode(), lines(
+            'd usr/lib/fm/topo/plugins 0755 root bin',
+            'd usr/lib/fm/topo/plugins/amd64 0755 root bin',
+            'f usr/lib/fm/topo/plugins/amd64/dimm.so 0555 root bin',
+            'f usr/lib/fm/topo/plugins/dimm.so 0555 root bin'))
+        self.assertEqual(report['no attributes'], [])
+
     def test_sync_feature_commits_on_the_owner(self):
         rebased = self.r.commit(dict(NEW_GATE, manifest=MANIFEST),
                                 parent=self.new, msg='manifest feature')
