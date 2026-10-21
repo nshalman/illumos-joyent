@@ -120,9 +120,11 @@ On `nshalman/illumos-joyent`:
 - `features/tooling`: on the same gate commit. It starts with Dan McDonald's
   two README-SmartOS.md commits from PR #547, cherry-picked unchanged (OS-8751,
   then "Last batch, I think."). They stay as-is through every rebase; the
-  tooling builds on top of them.
-- `meta/state`: orphan; one bootstrap commit recording the gate commit, the
-  reference master commit, and each feature's tip.
+  tooling builds on top of them, in a top-level `feature-tools/` directory:
+  `ft.py` (rebase, integrate, route) and `replay.py`, each with tests.
+- `meta/state`: orphan; a bootstrap commit recording the gate commit, the
+  reference master commit, and each feature's tip, and a `replay/`
+  directory with the record of each replay.
 - `meta/restructure`: orphan; the history of the illumos-joyent-restructure
   repo, including this file.
 
@@ -520,12 +522,38 @@ These land on `features/tooling`, and replay is their first test:
 Results go to `meta/state` under a replay directory, kept apart from live sync
 state.
 
-### Possible first step
+### First run: release-20260903 to da512a7e2e6 (2026-10-21)
 
-A smaller first run limits the cost of finding bugs in the method: bootstrap
-at release-20260903's branch point and replay to release-20261009, which is
-12 gate merges and one release. Then widen the window back to
-release-20260416.
+Done, with `feature-tools/replay.py` on `features/tooling` (133822d2ddb).
+The full record is `replay/2026-10-21-small/` on `meta/state`.
+
+- Phase 1 rerun at feb8a55d8d3 produced the same 78 feature names with no
+  override changes, and their merge equals that commit.
+- All 15 master commits (13 gate merges, 2 joyent commits) were reproduced
+  tree for tree, including release-20261009's branch point.
+- The replayed features at da512a7e2e6 have the same trees as phase 1's
+  split computed there directly, for all 78. The split is stable across the
+  window, and routing keeps it so.
+- Both joyent commits were routed with no help.
+- The gate merges held eight pieces of work beyond a plain rebase. Seven are
+  mechanical: three copyright-line conflicts, one Makefile list conflict
+  (`aio_cancel` in the libc-tests `PROGS`), and three top-level `manifest`
+  updates that follow gate's pkg manifests and raise no conflict at all.
+  The eighth was real judgment: master adapted `smartos-test.sh` to gate's
+  new way of running header tests (18295), again with no conflict.
+
+What this changes:
+
+- The mechanical tier earns its place: copyright, Makefile list and
+  manifest resolvers would have covered seven of eight cases. They are the
+  next tools to build, and replay can measure them, since a resolver must
+  reproduce master's choice.
+- Changes that raise no conflict still need people (smartos-test) or
+  resolvers (manifest). Sync cannot stop at "rebase was clean"; the manifest
+  check and the tests are part of it.
+
+Next: build the resolvers, rerun this window to confirm they reproduce
+master's choices, then widen the window back to release-20260416.
 
 ## Open questions
 
@@ -547,5 +575,5 @@ release-20260416.
 - [ ] Conflict hotspots: measure them, then decide whether to restructure any,
       such as the top-level `manifest`.
 - [ ] Ownership: who owns each of the 78 features?
-- [ ] Replay: start small (release-20260903) or go straight to
-      release-20260416?
+- [x] Replay: start small (release-20260903), then widen to
+      release-20260416. The small run is done.
