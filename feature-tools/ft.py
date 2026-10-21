@@ -254,9 +254,11 @@ def route(g, gate, features, target, msg, author=None, decide=None):
     FEATURES maps name to commit.  Each path that differs goes to the
     features that touch it: to the only one, whole, or line by line to
     the features owning the lines each hunk changes or sits next to.
-    DECIDE maps a path to the feature that takes all of its change; it
-    covers what the rules cannot place: new files, and files no feature
-    touches.  Returns the new commit for each changed feature, made on
+    A file no feature touches goes to the one feature whose added lines,
+    found elsewhere, include every line the change adds: gate moved code
+    that feature had changed.  DECIDE maps a path to the feature that
+    takes all of its change; it covers what the rules cannot place: new
+    files, and the rest of the files no feature touches.  Returns the new commit for each changed feature, made on
     top of it with MSG and AUTHOR, and the paths left unrouted.
     """
     decide = decide or {}
@@ -275,6 +277,7 @@ def route(g, gate, features, target, msg, author=None, decide=None):
     feat = {n: g.entries(c, paths) for n, c in features.items()}
     changes = collections.defaultdict(dict)
     unrouted = []
+    added = None
     for path in paths:
         touched = sorted(n for n in features
                          if feat[n].get(path) != base.get(path))
@@ -291,8 +294,18 @@ def route(g, gate, features, target, msg, author=None, decide=None):
             else:
                 changes[owner][path] = (want[path][0], merged)
         elif not touched:
-            unrouted.append(Unrouted(path, 'new file' if path not in have
-                                     else 'no feature touches it'))
+            routed = None
+            if path in have and path in want:
+                if added is None:
+                    added = {n: feature_lines(g, gate, c)
+                             for n, c in features.items()}
+                routed = route_moved(g, path, have[path], want[path], added)
+            if routed is None:
+                unrouted.append(Unrouted(path, 'new file' if path not in have
+                                         else 'no feature touches it'))
+            else:
+                for n, entry in routed.items():
+                    changes[n][path] = entry
         elif len(touched) == 1:
             changes[touched[0]][path] = want.get(path)
         else:
@@ -311,6 +324,42 @@ def route(g, gate, features, target, msg, author=None, decide=None):
         if tree != g.tree(features[n]):
             commits[n] = g.commit_tree(tree, [features[n]], msg, author)
     return Route(commits, unrouted)
+
+
+def feature_lines(g, gate, commit):
+    """The set of lines COMMIT adds over GATE, in any file."""
+    out = g.run('diff', '-U0', '--no-ext-diff', '--no-color', '--no-textconv',
+                gate, commit).stdout
+    return set(l[1:] for l in out.split(b'\n')
+               if l.startswith(b'+') and not l.startswith(b'+++'))
+
+
+def route_moved(g, path, have, want, added):
+    """Route a change to a file no feature touches, by its lines.
+
+    When every non-blank line a hunk adds is among the lines exactly one
+    feature adds elsewhere, the hunk goes to that feature: gate moved
+    code the feature had changed, and the change followed it.  ADDED maps
+    feature name to feature_lines().  Returns {name: (mode, oid)}, or
+    None when any hunk has no single such feature.
+    """
+    hs = hunks(g, have[1], want[1])
+    if not hs:
+        return None
+    new = split_lines(g.blob(want[1]))
+    mine = collections.defaultdict(list)
+    for h in hs:
+        _, _, ns, nl = h
+        plus = [l.rstrip(b'\n') for l in new[ns - 1:ns - 1 + nl]
+                if l.strip()]
+        who = [n for n, lines in added.items()
+               if plus and all(l in lines for l in plus)]
+        if len(who) != 1:
+            return None
+        mine[who[0]].append(h)
+    old = split_lines(g.blob(have[1]))
+    return {n: (want[0], g.hash_blob(apply_hunks(old, new, hs)))
+            for n, hs in mine.items()}
 
 
 def route_lines(g, path, base, have, want, features):

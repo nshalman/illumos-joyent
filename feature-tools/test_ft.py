@@ -241,6 +241,20 @@ class RouteTest(FtTest):
         self.assertEqual(res.commits, {})
         self.assertEqual([u.path for u in res.unrouted], ['gate.c'])
 
+    def test_moved_feature_line_follows_its_feature(self):
+        # Gate moved code into a file no feature touches, and the
+        # feature's line went with it (fm-topo's LDLIBS in 17974).
+        target = self.target({'gate.c': lines('g1', 'g2', 'F1 only', 'g3')})
+        res = self.route_and_check(target)
+        self.assertEqual(sorted(res.commits), ['f1'])
+        self.assertEqual(res.unrouted, [])
+
+    def test_lines_matching_several_features_stay_unrouted(self):
+        target = self.target({'gate.c': lines('g1', 'C', 'g3')})
+        res = ft.route(self.g, self.gate, self.feats, self.r.tree(target),
+                       msg='routed')
+        self.assertEqual([u.path for u in res.unrouted], ['gate.c'])
+
     def test_new_file_is_unrouted(self):
         target = self.target({'new.c': lines('n')})
         res = ft.route(self.g, self.gate, self.feats, self.r.tree(target),
