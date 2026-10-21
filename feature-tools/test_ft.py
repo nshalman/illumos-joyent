@@ -271,6 +271,40 @@ class RouteTest(FtTest):
         self.assertEqual(self.r.files(res.commits['f1'])['gate.c'],
                          lines('g1', 'CHANGED', 'g3'))
 
+    def header_file(self):
+        """x.c, with features f1 and f2 owning lines far from its header."""
+        body = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']
+        head = ['/*', ' * Copyright 2010 Sun', ' */']
+        gate = self.r.commit(dict(GATE, **{'x.c': lines(*head, *body)}),
+                             msg='gate')
+        f1 = self.r.commit(dict(GATE, **{'x.c': lines(
+            *head, *body[:4], 'E1', *body[5:])}), parent=gate)
+        f2 = self.r.commit(dict(GATE, **{'x.c': lines(
+            *head, *body[:9], 'J2')}), parent=gate)
+        return gate, {'f1': f1, 'f2': f2}, head, body
+
+    def test_copyright_line_goes_with_the_rest_of_the_file(self):
+        # OS-8748 added an OmniOS copyright line beside gate's own, and
+        # changed f1's code in the same file.
+        gate, feats, head, body = self.header_file()
+        target = self.r.commit(dict(GATE, **{'x.c': lines(
+            *head[:2], ' * Copyright 2026 OmniOS', head[2], *body[:4],
+            'E1 fixed', *body[5:9], 'J2')}), msg='target')
+        res = ft.route(self.g, gate, feats, self.r.tree(target), msg='m')
+        self.assertEqual(res.unrouted, [])
+        self.assertEqual(sorted(res.commits), ['f1'])
+        out = ft.integrate(self.g, gate, sorted(dict(feats,
+                                                     **res.commits).items()))
+        self.assertEqual(self.r.tree(out.commit), self.r.tree(target))
+
+    def test_other_ownerless_hunks_stay_unrouted(self):
+        gate, feats, head, body = self.header_file()
+        target = self.r.commit(dict(GATE, **{'x.c': lines(
+            *head, 'A', *body[1:4], 'E1 fixed', *body[5:9], 'J2')}),
+            msg='target')
+        res = ft.route(self.g, gate, feats, self.r.tree(target), msg='m')
+        self.assertEqual([u.path for u in res.unrouted], ['x.c'])
+
     def test_decision_can_start_a_new_feature(self):
         # A fix carried ahead of gate (18158) starts its own feature.
         target = self.target({'gate.c': lines('g1', 'FIX', 'g3')})

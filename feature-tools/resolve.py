@@ -21,7 +21,6 @@ import re
 import ft
 
 MARK = 40
-COPYRIGHT = re.compile(rb'^\W*Copyright\b', re.I)
 LIST_ENTRY = re.compile(rb'^\s+[^\s\\#=:]+\s*\\\r?\n?$')
 
 
@@ -31,7 +30,7 @@ def makefile(path):
 
 
 RESOLVERS = [
-    ('copyright', lambda path, line: bool(COPYRIGHT.match(line))),
+    ('copyright', lambda path, line: bool(ft.COPYRIGHT.match(line))),
     ('makefile-list',
      lambda path, line: makefile(path) and bool(LIST_ENTRY.match(line))),
 ]

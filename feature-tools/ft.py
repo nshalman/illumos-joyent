@@ -185,6 +185,7 @@ def integrate(g, base, features):
 
 
 LINE = re.compile(rb'[^\n]*\n|[^\n]+$')
+COPYRIGHT = re.compile(rb'^\W*Copyright\b', re.I)
 HUNK = re.compile(rb'^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@', re.M)
 
 
@@ -383,7 +384,10 @@ def route_lines(g, path, base, have, want, features):
         return Unrouted(path, 'shared binary file')
     owners = owners_of_lines(g, base and base[1], have[1],
                              {n: e[1] for n, e in features.items()})
+    old = split_lines(g.blob(have[1]))
+    new = split_lines(g.blob(want[1]))
     mine = collections.defaultdict(list)
+    orphans = []
     for h in hs:
         os_, ol, _, _ = h
         who = set()
@@ -394,11 +398,18 @@ def route_lines(g, path, base, have, want, features):
             after = os_ + 1 if ol == 0 else os_ + ol
             who = owners.get(before, set()) | owners.get(after, set())
         if not who:
-            return Unrouted(path, 'hunk at line %d has no owner' % os_)
+            orphans.append(h)
         for n in who:
             mine[n].append(h)
-    old = split_lines(g.blob(have[1]))
-    new = split_lines(g.blob(want[1]))
+    # A copyright line nobody owns goes with the rest of the change to
+    # this file: the line records who made that change.
+    for h in orphans:
+        os_, ol, ns, nl = h
+        changed = old[os_ - 1:os_ - 1 + ol] + new[ns - 1:ns - 1 + nl]
+        if not mine or not all(COPYRIGHT.match(l) for l in changed):
+            return Unrouted(path, 'hunk at line %d has no owner' % os_)
+        for n in list(mine):
+            mine[n].append(h)
     out = {}
     for n, hs in mine.items():
         theirs = g.hash_blob(apply_hunks(old, new, hs))
