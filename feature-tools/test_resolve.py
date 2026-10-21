@@ -61,9 +61,9 @@ class ResolveFileTest(FtTest):
         ours = lines(*HEAD, ' * Copyright 2026 Oxide Computer Company', *TAIL)
         theirs = lines(*HEAD, ' * Copyright (c) 2011, Joyent, Inc.', *TAIL)
         b, o, t = self.blobs(base, ours, theirs)
-        out = resolve.resolve_file(self.g, 'zonestatd.c', b, o, t)
-        self.assertIsNotNone(out)
-        blob, names = out
+        blob, names, left = resolve.resolve_file(self.g, 'zonestatd.c', b, o,
+                                                 t)
+        self.assertEqual(left, 0)
         self.assertEqual(self.g.blob(blob).decode(), lines(
             *HEAD, ' * Copyright (c) 2011, Joyent, Inc.',
             ' * Copyright 2026 Oxide Computer Company', *TAIL))
@@ -75,7 +75,7 @@ class ResolveFileTest(FtTest):
                              lines(*head, '# Copyright 2026 Oxide', 'x'),
                              lines(*head, '# Copyright 2021 OmniOS',
                                    '# Copyright 2024 Oxide', 'x'))
-        blob, _ = resolve.resolve_file(self.g, 'corenote.msg', b, o, t)
+        blob, _, _ = resolve.resolve_file(self.g, 'corenote.msg', b, o, t)
         self.assertEqual(self.g.blob(blob).decode(), lines(
             *head, '# Copyright 2021 OmniOS', '# Copyright 2026 Oxide', 'x'))
 
@@ -85,7 +85,8 @@ class ResolveFileTest(FtTest):
         b, o, t = self.blobs(lines(*head, *tail),
                              lines(*head, '\taio_cancel \\', *tail),
                              lines(*head, '\tenv-OS-4089 \\', *tail))
-        blob, names = resolve.resolve_file(self.g, 'tests/Makefile', b, o, t)
+        blob, names, _ = resolve.resolve_file(self.g, 'tests/Makefile', b, o,
+                                              t)
         self.assertEqual(self.g.blob(blob).decode(), lines(
             *head, '\tenv-OS-4089 \\', '\taio_cancel \\', *tail))
         self.assertEqual(names, ['makefile-list'])
@@ -93,22 +94,33 @@ class ResolveFileTest(FtTest):
     def test_list_entries_only_in_makefiles(self):
         b, o, t = self.blobs(lines('x', 'y'), lines('x', '\tg \\', 'y'),
                              lines('x', '\tf \\', 'y'))
-        self.assertIsNone(resolve.resolve_file(self.g, 'foo.c', b, o, t))
+        self.assertEqual(resolve.resolve_file(self.g, 'foo.c', b, o, t)[2], 1)
 
     def test_other_code_is_left_for_a_person(self):
         b, o, t = self.blobs(lines(*HEAD, 'int a;', *TAIL),
                              lines(*HEAD, 'int b;', *TAIL),
                              lines(*HEAD, 'int c;', *TAIL))
-        self.assertIsNone(resolve.resolve_file(self.g, 'x.c', b, o, t))
+        blob, names, left = resolve.resolve_file(self.g, 'x.c', b, o, t)
+        self.assertEqual((names, left), ([], 1))
+        # The region left for a person keeps the feature's side.
+        self.assertEqual(self.g.blob(blob).decode(),
+                         lines(*HEAD, 'int c;', *TAIL))
 
-    def test_one_unresolvable_region_fails_the_file(self):
+    def test_regions_are_resolved_one_by_one(self):
+        # 57dd2952050: lx had a copyright conflict and a code conflict in
+        # fork.c; the copyright region must still be resolved, or lx's
+        # copyright lines clash with other features' in integration.
         base = lines(*HEAD, *TAIL, 'a', 'b', 'c', 'int a;')
         ours = lines(*HEAD, ' * Copyright 2026 Oxide', *TAIL, 'a', 'b', 'c',
                      'int b;')
         theirs = lines(*HEAD, ' * Copyright 2011 Joyent', *TAIL, 'a', 'b',
                        'c', 'int c;')
         b, o, t = self.blobs(base, ours, theirs)
-        self.assertIsNone(resolve.resolve_file(self.g, 'x.c', b, o, t))
+        blob, names, left = resolve.resolve_file(self.g, 'x.c', b, o, t)
+        self.assertEqual((names, left), (['copyright'], 1))
+        self.assertEqual(self.g.blob(blob).decode(), lines(
+            *HEAD, ' * Copyright 2011 Joyent', ' * Copyright 2026 Oxide',
+            *TAIL, 'a', 'b', 'c', 'int c;'))
 
 
 class RebaseWithResolversTest(FtTest):
@@ -135,6 +147,23 @@ class RebaseWithResolversTest(FtTest):
                         resolve=resolve.resolve_file)
         self.assertEqual(res.conflicts, [(feat, ['x.c'])])
         self.assertEqual(res.resolved, [])
+
+    def test_partly_resolved_file_is_still_a_conflict(self):
+        base = lines(*HEAD, *TAIL, 'a', 'b', 'c', 'int a;')
+        gate = self.r.commit({'x.c': base}, msg='gate')
+        feat = self.r.commit({'x.c': lines(*HEAD, ' * Copyright 2011 Joyent',
+                                           *TAIL, 'a', 'b', 'c', 'int c;')},
+                             parent=gate)
+        new_gate = self.r.commit({'x.c': lines(
+            *HEAD, ' * Copyright 2026 Ox', *TAIL, 'a', 'b', 'c', 'int b;')},
+            parent=gate)
+        res = ft.rebase(self.g, gate, feat, new_gate,
+                        resolve=resolve.resolve_file)
+        self.assertEqual(res.conflicts, [(feat, ['x.c'])])
+        self.assertEqual(res.resolved, [(feat, 'x.c', ['copyright'])])
+        self.assertEqual(self.r.files(res.tip)['x.c'], lines(
+            *HEAD, ' * Copyright 2011 Joyent', ' * Copyright 2026 Ox', *TAIL,
+            'a', 'b', 'c', 'int c;'))
 
 
 if __name__ == '__main__':

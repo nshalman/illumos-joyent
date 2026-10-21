@@ -124,11 +124,12 @@ def rebase(g, old_base, tip, new_base, resolve=None):
 
     RESOLVE, if given, is tried on each conflicted file as
     RESOLVE(g, path, base blob, ours blob, theirs blob) and returns
-    (merged blob, resolver names) or None; see resolve.resolve_file.
-    Files it resolves are listed in `resolved` as (commit, path, names).
-    A commit with conflicts left is still replayed, keeping the feature's
-    side of each, and is listed in `conflicts` as (commit, paths) so a
-    person can check the result.  A commit that becomes empty is dropped
+    (merged blob, resolver names, regions left); see
+    resolve.resolve_file.  Files where it resolved anything are listed
+    in `resolved` as (commit, path, names).  A commit with conflicts
+    left is still replayed, keeping the feature's side of each, and is
+    listed in `conflicts` as (commit, paths) so a person can check the
+    result.  A commit that becomes empty is dropped
     and listed in `emptied`: gate may already have its change.
     """
     commits = g.out('rev-list', '--reverse', '--topo-order',
@@ -141,20 +142,22 @@ def rebase(g, old_base, tip, new_base, resolve=None):
         tree, paths = merge_tree(g, cur, c, base=c + '^')
         if paths:
             tree, _ = merge_tree(g, cur, c, base=c + '^', favor='theirs')
-            fixed = {}
+            fixed, done = {}, set()
             if resolve:
                 base, ours, theirs = (g.entries(r, paths)
                                       for r in (c + '^', cur, c))
                 for p in paths:
                     if p in base and p in ours and p in theirs:
-                        r = resolve(g, p, base[p][1], ours[p][1],
-                                    theirs[p][1])
-                        if r:
-                            fixed[p] = (theirs[p][0], r[0])
-                            resolved.append((c, p, r[1]))
+                        blob, names, regions = resolve(
+                            g, p, base[p][1], ours[p][1], theirs[p][1])
+                        if names:
+                            fixed[p] = (theirs[p][0], blob)
+                            resolved.append((c, p, names))
+                        if not regions:
+                            done.add(p)
             if fixed:
                 tree = edit_tree(g, tree, fixed)
-            left = [p for p in paths if p not in fixed]
+            left = [p for p in paths if p not in done]
             if left:
                 conflicts.append((c, left))
         if tree == g.tree(cur):

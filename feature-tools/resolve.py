@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Mechanical conflict resolvers: tier 3 of the escalation ladder.
 
-A rebase conflict is resolved here only when every line in each
-conflicting region is of a kind that can be merged as a set:
+A rebase conflict region is resolved here only when every line in it
+is of a kind that can be merged as a set:
 
   copyright      copyright lines, in any comment style
   makefile-list  "<tab>name \\" entries of a Makefile list
@@ -13,7 +13,7 @@ the feature's version (at the start of the region if it has none).
 Master's own resolutions in 2026 follow this rule; see
 replay/2026-10-21-small on the meta/state branch.
 
-Anything else is left for a person.
+Any other region is left for a person, keeping the feature's side.
 """
 import os
 import re
@@ -52,15 +52,18 @@ def union(ours, base, theirs):
 
 
 def resolve_file(g, path, base, ours, theirs):
-    """Resolve a conflicted file from its three blobs.
+    """Resolve a conflicted file's regions from its three blobs.
 
-    Returns (merged blob, names of the resolvers used), or None if any
-    region is beyond the resolvers.
+    Each region is resolved on its own: one beyond the resolvers keeps
+    the feature's side, for a person to check, without stopping the
+    others.  Returns (merged blob, names of the resolvers used, number
+    of regions left for a person).
     """
     r = g.run('merge-file', '-p', '--diff3', '--object-id',
               '--marker-size=%d' % MARK, ours, base, theirs,
               ok=range(0, 128))
     out, used = [], []
+    left = 0
     region = None
     for line in ft.split_lines(r.stdout):
         if line.startswith(b'<' * MARK):
@@ -75,16 +78,18 @@ def resolve_file(g, path, base, ours, theirs):
             name = next((n for n, ok in RESOLVERS
                          if all(ok(path, l) for l in lines)), None)
             if name is None:
-                return None
-            if name not in used:
-                used.append(name)
-            out.extend(union(region['ours'], region['base'],
-                             region['theirs']))
+                left += 1
+                out.extend(region['theirs'])
+            else:
+                if name not in used:
+                    used.append(name)
+                out.extend(union(region['ours'], region['base'],
+                                 region['theirs']))
             region = None
         elif region is not None:
             region[part].append(line)
         else:
             out.append(line)
     if region is not None:
-        return None
-    return g.hash_blob(b''.join(out)), used
+        raise ValueError('%s: unterminated conflict region' % path)
+    return g.hash_blob(b''.join(out)), used, left
