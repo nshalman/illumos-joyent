@@ -17,8 +17,8 @@ action changed between the old and new gate commit:
 - a path gate removes is removed;
 - a path gate changes, if listed, is rewritten in place;
 - a path gate adds is listed only if the package file declaring it
-  already has paths in the manifest (packages are in or out as a
-  whole: os-tests is out), right after the largest key below it.
+  already has files or links in the manifest (packages are in or out
+  as a whole: os-tests is out), right after the largest key below it.
 
 Mode, owner and group come from the package action, or else from the
 nearest listed entry of the same type in the same directory, or in the
@@ -183,8 +183,11 @@ def sync(g, old_gate, new_gate, text):
     old, new = package_actions(g, old_gate), package_actions(g, new_gate)
     lines = text.decode('utf-8', 'surrogateescape').split('\n')
     listing = Listing(lines)
+    # A package ships if a file or link it delivers is listed;
+    # directories like opt are declared by many packages and prove
+    # nothing.
     shipped = set(f for p, decls in new.items() if p in listing.index
-                  for f, _, _ in decls)
+                  for f, k, _ in decls if k != 'dir')
     replace, remove, insert = {}, set(), []
     for path in sorted(set(old) | set(new)):
         o, n = shape(old.get(path)), shape(new.get(path))

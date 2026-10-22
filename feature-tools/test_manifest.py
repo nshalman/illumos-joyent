@@ -160,6 +160,21 @@ class SyncTest(FtTest):
             'f usr/lib/fm/topo/plugins/dimm.so 0555 root bin'))
         self.assertEqual(report['no attributes'], [])
 
+    def test_shared_directory_does_not_make_a_package_ship(self):
+        # c27d3c0ce8f: os-tests declares dir path=opt, which the manifest
+        # lists, but none of its files are shipped.
+        ost = PKG + 'system-test-ostest.p5m'
+        old = self.r.commit(dict(OLD_GATE, **{ost: lines(
+            'dir path=opt', 'file path=opt/os-tests/tests/a mode=0555')}),
+            msg='old')
+        new = self.r.commit(dict(NEW_GATE, **{ost: lines(
+            'dir path=opt', 'file path=opt/os-tests/tests/a mode=0555',
+            'dir path=opt/os-tests/tests/memlist')}), parent=old, msg='new')
+        listed = MANIFEST + lines('d opt 0755 root sys')
+        text, report = manifest.sync(self.g, old, new, listed.encode())
+        self.assertIn('opt/os-tests/tests/memlist', report['not shipped'])
+        self.assertNotIn('memlist', text.decode())
+
     def test_sync_feature_commits_on_the_owner(self):
         rebased = self.r.commit(dict(NEW_GATE, manifest=MANIFEST),
                                 parent=self.new, msg='manifest feature')
