@@ -390,6 +390,22 @@ class RouteTest(FtTest):
                            sorted(dict(self.feats, **res.commits).items()))
         self.assertEqual(self.r.tree(out.commit), self.r.tree(target))
 
+    def test_decision_takes_ownerless_hunks_of_a_shared_file(self):
+        # c6d9c31711e: OS-8746 fixed gate lines in os-tests default.run,
+        # far from the lines of the features that touch that file.
+        gate, feats, head, body = self.header_file()
+        target = self.r.commit(dict(GATE, **{'x.c': lines(
+            *head, 'A', *body[1:4], 'E1', *body[5:9], 'J2')}), msg='target')
+        res = ft.route(self.g, gate, feats, self.r.tree(target), msg='m',
+                       decide={'x.c': 'upstream-fix'})
+        self.assertEqual(res.unrouted, [])
+        self.assertEqual(sorted(res.commits), ['upstream-fix'])
+        self.assertEqual(self.r.files(res.commits['upstream-fix'])['x.c'],
+                         lines(*head, 'A', *body[1:]))
+        out = ft.integrate(self.g, gate, sorted(dict(feats,
+                                                     **res.commits).items()))
+        self.assertEqual(self.r.tree(out.commit), self.r.tree(target))
+
     def test_decision_does_not_override_owners(self):
         # 0821a720ccf: a decision for a file features now touch must not
         # send the whole change to the decided feature.

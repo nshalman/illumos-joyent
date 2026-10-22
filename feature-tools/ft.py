@@ -318,10 +318,9 @@ def route(g, gate, features, target, msg, author=None, decide=None):
         elif len(touched) == 1:
             changes[touched[0]][path] = want.get(path)
         else:
+            owners = {n: feat[n][path] for n in touched if path in feat[n]}
             routed = route_lines(g, path, base.get(path), have.get(path),
-                                 want.get(path),
-                                 {n: feat[n][path] for n in touched
-                                  if path in feat[n]})
+                                 want.get(path), owners, decide.get(path))
             if isinstance(routed, Unrouted):
                 unrouted.append(routed)
             else:
@@ -382,7 +381,7 @@ def overlaps(a, b, slack=0):
     return a[0] <= b[1] + slack and b[0] <= a[1] + slack
 
 
-def route_lines(g, path, base, have, want, features):
+def route_lines(g, path, base, have, want, features, decided=None):
     """Split one shared file's change among the FEATURES owning it.
 
     BASE, HAVE and WANT are the (mode, oid) of the file on gate, in the
@@ -400,7 +399,9 @@ def route_lines(g, path, base, have, want, features):
     features that git can merge only together, such as both sides of a
     deleted gate line, end up in each of those features.  A copyright
     line nobody owns goes with the features whose file changes anyway.
-    Returns {name: new (mode, oid)} or an Unrouted.
+    Any other hunk nobody owns goes to DECIDED, the feature a person
+    named for this path, if any.  Returns {name: new (mode, oid)} or an
+    Unrouted.
     """
     if base is None or want is None:
         return Unrouted(path, 'shared file added or deleted')
@@ -442,12 +443,16 @@ def route_lines(g, path, base, have, want, features):
     for h in orphans:
         os_, ol, ns, nl = h
         lines = gate_lines[os_ - 1:os_ - 1 + ol] + new[ns - 1:ns - 1 + nl]
-        if not changed or not all(COPYRIGHT.match(l) for l in lines):
+        if changed and all(COPYRIGHT.match(l) for l in lines):
+            who = changed
+        elif decided:
+            who = [decided]
+        else:
             return Unrouted(path, 'hunk at line %d has no owner' % os_)
-        for n in changed:
+        for n in who:
             mine[n].append(h)
     out = {}
-    for n in features:
+    for n in set(features) | set(mine):
         data = apply_hunks(gate_lines, new, mine.get(n, []))
         out[n] = (want[0], g.hash_blob(data))
     return out
