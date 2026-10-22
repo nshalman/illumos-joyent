@@ -300,6 +300,33 @@ the release is recut, so this path has to be routine, not an exception. The
 routing in the developer workflow carries each release fix back to its
 feature branches.
 
+### A forward-only integration branch, which can be master
+
+Developers branch from the integration branch, so it must never be rewritten.
+Each sync therefore adds one commit on top of it:
+
+- its tree is the new integration (gate plus the merge chain of features),
+  already checked;
+- its parents are the previous integration tip, the new merge chain, and the
+  tips of any releases cut since the last sync.
+
+The commit is written with that tree explicitly (`git commit-tree`), not by
+asking git to merge, and the tree is asserted equal to the checked one. Two
+commits with the same tree always merge to that tree, so nothing about this
+depends on a merge doing the right thing. This is option A above, and the
+branch can simply be `master`.
+
+Releases are merged in as parents for history (`git branch --contains` then
+shows master holding every release), and the merge doubles as a check. A
+release forked earlier and carries its own commits, so merging it is a real
+three-way merge, but it should change nothing: each fix on the release was
+also routed to its features, and each gate backport arrives with gate. Before
+writing the commit, the sync does that merge for real and requires the tree to
+stay the same. If it changes, either a release fix never reached its feature
+(a bug to report) or a backport is not in gate yet (expected for a while:
+release-20260430 took gate's 17903 revert the same day gate made it); the
+report says which.
+
 ### Octopus or sequential merges
 
 An octopus merge records all features in one commit, which reads nicely, but
@@ -363,63 +390,90 @@ integration.
 
 ## Developer workflow
 
-A developer should be able to change one feature, build it with what it needs,
-and get it reviewed, without knowing the whole feature graph. Three ways to
-work, and I think we need all of them.
+A developer works in a whole tree and lands whole commits; the tooling
+decides which features a commit touches, and asks only when it cannot. Nobody
+needs to know the feature graph to fix a bug.
 
-### Work on the feature branch
+### From idea to landed commit
 
-For a change that clearly belongs to one feature:
+1. **Get a tree.** Branch from the integration branch: gate plus every
+   feature, merged in a chain, published at each sync. It builds and boots in
+   smartos-live like `master` does today. It can be `master` (see Publishing:
+   a forward-only integration branch). During shadow mode its tree equals
+   master's, so developers simply keep using master.
+2. **Make the change.** Edit, build and test as usual; commit with a ticket in
+   the message.
+3. **See where it goes.** A routing preview (`ft.route`, without writing
+   anything) says which features each part of the commit belongs to, for
+   example "lx: 2 files, brand-ops: 1 hunk". Three outcomes:
+    - clear: nothing to do;
+    - ambiguous (a gate file no feature touches, or a new file): the developer
+      names the feature with a commit trailer, `Feature: brand-ops`. A
+      trailer naming a feature that does not exist starts it on gate, as
+      `Feature: upstream-18158` would for a fix carried until gate lands it;
+    - several features: fine; landing splits the commit, and each part keeps
+      the author and message, plus a trailer naming the original commit.
+   The trailer is how a placement decision is made and reviewed in live work;
+   replay's decide file is the same thing kept outside the commit.
+4. **Review.** A pull request against the integration branch, where the
+   developer already works. The routing preview is posted on it, so the
+   placement is reviewed along with the code. CI builds the integration with
+   the change.
+5. **Land.** One change at a time: bring the commit up to date with the
+   integration branch, route it onto the feature branches, check that the
+   features now integrate to exactly the integration plus the commit (the
+   same tree check replay makes), then push the features and the new
+   integration. If the check fails nothing is pushed, and it becomes an
+   issue on the fork.
 
-1. Check out `features/<name>` in a worktree. It sits on the current gate
-   base.
-2. Edit and commit there. Fixes to existing commits go in as `fixup!` commits.
-3. Run the tool's build command. It merges the feature's dependency closure
-   into a separate build worktree and runs an incremental build, the way phase
-   1's stacks did.
-4. Open a PR against `features/<name>`. CI runs the pull-request tier.
+Replay and shadow mode already exercise step 5's routing: every joyent commit
+on master is a developer commit that went through steps 1 and 2. In the wide
+replay 10 of 13 routed with no help and 3 needed a placement decision. What
+they cannot exercise is the preview, trailers as decisions, and a landing that
+pushes; those need tools:
 
-The catch: the developer edits in a tree that does not build on its own.
-Editors, cscope and test runs work best in the build worktree, not the edit
-tree.
+| Tool | Does |
+| --- | --- |
+| Route preview | Shows, for a commit, where each part would go |
+| Trailer decisions | `ft.route` reads `Feature:` trailers as decisions |
+| `land` | Routes, checks the tree, pushes; refuses on any mismatch |
+| Integration publisher | Builds the merge chain at each sync and adds it to the forward-only integration branch |
 
-### Work in the integrated tree
+### Fixes on a release
 
-Most SmartOS developers today work in a full tree under smartos-live. That
-should keep working:
+A bug found in a release is fixed on the release branch, which is a whole tree
+like the integration branch. The fix lands there and the release is recut;
+the same commit is then routed to the current feature branches. Those may sit
+on a newer gate than the release, so that is a cherry-pick that can conflict,
+and it climbs the same escalation ladder as a sync. Merging the release back
+into the integration branch then changes nothing (see Publishing), which
+checks that the fix arrived.
 
-1. Work in an integration checkout, which builds and boots as a whole.
-2. Commit as usual.
-3. The tool routes each commit to the feature that owns the lines it changes,
-   as `git absorb` does for fixups. Phase 1's hunk ownership logic is that
-   same problem. A commit touching two features is split, and the tool asks
-   when ownership is unclear, such as lines added to gate code no feature
-   touches.
-4. The routed commits become PRs against the feature branches.
+### Working on one feature on purpose
 
-### Work against a release tree
-
-A bug is often found in a release, and the fix is wanted there first. The
-developer works on the release branch, which is a full tree like the
-integrated one. The fix lands on the release, the release is recut, and the
-same routing step applies each commit to the feature branches that own its
-lines. The feature branches may sit on a newer gate than the release, so
-applying there is a cherry-pick that can conflict; it climbs the same
-escalation ladder as a sync.
+Someone deliberately working on a single feature, such as a driver import, can
+check out `features/<name>` and open a pull request against it. That branch
+does not build on its own (36 of 78 features need others), so building means
+merging the feature's dependency closure into a separate worktree, as phase 1's
+stacked builds did. This is a path for specialists, not the default.
 
 ### New features
 
-The tool creates `features/<name>` from the current gate base along with its
-metadata entry: description, owner, `depends`, and `upstream`. Examples are a
-FreeBSD driver import, or a fix we carry until gate takes it. From then on it
-is synced, built and reported like any other feature.
+A new feature starts as a branch on the current gate base, either by a
+`Feature:` trailer naming it on its first commit or by creating it outright,
+with its metadata entry (description, owner, `depends`, `upstream`). Examples
+are a FreeBSD driver import, or a fix carried until gate takes it. From then on
+it is synced, built and reported like any other, and it retires on its own
+if gate ends up with all of it.
 
-### Testing beyond a build
+### Open questions here
 
-A developer needs a platform image to boot. The tool should hand smartos-live
-an integration tree: gate plus all features, with the developer's branch in
-place of the published one. How smartos-live gets pointed at that tree is part
-of the publishing question.
+- Routed commits accumulate on feature branches as small commits. Do features
+  keep full history, or get curated (squashed) periodically? A split commit is
+  not a `fixup!`, so the earlier plan of squashing fixups at each sync does not
+  cover it.
+- How smartos-live is pointed at an integration branch other than master,
+  for developers testing a feature branch's effect before landing.
 
 ## Transition: running beside master
 
@@ -427,18 +481,40 @@ We start in shadow mode while master-based development continues. During that
 time the reference tree stays useful: the integration should keep matching
 master.
 
-Shadow mode, per master update:
+Shadow mode is replay pointed at the present: `replay.py` over master's new
+first-parent commits since the last run.
 
-1. Take master's new commits since the last shadow run.
-2. Route each one to its feature, the same routing as the integrated-tree
-   workflow above.
-3. If master merged a new gate, run a sync onto that gate commit.
-4. Check that the integration's tree equals master's. A difference means the
-   routing or the sync went wrong, and it is reported.
+1. Fetch master and gate (both public; no credentials needed to read).
+2. For each new master commit: a gate merge rebases every feature onto the new
+   gate commit, through the resolvers and the manifest sync; a joyent commit
+   is routed to the features it touches; whatever still differs from master
+   is routed too and recorded as work a person did.
+3. Check that the integration's tree equals master's at every step.
+4. When a release branch appears or gains commits, rebuild it with
+   `release.py`.
+5. Push the updated `features/*` and record the run on `meta/state`.
 
-This tests routing and sync on real work, with master as the answer key. Once
-it runs clean for a while, the direction can flip: features become the source
-and master, if it remains, is derived from them.
+It starts from the 78 phase 1 features, which reproduce da512a7e2e6; master
+was 21 commits past that on 2026-10-22. `features/tooling` is left out of the
+comparison, since master does not carry `feature-tools/` or
+README-SmartOS.md.
+
+Decided 2026-10-22:
+
+- Runs are manual for now.
+- Per-sync tags of each feature are recorded on `meta/state` (a list of
+  commit ids), not as tags on the fork.
+- When a run stops, it becomes an issue on the fork naming the commit, the
+  paths and the reason; the placement decision goes into a decisions file on
+  `meta/state` (today it is on the build host) and the run resumes.
+- Exit: every master commit reproduced over about a month including at least
+  one release, with every case that needed a person being a real conflict, a
+  placement decision or a mistake in master, and none a tool failure. Then
+  the direction flips: features become the source, and master is the
+  forward-only integration branch.
+
+Still open: how commits made by the tools are attributed and signed (today
+they carry the original author for routed joyent commits and are unsigned).
 
 Before shadow mode runs live, we replay history (next section). Replay is
 shadow mode run over the past, so the same tools serve both.
@@ -635,7 +711,9 @@ format.
 
 ## Open questions
 
-- [ ] Publishing: option A, B or C, and what happens to `master` in the end?
+- [ ] Publishing: leaning to option A, master as the forward-only
+      integration branch with releases merged in as a check (see
+      Publishing); not yet decided.
 - [ ] Releases: fork from master or from gate plus features? Which shape for
       release fixes and recuts?
 - [ ] How does smartos-live choose its illumos-joyent branch, and what must
@@ -648,10 +726,12 @@ format.
       never lands alone" the right limit?
 - [ ] Sync cadence: every gate push, or batched? Bisecting conflicts makes
       larger batches affordable.
-- [ ] Where escalations go: issues or PRs on the fork, or somewhere else?
+- [x] Where escalations go: issues on the fork (decided 2026-10-22).
+- [ ] How commits made by the tools are attributed and signed.
+- [ ] Do feature branches keep full history, or get curated periodically?
 - [ ] boot/dboot and datalink/vnd: merge each pair, or test them together?
 - [ ] Conflict hotspots: measure them, then decide whether to restructure any,
       such as the top-level `manifest`.
 - [ ] Ownership: who owns each of the 78 features?
 - [x] Replay: start small (release-20260903), then widen to
-      release-20260416. The small run is done.
+      release-20260416. Both done; see Replaying history.
