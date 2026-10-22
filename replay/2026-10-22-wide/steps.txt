@@ -1,0 +1,168 @@
+ea4f3c70350 gate   ok   [illumos-gate merge]
+    conflict  fm-topo: usr/src/lib/fm/topo/modules/common/ipmi/Makefile
+    conflict  lx: usr/src/Targetdirs
+    synced    integration-manifest: added 23
+    routed    fm-topo lx
+e63f50414ef gate   ok   [illumos-gate merge]
+63eb1295e66 gate   ok   [illumos-gate merge]
+    resolved  vnd: usr/src/man/man8/snoop.8 (copyright)
+aa6a06c5403 gate   ok   [illumos-gate merge]
+bd38a94beda gate   ok   [illumos-gate merge]
+    synced    integration-manifest: added 1
+    routed    integration-manifest
+fc0f54f8985 gate   ok   [illumos-gate merge]
+    synced    integration-manifest: added 2
+a3358a59295 gate   ok   [illumos-gate merge]
+    conflict  ptools: usr/src/man/man1/ps.1
+    resolved  ptools: usr/src/cmd/ps/ps.c (copyright) usr/src/man/man1/ps.1 (copyright)
+    synced    integration-manifest: added 15
+    routed    ptools
+a2414f708f5 gate   ok   [illumos-gate merge]
+    conflict  ptools: usr/src/man/man1/ps.1
+    routed    ptools
+c93b0d3420f gate   ok   [illumos-gate merge]
+c04c261dd5b joyent ok   OS-8737 Want to swap in experimental bhyve binary on a per-z
+    routed    zone-brands
+d42f12e97f2 gate   ok   [illumos-gate merge]
+ec67518b999 joyent ok   OS-8741 Pull in OmniOS inotify enhancement Reviewed by: Dan 
+    routed    inotify
+283f76ab20e gate   ok   [illumos-gate merge]
+    synced    integration-manifest: added 6
+a9bf1b76566 gate   ok   [illumos-gate merge]
+031e6f029ba gate   ok   [illumos-gate merge]
+98eb1c66ed5 gate   ok   [illumos-gate merge]
+    resolved  smartos-test: usr/src/test/test-runner/cmd/run (copyright)
+68bad962d88 gate   ok   [illumos-gate merge]
+9418decce6f gate   ok   [illumos-gate merge]
+    conflict  integration: usr/src/test/util-tests/tests/dladm/Makefile
+    conflict  smartos-test: usr/src/test/util-tests/runfiles/default.run
+    resolved  smartos-test: usr/src/test/zfs-tests/cmd/scripts/zfstest.ksh (copyright)
+    resolved  zfs-tests: usr/src/test/zfs-tests/cmd/scripts/zfstest.ksh (copyright)
+    routed    integration smartos-test
+78d525da38b joyent ok   18124 want test case for dladm create-vnic (fix manifest)
+    routed    integration-pkg
+2b2a7a8e922 joyent ok   18158 bhyve leaks AMD PQOS leaf 0x80000020 causing Linux gue
+    routed    upstream-18158
+a81300c3d63 gate   ok   [illumos-gate merge]
+c6d9c31711e joyent ok   OS-8746 Fix low-hanging 17694-discovered test bugs
+    routed    integration-pkg upstream-os-8746 zfs-tests
+3ec3681e34d gate   ok   [illumos-gate merge]
+    emptied   upstream-18158: 1 commit(s)
+    retired   upstream-18158 (gate has all of it)
+213407815a3 gate   ok   [illumos-gate merge]
+eb02c826b92 gate   ok   [illumos-gate merge]
+87e8f1919ac gate   ok   [illumos-gate merge]
+    emptied   upstream-os-8746: 1 commit(s)
+    emptied   zfs-tests: 1 commit(s)
+    retired   upstream-os-8746 (gate has all of it)
+    routed    dtrace upstream-os-8746
+d6af293b152 gate   ok   [illumos-gate merge]
+0f946da9a27 joyent ok   OS-8747 panic booting an s10 zone with DEBUG bits Reviewed b
+    routed    brand-ops
+756059c3b6b joyent ok   OS-8748 Re-align brand_clearbrand with upstream gate. Review
+    routed    brand-ops brand-process lx
+2c55cdccb79 joyent ok   OS-8749 aggr link removal kernel panics with enough clients 
+    routed    datalink
+2dde60f7203 gate   ok   [illumos-gate merge]
+46064c1f4b5 gate   ok   [illumos-gate merge]
+    synced    integration-manifest: added 1
+645b8978a0c gate   ok   [illumos-gate merge]
+22fdac0b6e5 joyent ok   OS-8746 Fix low-hanging 17694-discovered test bugs (fix mani
+    routed    integration-pkg
+8688c62873a gate   ok   [illumos-gate merge]
+    emptied   datalink: 1 commit(s)
+ceee4ecaf23 gate   ok   [illumos-gate merge]
+fac29434484 gate   ok   [illumos-gate merge]
+    resolved  altexec: usr/src/cmd/Makefile (copyright)
+    resolved  bhyve: usr/src/cmd/Makefile (copyright)
+    resolved  column: usr/src/cmd/Makefile (copyright)
+    resolved  integration: usr/src/cmd/Makefile (copyright)
+    resolved  machid: usr/src/cmd/Makefile (copyright)
+    resolved  nicstat: usr/src/cmd/Makefile (copyright)
+    resolved  onbld-tools: usr/src/cmd/Makefile (copyright)
+    resolved  ssh-removal: usr/src/cmd/Makefile (copyright)
+    resolved  vnd: usr/src/cmd/Makefile (copyright)
+    resolved  zfs-zone-io: usr/src/cmd/Makefile (copyright)
+    resolved  zone-brands: usr/src/cmd/Makefile (copyright)
+    synced    integration-manifest: removed 1
+650d4801557 gate   ok   [illumos-gate merge]
+0867875ead6 joyent ok   OS-8756 Have SmartOS usr/src/test python scripts use env(1)
+    routed    integration smartos-test
+57dd2952050 gate   ok   [illumos-gate merge]
+    conflict  lx: usr/src/uts/common/os/fork.c usr/src/uts/common/syscall/chdir.c
+    resolved  brand-fs: usr/src/uts/common/os/fio.c (copyright) usr/src/uts/common/sys/file.h (copyright)
+    resolved  brand-ops: usr/src/uts/common/os/fork.c (copyright) usr/src/uts/common/os/brand.c (copyright) usr/src/uts/common/os/exec.c (copyright) usr/src/uts/common/os/fork.c (copyright)
+    resolved  brand-process: usr/src/uts/common/os/fork.c (copyright) usr/src/uts/common/sys/user.h (copyright) usr/src/uts/common/os/exit.c (copyright) usr/src/uts/common/os/fork.c (copyright)
+    resolved  lx: usr/src/uts/common/fs/proc/prcontrol.c (copyright) usr/src/uts/common/os/fio.c (copyright) usr/src/uts/common/os/fork.c (copyright) usr/src/uts/common/sys/file.h (copyright) usr/src/uts/common/syscall/chdir.c (copyright) usr/src/uts/common/os/fork.c (copyright)
+    resolved  ptools: usr/src/uts/common/fs/proc/prcontrol.c (copyright) usr/src/uts/common/sys/user.h (copyright)
+    synced    integration-manifest: added 1
+    routed    brand-ops brand-process integration lx smartos-test
+ce853f627c8 gate   ok   [illumos-gate merge]
+64f016e1fac gate   ok   [illumos-gate merge]
+7eaad3f06f0 gate   ok   [illumos-gate merge]
+a6a5ca0f4a0 gate   ok   [illumos-gate merge]
+fe81ae281e2 gate   ok   [illumos-gate merge]
+    routed    integration-manifest
+3249d217605 gate   ok   [illumos-gate merge]
+632fd96e31f gate   ok   [illumos-gate merge]
+    synced    integration-manifest: added 3
+f84c70cade9 gate   ok   [illumos-gate merge]
+    conflict  integration-checks: .gitignore
+    routed    integration-checks
+0821a720ccf gate   ok   [illumos-gate merge]
+    conflict  dtrace: usr/src/test/os-tests/runfiles/default.run
+    conflict  integration-pkg: usr/src/pkg/manifests/system-test-ostest.p5m
+    conflict  zone-kernel: usr/src/uts/common/syscall/sysconfig.c
+    conflict  zone-memory: usr/src/uts/common/vm/vm_usage.c
+    resolved  brand-events: usr/src/uts/common/syscall/poll.c (copyright)
+    resolved  dtrace: usr/src/test/os-tests/tests/poll/Makefile (copyright)
+    resolved  lx: usr/src/uts/common/syscall/poll.c (copyright)
+    resolved  zone-kernel: usr/src/uts/common/syscall/sysconfig.c (copyright)
+    resolved  zone-memory: usr/src/uts/common/sys/vm_usage.h (copyright) usr/src/uts/common/syscall/rusagesys.c (copyright)
+    held back upstream-os-8746: usr/src/test/os-tests/runfiles/default.run
+    routed    dtrace integration-pkg upstream-os-8746 zone-memory
+dd34022052d gate   ok   [illumos-gate merge]
+    synced    integration-manifest: added 8
+    retired   upstream-os-8746 (gate has all of it)
+5b1e7579365 gate   ok   [illumos-gate merge]
+ef2497424e1 gate   ok   [illumos-gate merge]
+9af5aea6138 gate   ok   [illumos-gate merge]
+    synced    integration-manifest: added 1
+3975422f5e6 gate   ok   [illumos-gate merge]
+    synced    integration-manifest: added 1
+560d33634be gate   ok   [illumos-gate merge]
+c27d3c0ce8f gate   ok   [illumos-gate merge]
+    synced    integration-manifest: added 16 changed 6
+7b45206dea9 joyent ok   Revert "OS-4699 lxbrand netty complains about SO_LINGER (rea
+    routed    brand-net tcp-connstat
+feb8a55d8d3 gate   ok   [illumos-gate merge]
+    conflict  brand-net: usr/src/uts/common/inet/ip/conn_opt.c
+    conflict  tcp-connstat: usr/src/uts/common/inet/tcp/tcp_opt_data.c
+    routed    brand-net tcp-connstat
+eab31c4851f gate   ok   [illumos-gate merge]
+    routed    smartos-test
+6033178c30f gate   ok   [illumos-gate merge]
+4012001854b gate   ok   [illumos-gate merge]
+a2098682c51 gate   ok   [illumos-gate merge]
+    resolved  integration: usr/src/test/libc-tests/tests/Makefile (makefile-list)
+    synced    integration-manifest: changed 4
+    routed    integration-manifest
+0c4fef4daef gate   ok   [illumos-gate merge]
+    synced    integration-manifest: added 1
+6d878317161 gate   ok   [illumos-gate merge]
+91ff288f38f gate   ok   [illumos-gate merge]
+eb7e560a400 joyent ok   manifest: add zoneinfo permissions
+    routed    integration-manifest
+19b7ca37dec gate   ok   [illumos-gate merge]
+58331869a28 gate   ok   [illumos-gate merge]
+1d3f6e8ccbf gate   ok   [illumos-gate merge]
+8030cf275cf gate   ok   [illumos-gate merge]
+3d97d1d7245 gate   ok   [illumos-gate merge]
+    resolved  zones-tools: usr/src/cmd/zonestat/zonestatd/zonestatd.c (copyright)
+0ff88a4e83b joyent ok   ipmgmtd double-frees caller credentials on authorization fai
+    routed    lx
+da512a7e2e6 gate   ok   [illumos-gate merge]
+    resolved  brand-ops: usr/src/cmd/sgs/libconv/common/corenote.c (copyright) usr/src/cmd/sgs/libconv/common/corenote.msg (copyright)
+    resolved  rtld-sgs: usr/src/cmd/sgs/libconv/common/corenote.c (copyright) usr/src/cmd/sgs/libconv/common/corenote.msg (copyright)
+    synced    integration-manifest: added 1
+73 step(s), all equal to master; features under refs/replay-final/

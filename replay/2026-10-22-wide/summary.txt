@@ -1,0 +1,36 @@
+73 steps, all equal: True
+gate merges 60 ; joyent commits 13
+resolver uses: {'copyright': 46, 'makefile-list': 1}
+gate merges with a manifest sync: 16
+retired: [('3ec3681e34d', 'upstream-18158'), ('87e8f1919ac', 'upstream-os-8746'), ('dd34022052d', 'upstream-os-8746')]
+emptied commits: 4
+gate merges needing no person: 47 of 60
+held back at least once: ['0821a720ccf']
+
+ea4f3c70350 conflicts: fm-topo,lx | routed: fm-topo,lx
+bd38a94beda conflicts: - | routed: integration-manifest
+a3358a59295 conflicts: ptools | routed: ptools
+a2414f708f5 conflicts: ptools | routed: ptools
+9418decce6f conflicts: integration,smartos-test | routed: integration,smartos-test
+87e8f1919ac conflicts: - | routed: dtrace,upstream-os-8746
+57dd2952050 conflicts: lx | routed: brand-ops,brand-process,integration,lx,smartos-test
+fe81ae281e2 conflicts: - | routed: integration-manifest
+f84c70cade9 conflicts: integration-checks | routed: integration-checks
+0821a720ccf conflicts: dtrace,integration-pkg,zone-kernel,zone-memory | routed: dtrace,integration-pkg,upstream-os-8746,zone-memory
+feb8a55d8d3 conflicts: brand-net,tcp-connstat | routed: brand-net,tcp-connstat
+eab31c4851f conflicts: - | routed: smartos-test
+a2098682c51 conflicts: - | routed: integration-manifest
+
+c04c261dd5b joyent -> zone-brands
+ec67518b999 joyent -> inotify
+78d525da38b joyent -> integration-pkg
+2b2a7a8e922 joyent -> upstream-18158
+c6d9c31711e joyent -> integration-pkg,upstream-os-8746,zfs-tests
+0f946da9a27 joyent -> brand-ops
+756059c3b6b joyent -> brand-ops,brand-process,lx
+2c55cdccb79 joyent -> datalink
+22fdac0b6e5 joyent -> integration-pkg
+0867875ead6 joyent -> integration,smartos-test
+7b45206dea9 joyent -> brand-net,tcp-connstat
+eb7e560a400 joyent -> integration-manifest
+0ff88a4e83b joyent -> lx
