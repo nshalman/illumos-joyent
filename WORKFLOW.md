@@ -122,7 +122,8 @@ On `nshalman/illumos-joyent`:
   then "Last batch, I think."). They stay as-is through every rebase; the
   tooling builds on top of them, in a top-level `feature-tools/` directory:
   `ft.py` (rebase, integrate, route), `resolve.py` (conflict resolvers),
-  `manifest.py` (manifest sync) and `replay.py`, each with tests.
+  `manifest.py` (manifest sync), `replay.py` and `release.py` (rebuild a
+  release from gate, backports and features), each with tests.
 - `meta/state`: orphan; a bootstrap commit recording the gate commit, the
   reference master commit, and each feature's tip, and a `replay/`
   directory with the record of each replay.
@@ -233,7 +234,15 @@ commits during a rebase. Three signals, cheapest first:
 
 A flagged feature gets a report, not an automatic drop: the upstream version
 may differ from ours, and someone has to decide whether to retire the feature,
-shrink it to the remaining difference, or keep it.
+shrink it to the remaining difference, or keep it.  The exception is a feature
+left with no changes at all after a rebase: gate has all of it, and it retires.
+
+Seen on real history (replay, 2026-10-22): Dan committed 18158 on master
+before gate landed the identical patch, and OS-8746 fixed gate's test runfiles
+before gate took them as 18163.  Each became a short-lived feature, by a
+person's decision, and retired at the gate merge that landed it; one OS-8746
+commit routed into zfs-tests emptied the same way.  A fix we carry until gate
+takes it is just a feature with an expected end.
 
 The same scan can watch for gate commits that touch files a feature touches,
 as an early warning before the conflict happens.
@@ -511,14 +520,17 @@ resolution.
 
 These land on `features/tooling`, and replay is their first test:
 
-1. The feature list and metadata format.
+1. The feature list and metadata format.  Not built yet.
 2. `integrate`: the merge chain, and a tree comparison against a reference.
+   Built (`ft.integrate`).
 3. `sync`: rebase every feature onto a gate commit through tiers 1 to 3,
-   recording the tier for each feature.
+   recording the tier for each feature.  Built as `ft.rebase` with
+   `resolve.py` and `manifest.py`; tier 2 (rerere) is not.
 4. `route`: assign a commit's hunks to features by line ownership, splitting
-   where needed and reporting what it cannot place.
+   where needed and reporting what it cannot place.  Built (`ft.route`).
 5. `replay`: the driver for this section, which then stays as a regression
-   test for the other tools.
+   test for the other tools.  Built (`replay.py`), with `release.py` for the
+   release rebuilds.
 
 Results go to `meta/state` under a replay directory, kept apart from live sync
 state.
@@ -571,7 +583,55 @@ Done with `features/tooling` 1ad185d0f20; the record is
   route master's broken lines back in to stay equal; with the tool running,
   the bug and its fix would not have happened.
 
-Next: widen the window back to release-20260416.
+### Wide run: release-20260416 to da512a7e2e6 (2026-10-22)
+
+Done on nshalman-builds in one pass with `features/tooling` 2cd003134cc; the
+record, with the person-made decisions and their reasons, is
+`replay/2026-10-22-wide/` on `meta/state`.
+
+- Phase 1 rerun six months back gave the same 78 features with no override
+  changes.
+- All 73 master commits (60 gate merges, 13 joyent commits) reproduced tree
+  for tree.
+- Every release forked in the window rebuilds from gate, gate backports and
+  the features.  release-20260430 and release-20260514 carry commits of their
+  own: two are gate backports, which belong to no feature, and OS-8741 routes
+  to inotify.
+- 47 of 60 gate merges needed no person.  The resolvers fired 47 times (46
+  copyright, 1 Makefile list); the manifest sync changed the manifest at 16
+  merges.  Of the 13 that needed someone, two were master's own mistakes the
+  tools would have avoided (zoneinfo lines without attributes; six weeks of a
+  stale os-tests runfile), one was a semantic change (smartos-test after
+  18295), and most of the rest were real code conflicts from gate
+  restructuring (64-bit fmtopo, ps.1 in mdoc, posix_spawn, dladm tests).
+- 10 of 13 joyent commits routed with no help; three needed a recorded
+  placement decision.
+- At the end, 72 of 78 features match phase 1's split exactly; the other six
+  hold the same lines in different places (zhyve.c in zone-brands rather
+  than bhyve, and one OmniOS copyright line).
+
+How routing works, as settled by this run: a file only one feature touches
+goes to it whole.  A shared file is rebuilt per feature from gate, gate's
+lines plus the hunks of the gate-to-target diff that feature owns: those its
+own changes overlap or touch, preferring those that already hold the lines.
+Building from gate rather than editing the integrated file means edits do not
+spread from feature to feature over time, and features that no longer merge
+after a rebase are rebuilt the same way.  Ownership is by position, never by
+matching text.  A hunk nobody owns goes with its file's other changes if it is
+a copyright line, to code that gate moved if a feature's lines moved with it,
+and otherwise to a feature a person names; an unnamed one stops the run.
+
+Known gaps:
+
+- Lines git can merge only together, such as both sides of a deleted gate
+  line, end up in each feature involved until a person reassigns them.
+- The manifest sync judges a package shipped by any listed file or link;
+  libc-tests ships a few test locale files, so one /opt/libc-tests directory
+  was added that master leaves out.
+- Rerere (tier 2) is not built; ps.1 conflicted at two merges in a row.
+
+Next: live shadow mode, from da512a7e2e6 onward, and the feature metadata
+format.
 
 ## Open questions
 
