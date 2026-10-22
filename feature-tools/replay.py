@@ -102,15 +102,11 @@ def replay(g, features, gate, start, end, decide=None, gate_ref=None,
             kind, msg, author = 'joyent', g.message(m), g.author(m)
         else:
             raise ReplayError('%s: %d parents' % (m, len(parents)))
-        held, routed, unrouted = [], [], []
+        held = ft.integrate(g, gate, sorted(feats.items())).conflicts
+        r = ft.route(g, gate, feats, g.tree(m), msg, author, decide)
+        feats.update(r.commits)
+        routed, unrouted = sorted(r.commits), r.unrouted
         integ = ft.integrate(g, gate, sorted(feats.items()))
-        if integ.conflicts:
-            held = integ.conflicts
-        else:
-            r = ft.route(g, gate, feats, g.tree(m), msg, author, decide)
-            feats.update(r.commits)
-            routed, unrouted = sorted(r.commits), r.unrouted
-            integ = ft.integrate(g, gate, sorted(feats.items()))
         equal = (not integ.conflicts and
                  g.tree(integ.commit) == g.tree(m))
         step = Step(m, kind, conflicts, resolved, synced, emptied, retired,

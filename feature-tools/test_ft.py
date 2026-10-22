@@ -406,6 +406,23 @@ class RouteTest(FtTest):
                                                      **res.commits).items()))
         self.assertEqual(self.r.tree(out.commit), self.r.tree(target))
 
+    def test_features_that_conflict_are_projected_again(self):
+        # 0821a720ccf: after rebasing master's stale runfile, dtrace and
+        # upstream-os-8746 no longer merged; routing must rebuild them.
+        f1 = self.feature({'b.c': lines('b1', 'ONE', 'b3')})
+        f2 = self.feature({'b.c': lines('b1', 'TWO', 'b3')})
+        feats = {'f1': f1, 'f2': f2}
+        self.assertTrue(ft.integrate(self.g, self.gate,
+                                     sorted(feats.items())).conflicts)
+        target = self.r.commit(dict(GATE, **{'b.c': lines('b1', 'ONE',
+                                                          'b3')}), msg='t')
+        res = ft.route(self.g, self.gate, feats, self.r.tree(target), msg='m')
+        self.assertEqual(res.unrouted, [])
+        out = ft.integrate(self.g, self.gate,
+                           sorted(dict(feats, **res.commits).items()))
+        self.assertEqual(out.conflicts, [])
+        self.assertEqual(self.r.tree(out.commit), self.r.tree(target))
+
     def test_decision_does_not_override_owners(self):
         # 0821a720ccf: a decision for a file features now touch must not
         # send the whole change to the decided feature.

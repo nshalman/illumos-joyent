@@ -260,6 +260,9 @@ Route = collections.namedtuple('Route', 'commits unrouted')
 def route(g, gate, features, target, msg, author=None, decide=None):
     """Change FEATURES so their integration on GATE has tree TARGET.
 
+    Features that do not merge with the others are routed like the
+    rest: each shared file is rebuilt from gate, so they merge again.
+
     FEATURES maps name to commit.  Each path that differs goes to the
     features that touch it: to the only one, whole, or line by line to
     the features owning the lines each hunk changes or sits next to.
@@ -276,12 +279,14 @@ def route(g, gate, features, target, msg, author=None, decide=None):
     """
     decide = decide or {}
     integ = integrate(g, gate, sorted(features.items()))
-    if integ.conflicts:
-        raise GitError('features do not integrate: %s' % integ.conflicts)
+    # Features that do not merge are left out of the integration here;
+    # their files then differ from the target and are routed afresh.
     itree = g.tree(integ.commit)
     diff = g.run('diff-tree', '-r', '-z', '--no-renames', '--name-only',
                  itree, target).stdout.decode()
     paths = [p for p in diff.split('\0') if p]
+    paths += sorted(set(p for _, ps in integ.conflicts for p in ps)
+                    - set(paths))
     if not paths:
         return Route({}, [])
     want = g.entries(target, paths)

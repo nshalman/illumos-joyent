@@ -165,6 +165,28 @@ class ReplayTest(FtTest):
         self.assertEqual(res.steps[1].retired, ['upstream-18158'])
         self.assertEqual(sorted(res.features), ['f1', 'f2'])
 
+    def test_rebase_that_breaks_integration_is_routed(self):
+        # Gate deletes the line between two features' changes: rebased,
+        # each keeps it in its conflict region, and they no longer merge.
+        # Master's merge shows the answer.
+        gate = self.r.commit({'c.c': lines('a', 'b', 'c', 'd', 'e')},
+                             msg='gate')
+        feats = {'f': self.r.commit({'c.c': lines('a', 'B', 'c', 'd', 'e')},
+                                    parent=gate, msg='f'),
+                 'g': self.r.commit({'c.c': lines('a', 'b', 'c', 'D', 'e')},
+                                    parent=gate, msg='g')}
+        m0 = ft.integrate(self.g, gate, sorted(feats.items())).commit
+        new_gate = self.r.commit({'c.c': lines('a', 'b', 'd', 'e')},
+                                 parent=gate, msg='gate 2')
+        tree = self.r.tree(self.r.commit({'c.c': lines('a', 'B', 'D', 'e')},
+                                         msg='tree'))
+        m1 = self.g.commit_tree(tree, [m0, new_gate],
+                                '[illumos-gate merge]\n')
+        res = replay.replay(self.g, feats, gate, m0, m1,
+                            resolve=resolve.resolve_file)
+        self.assertTrue(res.steps[0].held)
+        self.assertTrue(res.steps[0].equal)
+
     def test_start_must_match(self):
         other = self.joyent(self.m0, {'b.c': lines('x')})
         with self.assertRaises(replay.ReplayError):
