@@ -17,6 +17,7 @@ a "Feature:" trailer.
             [--message FILE] [--decisions FILE] [--prefix P]
   dispatch.py land --repo DIR [--master refs/heads/master]
             [--decisions FILE] [--prefix P] [--write] [--push REMOTE]
+            [--report DIR] [--open-issues OWNER/REPO]
 
 dry-run: HEAD is the pull request's merge result, BASE (default master)
 what it merges into; --message gives the squash message, whose
@@ -26,12 +27,16 @@ the features would not give HEAD's tree.
 land: dispatches every master commit since the last dispatch record or
 gate intake, in order, stopping at the first that fails.  Nothing
 changes without --write; --push pushes the features (fast-forward) and
-master to REMOTE.
+master to REMOTE.  A commit that cannot be dispatched is escalated as an
+issue, written under --report and opened on GitHub only with
+--open-issues.
 """
 import argparse
 import collections
+import os
 import sys
 
+import escalate
 import ft
 import intake
 
@@ -191,6 +196,17 @@ def land(a, g):
             print('dispatch failed for %s' % subject)
             for line in describe_unrouted(r.unrouted):
                 print(line)
+            if a.report:
+                body = ('Dispatch could not place commit %s in the '
+                        'features, or the features did not give its tree.'
+                        '\n\n```\n%s\n```\n\nRecord a placement in the '
+                        'decisions file and run dispatch again.\n' %
+                        (subject, '\n'.join(describe_unrouted(r.unrouted))))
+                url = escalate.escalate(
+                    os.path.join(a.report, 'issues'), c[:11],
+                    'Dispatch failed: %s' % subject, body, a.open_issues)
+                if url:
+                    print('opened %s' % url)
             return 1
         print('dispatched %s -> %s' % (subject, ', '.join(r.routed) or '-'))
         if not a.write:
@@ -226,6 +242,8 @@ def main():
     ld.add_argument('--master', default='refs/heads/master')
     ld.add_argument('--write', action='store_true')
     ld.add_argument('--push')
+    ld.add_argument('--report')
+    ld.add_argument('--open-issues', metavar='OWNER/REPO')
     for p in (d, ld):
         p.add_argument('--repo', required=True)
         p.add_argument('--decisions')

@@ -169,12 +169,17 @@ class CommandTest(Base):
                                     feats['f1']), '')
 
     def test_land_stops_at_an_unplaceable_commit(self):
+        import tempfile
         c1 = self.land({'new.c': lines('n')})
         self.r.git('update-ref', 'refs/heads/master', c1)
-        p = self.run_dispatch('land', '--write')
+        with tempfile.TemporaryDirectory() as d:
+            p = self.run_dispatch('land', '--write', '--report', d)
+            issue = open(os.path.join(d, 'issues', c1[:11] + '.md')).read()
         self.assertEqual(p.returncode, 1)
         self.assertEqual(self.r.git('rev-parse', 'master'), c1)
         self.assertEqual(self.r.git('rev-parse', 'features/f1'), self.f1)
+        self.assertIn('new.c', issue)
+        self.assertIn('Dispatch failed', issue)
 
 
 if __name__ == '__main__':

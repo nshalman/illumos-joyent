@@ -165,8 +165,12 @@ class CommandTest(FtTest):
         self.g2 = self.r.commit(files, parent=self.g1, msg='gate 2')
 
     def test_write_takes_gate_in_and_leaves_a_candidate(self):
+        import tempfile
         old_master = self.r.git('rev-parse', 'master')
-        p = self.run_intake('--to', self.g2, '--write')
+        with tempfile.TemporaryDirectory() as d:
+            p = self.run_intake('--to', self.g2, '--write', '--report', d)
+            issue = open(os.path.join(d, 'issues', 'f1.md')).read()
+        self.assertIn('# Gate intake: f1 stuck at', issue)
         self.assertEqual(p.returncode, 1, p.stderr)
         self.assertIn('stuck     f1', p.stdout)
         master = self.r.git('rev-parse', 'master')

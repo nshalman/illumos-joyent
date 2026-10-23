@@ -17,6 +17,7 @@ a person.
             [--master refs/heads/master] [--gate-ref illumos/master]
             [--check COMMAND] [--no-resolvers] [--report DIR] [--write]
             [--candidates refs/heads/intake/] [--push REMOTE]
+            [--open-issues OWNER/REPO]
 
 Without --write nothing changes: the outcome is printed, and with
 --report written as files.  --check runs COMMAND with the integration
@@ -24,7 +25,9 @@ commit in $INTEGRATION; nonzero means the integration is not good (a
 build, or tests).  --write updates the feature refs, adds the
 gate-merge commit to master, and creates the candidate branches;
 --push then pushes them to REMOTE, the rebased features with
---force-with-lease.
+--force-with-lease.  Each stuck feature is escalated as an issue,
+written under the report directory and opened on GitHub only with
+--open-issues.
 """
 import argparse
 import collections
@@ -33,6 +36,7 @@ import os
 import subprocess
 import sys
 
+import escalate
 import ft
 import manifest
 import resolve as resolvers
@@ -222,14 +226,15 @@ def describe(g, res):
     return '\n'.join(out)
 
 
-def issue_text(g, res, name, candidates):
+def issue(g, res, name, candidates):
+    """(title, body) of the escalation for stuck feature NAME."""
     subject = g.out('log', '-1', '--format=%h %s', res.bad)
-    return ('Gate intake: %s stuck at %s\n\n'
-            'Gate intake could not rebase or merge feature `%s` onto gate '
+    title = 'Gate intake: %s stuck at %s' % (name, subject)
+    body = ('Gate intake could not rebase or merge feature `%s` onto gate '
             'commit %s.\n\nIts attempt, keeping the feature\'s side of each '
             'conflict, is on `%s%s/features/%s`.  Fix it there and run gate '
-            'intake again.\n' % (name, subject, name, subject, candidates,
-                                 res.bad, name))
+            'intake again.\n' % (name, subject, candidates, res.bad, name))
+    return title, body
 
 
 def main():
@@ -245,6 +250,7 @@ def main():
     ap.add_argument('--write', action='store_true')
     ap.add_argument('--candidates', default='refs/heads/intake/')
     ap.add_argument('--push')
+    ap.add_argument('--open-issues', metavar='OWNER/REPO')
     a = ap.parse_args()
     g = ft.Git(a.repo)
     feats = features_at(g, a.prefix)
@@ -277,8 +283,11 @@ def main():
             with open(os.path.join(a.report, 'intake.json'), 'w') as f:
                 json.dump(res.taken._asdict(), f, indent=1, sort_keys=True)
         for n in res.stuck:
-            with open(os.path.join(a.report, 'issues', n + '.md'), 'w') as f:
-                f.write(issue_text(g, res, n, a.candidates))
+            title, body = issue(g, res, n, a.candidates)
+            url = escalate.escalate(os.path.join(a.report, 'issues'), n,
+                                    title, body, a.open_issues)
+            if url:
+                print('opened %s' % url)
     if not a.write:
         return 0 if res.bad is None else 1
     pushes = []
