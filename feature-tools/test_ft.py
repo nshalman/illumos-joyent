@@ -161,11 +161,46 @@ class IntegrateTest(FtTest):
         self.assertEqual(self.r.files(res.commit)['a.c'],
                          lines('COPYRIGHT', *GATE['a.c'].split()[1:8], 'Z'))
 
+    def test_chain_order_can_come_from_metadata(self):
+        feats = {'a': 'A', 'b': 'B', 'c': 'C'}
+        self.assertEqual(ft.chain(feats), [('a', 'A'), ('b', 'B'),
+                                           ('c', 'C')])
+        ft.set_order(lambda names: sorted(names, reverse=True))
+        try:
+            self.assertEqual([n for n, _ in ft.chain(feats)], ['c', 'b', 'a'])
+        finally:
+            ft.set_order(None)
+        self.assertEqual([n for n, _ in ft.chain(feats)], ['a', 'b', 'c'])
+
     def test_conflicting_features_are_reported(self):
         f1 = self.feature({'b.c': lines('b1', 'ONE', 'b3')})
         f2 = self.feature({'b.c': lines('b1', 'TWO', 'b3')})
         res = ft.integrate(self.g, self.gate, [('f1', f1), ('f2', f2)])
         self.assertEqual(res.conflicts, [('f2', ['b.c'])])
+
+
+class CommitFilesTest(FtTest):
+    """commit_files(): changing a few files on a branch, with plumbing."""
+
+    def test_adds_changes_and_removes(self):
+        self.r.git('update-ref', 'refs/heads/meta/state', self.gate)
+        c = ft.commit_files(self.g, 'refs/heads/meta/state',
+                            {'new/file': b'x\n', 'b.c': b'B\n',
+                             'gate.c': None}, 'Update state\n')
+        self.assertEqual(self.r.git('rev-parse', 'refs/heads/meta/state'), c)
+        self.assertEqual(self.r.git('rev-parse', c + '^'), self.gate)
+        files = self.r.files(c)
+        self.assertEqual(files['new/file'], 'x\n')
+        self.assertEqual(files['b.c'], 'B\n')
+        self.assertNotIn('gate.c', files)
+        self.assertEqual(files['a.c'], GATE['a.c'])
+
+    def test_refuses_if_the_branch_moved(self):
+        self.r.git('update-ref', 'refs/heads/meta/state', self.gate)
+        other = self.r.commit(GATE, parent=self.gate, msg='other')
+        with self.assertRaises(ft.GitError):
+            ft.commit_files(self.g, 'refs/heads/meta/state', {'x': b'x\n'},
+                            'm\n', expect=other)
 
 
 class TrailerTest(unittest.TestCase):

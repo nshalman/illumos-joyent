@@ -187,6 +187,26 @@ def integrate(g, base, features):
     return Integration(cur, conflicts)
 
 
+# How chain() orders features: a function from names to the same names
+# in merge order.  By name unless set_order() is given one, such as the
+# dependency order from the features' metadata (metadata.order).
+_order = None
+
+
+def set_order(order):
+    """Order every chain() by ORDER (names -> names); None for by name."""
+    global _order
+    _order = order
+
+
+def chain(features):
+    """FEATURES ({name: commit}) as the list of pairs integrate() takes."""
+    names = sorted(features)
+    if _order:
+        names = _order(names)
+    return [(n, features[n]) for n in names]
+
+
 LINE = re.compile(rb'[^\n]*\n|[^\n]+$')
 COPYRIGHT = re.compile(rb'^\W*Copyright\b', re.I)
 HUNK = re.compile(rb'^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@', re.M)
@@ -299,7 +319,7 @@ def route(g, gate, features, target, msg, author=None, decide=None,
     """
     decide = decide or {}
     if integ is None:
-        integ = integrate(g, gate, sorted(features.items()))
+        integ = integrate(g, gate, chain(features))
     # Features that do not merge are left out of the integration here;
     # their files then differ from the target and are routed afresh.
     itree = g.tree(integ.commit)
@@ -517,6 +537,22 @@ def route_lines(g, path, base, have, want, features, decided=None):
     if taken:
         return Unrouted(path, 'would take lines from %s' % ', '.join(taken))
     return out
+
+
+def commit_files(g, ref, files, message, expect=None):
+    """Commit FILES ({path: bytes, or None to remove}) on top of REF.
+
+    For state kept on an orphan branch such as meta/state.  REF moves
+    only if it still points where it did (EXPECT, if given, else where it
+    was read); returns the new commit.
+    """
+    old = expect or g.rev(ref)
+    edits = {p: (None if data is None else ('100644', g.hash_blob(data)))
+             for p, data in files.items()}
+    tree = edit_tree(g, old, edits)
+    commit = g.commit_tree(tree, [old], message)
+    g.run('update-ref', ref, commit, old)
+    return commit
 
 
 def edit_tree(g, treeish, edits):
