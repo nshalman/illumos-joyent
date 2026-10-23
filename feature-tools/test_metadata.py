@@ -42,6 +42,7 @@ class ParseTest(unittest.TestCase):
                           tickets=['8391'])
         self.assertEqual(m['Upstream'], 'upstream')
         self.assertEqual(metadata.tickets(m), ['8391'])
+        self.assertEqual(m['Owner'], '@TritonDataCenter/triton-engineering')
         self.assertEqual(metadata.parse(metadata.render(m)), m)
 
 

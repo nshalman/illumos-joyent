@@ -33,6 +33,8 @@ FIELDS = ['Feature', 'Description', 'Owner', 'Depends', 'Upstream',
           'Upstream-Tickets', 'Tests', 'Retired']
 DIR = 'features/'
 STATE = 'refs/heads/meta/state'
+# Who owns a feature nobody has claimed: escalations go to the team.
+OWNER = '@TritonDataCenter/triton-engineering'
 TICKET = re.compile(r'^(\d+)\s', re.M)
 
 
@@ -75,7 +77,7 @@ def tickets(meta):
 
 def stub(name, description, tickets=(), upstream='upstream'):
     """Metadata for a new feature, for a person to complete."""
-    return {'Feature': name, 'Description': description, 'Owner': '',
+    return {'Feature': name, 'Description': description, 'Owner': OWNER,
             'Depends': '', 'Upstream': upstream,
             'Upstream-Tickets': ', '.join(tickets), 'Tests': ''}
 

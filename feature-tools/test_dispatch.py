@@ -201,6 +201,7 @@ class CommandTest(Base):
         self.assertIn('OS-3 bge driver from FreeBSD',
                       meta['bge']['Description'])
         self.assertEqual(meta['bge']['Upstream'], '')
+        self.assertEqual(meta['bge']['Owner'], metadata.OWNER)
         self.assertEqual(meta['f1'], {'Feature': 'f1'})
 
     def test_land_stops_at_an_unplaceable_commit(self):

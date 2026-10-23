@@ -46,7 +46,7 @@ lines (a line starting with a space continues the value):
 
     Feature: lx
     Description: The lx brand: Linux binary compatibility in a zone.
-    Owner: someone@example.com
+    Owner: @TritonDataCenter/triton-engineering
     Depends: brand-ops, brand-process, hyprlofs
     Upstream: keep
     Upstream-Tickets:
@@ -61,7 +61,8 @@ lines (a line starting with a space continues the value):
   whether the feature retired. With `--write` it marks retired features
   `Upstream: landed` and records the gate commit as `Retired`.
 - Dispatch writes a stub for a feature a commit starts, for a person to
-  complete.
+  complete; its Owner is the team (`metadata.OWNER`) until someone else
+  takes it.
 
 ## Placement decisions
 
