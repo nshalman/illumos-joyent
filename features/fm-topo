@@ -1,7 +1,7 @@
 Feature: fm-topo
 Description: FMA topology additions.
  Topology maps and modules for supported hardware.
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends:
 Upstream: keep
 Upstream-Tickets:

@@ -2,7 +2,7 @@ Feature: integration-pkg
 Description: Integration: package manifests and man page links.
  Changes to upstream IPS package manifests, Manlink files and Targetdirs
  needed by the features above.
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends:
 Upstream: keep
 Upstream-Tickets:

@@ -1,7 +1,7 @@
 Feature: nfp
 Description: Nfp(4D) driver.
  nCipher HSM support.
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends:
 Upstream: keep
 Upstream-Tickets:

@@ -2,7 +2,7 @@ Feature: platform-config
 Description: Platform image configuration.
  Milestone services, default /etc contents, shell profiles, cron, logadm
  and syslog configuration for the SmartOS ramdisk root.
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends: bhyve, lx, zone-brands
 Upstream: keep
 Upstream-Tickets:

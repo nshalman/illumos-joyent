@@ -2,7 +2,7 @@ Feature: sed
 Description: Sed: keep -i/-I with a required argument.
  Joyent reverted illumos 586 (sed -i optional argument, --in-place) in
  2011 and has kept the older behavior.
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends:
 Upstream: keep
 Upstream-Tickets:

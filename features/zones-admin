@@ -3,7 +3,7 @@ Description: Zones: zoneadmd and zlogin.
  zoneadmd logging (generic zfd logging, JSON log output), console
  handling, platform setup (vplat) and state-transition changes, and
  zlogin options for zfd-backed zones.
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends: zfd, zone-kernel, zones-tools
 Upstream: keep
 Upstream-Tickets:

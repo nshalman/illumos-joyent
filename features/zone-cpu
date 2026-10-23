@@ -2,7 +2,7 @@ Feature: zone-cpu
 Description: Zones: CPU caps with bursting and high-priority zones.
  CPU caps that allow bursting, with kstats to track it, and FX/RT high-
  priority zone configuration.
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends: zone-kernel
 Upstream: keep
 Upstream-Tickets:

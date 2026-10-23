@@ -1,7 +1,7 @@
 Feature: zfs-tests
 Description: ZFS test suite adjustments for SmartOS.
  zfstest scaffolding and test changes for running on SmartOS.
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends:
 Upstream: keep
 Upstream-Tickets:

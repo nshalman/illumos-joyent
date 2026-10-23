@@ -1,7 +1,7 @@
 Feature: dboot
 Description: Dboot memory mapping changes.
  Early boot changes for difficult hardware and iPXE.
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends: boot
 Upstream: keep
 Upstream-Tickets:

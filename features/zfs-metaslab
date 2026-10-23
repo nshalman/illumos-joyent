@@ -2,7 +2,7 @@ Feature: zfs-metaslab
 Description: ZFS: metaslab counters and condensing control.
  Metaslab load/unload counter kstats and a way to avoid condensing
  metaslabs (OS-7646, OS-2711).
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends:
 Upstream: keep
 Upstream-Tickets:

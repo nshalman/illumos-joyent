@@ -1,7 +1,7 @@
 Feature: zfs-arc
 Description: ZFS: zfs_arc_max tunable.
  Allow the ARC maximum to be specified (OS-8638).
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends: zfs-zone-io
 Upstream: keep
 Upstream-Tickets:

@@ -1,7 +1,7 @@
 Feature: boot
 Description: Loader and boot branding.
  SmartOS/Triton loader menus, branding, and boot fixes.
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends: dboot
 Upstream: keep
 Upstream-Tickets:

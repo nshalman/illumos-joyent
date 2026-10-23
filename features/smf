@@ -1,7 +1,7 @@
 Feature: smf
 Description: SMF changes.
  svc.startd, svc.configd and svcs changes.
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends:
 Upstream: keep
 Upstream-Tickets:

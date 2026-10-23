@@ -2,7 +2,7 @@ Feature: brand-nfs
 Description: NFS locking and mounting for lx zones.
  lockd/statd interaction with Linux clients, NFS mount without a native
  nfssec.conf, netconfig lookup in the native root.
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends: brand-native
 Upstream: keep
 Upstream-Tickets:

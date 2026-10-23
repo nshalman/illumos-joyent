@@ -2,7 +2,7 @@ Feature: vnd
 Description: Vnd: Project Bardiche (vnd, frameio, gsqueue, sdev plugins).
  The vnd(4D) virtual network device, libvnd, vndadm/vndstat, generalized
  squeues, and the libdlpi/snoop support for them.
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends: datalink
 Upstream: keep
 Upstream-Tickets:

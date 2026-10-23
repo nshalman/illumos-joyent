@@ -1,7 +1,7 @@
 Feature: datafilt
 Description: Datafilt socket filter.
  Server-side TCP accept filter (illumos#1403), from OmniOS.
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends:
 Upstream: keep
 Upstream-Tickets:

@@ -1,7 +1,7 @@
 Feature: bhyve
 Description: Bhyve changes for bhyve-branded zones.
  Delayed privilege drop for zone provisioning, uart rate limiting, zhyve.
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends:
 Upstream: keep
 Upstream-Tickets:

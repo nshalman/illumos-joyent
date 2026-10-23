@@ -1,7 +1,7 @@
 Feature: upstream-8391
 Description: 8391 mr_sas controller lockup on Dell H330, committed on master
  (4896e3cfc6b) before illumos-gate has it; carried until gate lands it.
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends:
 Upstream: upstream
 Upstream-Tickets: 8391

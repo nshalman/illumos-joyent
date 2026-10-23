@@ -3,7 +3,7 @@ Description: ZFS: ZIO, ZIL and vdev_disk changes.
  Better handling of a dying SLOG (OS-5872), zil_commit latency (OS-7917),
  the OS-2313 zil_close race fix (OS-6277), and vdev_disk changes for
  pulled disks and ziostat (OS-1987, OS-393).
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends: zfs-zone-io
 Upstream: keep
 Upstream-Tickets:

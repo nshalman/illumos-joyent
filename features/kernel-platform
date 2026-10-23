@@ -3,7 +3,7 @@ Description: Kernel tunables and x86 platform tweaks.
  Larger default and maximum pid, CPR disabled for GCC builds, quieter
  iBFT and lgroup boot messages, PCBE modules under the platform
  directory.
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends:
 Upstream: keep
 Upstream-Tickets:

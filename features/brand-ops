@@ -12,7 +12,7 @@ Description: Brand framework: brand operations, exec hooks and x86 entry.
  descriptor table entries.  These are one change to the brand interface:
  every new or changed operation has to land together with all of its
  callers and implementations.
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends: brand-native
 Upstream: keep
 Upstream-Tickets:

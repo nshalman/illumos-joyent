@@ -2,7 +2,7 @@ Feature: integration-checks
 Description: Integration: checker and repository configuration.
  Exception lists for the build checks, mancheck.conf, .gitignore files
  and the Jenkinsfile.
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends:
 Upstream: keep
 Upstream-Tickets:

@@ -3,7 +3,7 @@ Description: NFS client, server and sharing tweaks.
  NFS mount transport selection (OS-2679), nfs-server service ordering
  (STOR-55), and NFS sharing from delegated datasets in non-global zones
  (STOR-54).
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends:
 Upstream: keep
 Upstream-Tickets:

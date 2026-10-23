@@ -1,7 +1,7 @@
 Feature: hyprlofs
 Description: Hyprlofs file system.
  Fast namespace virtual file system.
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends:
 Upstream: keep
 Upstream-Tickets:

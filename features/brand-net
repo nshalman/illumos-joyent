@@ -3,7 +3,7 @@ Description: Socket and UDP/IP behavior for lx.
  SO_REUSEPORT, recvmsg MSG_PEEK|MSG_TRUNC, async socket errors, rtnetlink
  socket registration, UDP changes for Linux NFS, and DHCP client options
  for lx zones.
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends: brand-native
 Upstream: keep
 Upstream-Tickets:

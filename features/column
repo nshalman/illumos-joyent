@@ -1,7 +1,7 @@
 Feature: column
 Description: Column(1).
  From BSD.
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends:
 Upstream: keep
 Upstream-Tickets:

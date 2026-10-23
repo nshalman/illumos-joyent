@@ -3,7 +3,7 @@ Description: Integration: build system Makefiles and mapfiles.
  Makefile and mapfile changes shared between the features above: top-
  level, cmd, lib, man, test and kernel Makefiles (Makefile.files,
  Makefile.intel, Makefile.rules) and library mapfiles.
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends:
 Upstream: keep
 Upstream-Tickets:

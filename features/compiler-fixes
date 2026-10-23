@@ -1,7 +1,7 @@
 Feature: compiler-fixes
 Description: Compiler warning fixes in joyent-touched code.
  Small fixes for newer GCC and smatch.
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends:
 Upstream: keep
 Upstream-Tickets:

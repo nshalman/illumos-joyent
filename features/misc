@@ -1,7 +1,7 @@
 Feature: misc
 Description: Miscellaneous fixes and enhancements.
  Small changes that do not belong to a larger feature.
-Owner:
+Owner: @TritonDataCenter/triton-engineering
 Depends:
 Upstream: keep
 Upstream-Tickets:
