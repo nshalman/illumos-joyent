@@ -185,6 +185,12 @@ class CommandTest(FtTest):
             intake.features_at(self.g, 'refs/heads/features/').items()))
         self.assertEqual(self.r.tree(out.commit), self.r.tree(master))
 
+    def test_features_at_can_leave_some_out(self):
+        self.r.git('update-ref', 'refs/heads/features/tooling', self.gate)
+        self.assertEqual(sorted(intake.features_at(
+            self.g, 'refs/heads/features/', exclude=['tooling'])),
+            ['f1', 'f2'])
+
     def test_refuses_when_features_do_not_give_master(self):
         files = self.r.files('master')
         files['gate.c'] = lines('not', 'dispatched')

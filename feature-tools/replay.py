@@ -15,7 +15,7 @@ stops at the first step where it does not.
   replay.py --repo DIR --gate GATE --from FROM --to TO
             [--prefix refs/heads/features/] [--gate-ref illumos/master]
             [--decide FILE] [--log FILE] [--out-prefix refs/replay/]
-            [--no-resolvers] [--divergence DIR]
+            [--no-resolvers] [--divergence DIR] [--exclude FEATURE]...
 
 --decide names a file of "path feature" lines for changes the routing
 rules cannot place.  --log writes each step as JSON.  --divergence DIR
@@ -178,6 +178,8 @@ def main():
     ap.add_argument('--decide')
     ap.add_argument('--log')
     ap.add_argument('--out-prefix', default='refs/replay/')
+    ap.add_argument('--exclude', action='append', default=[],
+                    metavar='FEATURE')
     ap.add_argument('--divergence',
                     help='write each step\'s divergence from master here')
     ap.add_argument('--no-resolvers', action='store_true',
@@ -185,11 +187,7 @@ def main():
                     'manifest sync')
     a = ap.parse_args()
     g = ft.Git(a.repo)
-    feats = {}
-    for line in g.out('for-each-ref', '--format=%(refname) %(objectname)',
-                      a.prefix).splitlines():
-        ref, oid = line.split()
-        feats[ref[len(a.prefix):]] = oid
+    feats = intake.features_at(g, a.prefix, a.exclude)
     decide = dispatch.read_decisions(a.decide)
     logf = open(a.log, 'w') if a.log else None
 

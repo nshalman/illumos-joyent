@@ -17,7 +17,7 @@ a person.
             [--master refs/heads/master] [--gate-ref illumos/master]
             [--check COMMAND] [--no-resolvers] [--report DIR] [--write]
             [--candidates refs/heads/intake/] [--push REMOTE]
-            [--open-issues OWNER/REPO]
+            [--open-issues OWNER/REPO] [--exclude FEATURE]...
 
 Without --write nothing changes: the outcome is printed, and with
 --report written as files.  --check runs COMMAND with the integration
@@ -178,13 +178,19 @@ def write_gate_merge(g, master, gate_commit, integration, message=None):
     return merge
 
 
-def features_at(g, prefix):
-    """{name: commit} for the refs under PREFIX."""
+def features_at(g, prefix, exclude=()):
+    """{name: commit} for the refs under PREFIX, but those in EXCLUDE.
+
+    EXCLUDE is for features master does not carry, such as the tooling
+    while shadow mode runs beside master.
+    """
     feats = {}
     for line in g.out('for-each-ref', '--format=%(refname) %(objectname)',
                       prefix).splitlines():
         ref, oid = line.split()
-        feats[ref[len(prefix):]] = oid
+        name = ref[len(prefix):]
+        if name not in exclude:
+            feats[name] = oid
     return feats
 
 
@@ -251,9 +257,11 @@ def main():
     ap.add_argument('--candidates', default='refs/heads/intake/')
     ap.add_argument('--push')
     ap.add_argument('--open-issues', metavar='OWNER/REPO')
+    ap.add_argument('--exclude', action='append', default=[],
+                    metavar='FEATURE')
     a = ap.parse_args()
     g = ft.Git(a.repo)
-    feats = features_at(g, a.prefix)
+    feats = features_at(g, a.prefix, a.exclude)
     old = common_gate(g, feats)
     new = g.rev(a.to)
     if a.gate_ref and not ancestor(g, new, g.rev(a.gate_ref)):

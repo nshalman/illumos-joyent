@@ -20,6 +20,7 @@ the audit the replay used.
 
   release.py cut --repo DIR --name NAME [--master refs/heads/master]
              [--prefix refs/heads/features/] [--write] [--push REMOTE]
+             [--exclude FEATURE]...
   release.py check --repo DIR --release REF [--master refs/heads/master]
              --gate-ref illumos/master
   release.py audit --repo DIR --gate GATE --fork FORK --tip TIP
@@ -166,6 +167,8 @@ def main():
     c.add_argument('--prefix', default='refs/heads/features/')
     c.add_argument('--write', action='store_true')
     c.add_argument('--push')
+    c.add_argument('--exclude', action='append', default=[],
+                   metavar='FEATURE')
     k = sub.add_parser('check')
     k.add_argument('--release', required=True)
     k.add_argument('--master', default='refs/heads/master')
@@ -178,7 +181,7 @@ def main():
     a = ap.parse_args()
     g = ft.Git(a.repo)
     if a.cmd == 'cut':
-        feats = intake.features_at(g, a.prefix)
+        feats = intake.features_at(g, a.prefix, a.exclude)
         gate = intake.common_gate(g, feats)
         tip = cut(g, feats, gate, g.rev(a.master))
         print('release %s: %s (gate %s, %d features)' % (

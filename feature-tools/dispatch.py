@@ -19,6 +19,9 @@ a "Feature:" trailer.
             [--decisions FILE] [--prefix P] [--write] [--push REMOTE]
             [--report DIR] [--open-issues OWNER/REPO]
 
+Both take --exclude FEATURE (repeatable) for features master does not
+carry, such as the tooling while shadow mode runs beside master.
+
 dry-run: HEAD is the pull request's merge result, BASE (default master)
 what it merges into; --message gives the squash message, whose
 trailers count, if not HEAD's own.  Exits 1 if a placement is needed or
@@ -156,7 +159,7 @@ def describe_unrouted(unrouted):
 
 
 def dry_run(a, g):
-    feats = intake.features_at(g, a.prefix)
+    feats = intake.features_at(g, a.prefix, a.exclude)
     gate = intake.common_gate(g, feats)
     base = g.rev(a.base)
     integ = ft.integrate(g, gate, sorted(feats.items()))
@@ -177,7 +180,7 @@ def dry_run(a, g):
 
 
 def land(a, g):
-    feats = intake.features_at(g, a.prefix)
+    feats = intake.features_at(g, a.prefix, a.exclude)
     gate = intake.common_gate(g, feats)
     integ = ft.integrate(g, gate, sorted(feats.items()))
     if integ.conflicts:
@@ -248,6 +251,8 @@ def main():
         p.add_argument('--repo', required=True)
         p.add_argument('--decisions')
         p.add_argument('--prefix', default='refs/heads/features/')
+        p.add_argument('--exclude', action='append', default=[],
+                       metavar='FEATURE')
     a = ap.parse_args()
     g = ft.Git(a.repo)
     return dry_run(a, g) if a.cmd == 'dry-run' else land(a, g)
