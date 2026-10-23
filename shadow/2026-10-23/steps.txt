@@ -1,0 +1,16 @@
+1b35490ea37 joyent ok   OS-8771 LX: Fix off-by-one syscall bounds check
+    routed    lx
+ccbc1e1e426 gate   ok   [illumos-gate merge]
+7daf51d797c gate   ok   [illumos-gate merge]
+    synced    integration-manifest: added 7
+    routed    integration-manifest
+    diverged  1 path(s) from master
+eca1910b093 gate   ok   [illumos-gate merge]
+4896e3cfc6b joyent ok   8391 mr_sas controller lockup on Dell H330 (#559)
+    routed    upstream-8391
+516afaab248 joyent ok   OS-8770 LX: setsockopt on an accepted TCP connection that th
+    routed    datafilt lx
+badf02468d2 joyent ok   OS-8773 LX: return ENOMEM for in-place mremap stack probes
+    routed    lx
+37d708fdd3c gate   ok   [illumos-gate merge]
+8 step(s), all equal to master; features under refs/shadow/

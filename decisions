@@ -1,0 +1,19 @@
+# Decisions a person made where the routing rules could not.
+# 18158 was committed on master (2b2a7a8e922) before gate landed the
+# same patch (59853c12bd): a fix carried until gate has it.
+usr/src/uts/intel/io/vmm/vmm_cpuid.c upstream-18158
+# OS-8746 (c6d9c31711e) fixed bugs in gate's own test runfiles; gate
+# fixed the same lines later: a fix carried until gate has it.
+usr/src/test/nvme-tests/runfiles/unit.run upstream-os-8746
+usr/src/test/os-tests/runfiles/default.run upstream-os-8746
+# OS-8756 (0867875ead6) makes SmartOS test python scripts use env(1),
+# because smartos-test runs them in the global zone (pkgsrc in
+# /opt/tools); SmartOS-specific test plumbing.
+usr/src/test/Makefile.com smartos-test
+usr/src/test/smbsrv-tests/cmd/Makefile smartos-test
+# 8391 (4896e3cfc6b, mr_sas lockup on Dell H330) was committed on master;
+# gate does not have it yet: a fix carried until gate lands it.
+usr/src/uts/common/io/mr_sas/mr_sas_tbolt.c upstream-8391
+# OS-8770 (516afaab248) adds SM_NOSETOPTCHK to generic sockfs code no
+# feature touches; only lx uses it, so the whole commit goes to lx.
+commit:516afaab248 lx

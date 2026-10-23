@@ -17,8 +17,12 @@ the `meta/restructure` branch.
   features become the source of truth.
 - `features.tsv`: one line per feature, its name and its branch tip at
   the time of this commit.
+- `decisions`: placement decisions a person made where routing could
+  not, for dispatch and replay: `PATH FEATURE` or `commit:SHA FEATURE`
+  lines, each with its reason in a comment.
+- `shadow/<date>/`: shadow-mode runs over master's new commits.
 - `replay/<date>-<name>/`: replays of past master history through the
-  tools, kept apart from live sync state. Each has a README with the
+  tools, kept apart from live state. Each has a README with the
   setup and results, and the tool's step log.
 
 Planned, as the tooling arrives: the shared rerere cache, per-sync
