@@ -87,17 +87,27 @@ A feature is a branch `features/<name>` based on a gate commit, plus a
 metadata entry. The branch holds the code. The entry holds what the code
 cannot say.
 
-Proposed metadata per feature:
+The metadata is a file per feature, `features/<name>` on `meta/state`, of
+`Key: value` lines in the style of a Debian control file (a line starting
+with a space continues the value). `feature-tools/metadata.py` reads, checks
+and writes it.
 
 | Field | Purpose |
 | --- | --- |
-| name | Branch name and identity |
-| description | What it does and why SmartOS needs it; feeds the README list of differences |
-| owner | Who gets escalations |
-| depends | Features it needs in order to build or work |
-| upstream | illumos tickets or gate commits it corresponds to, and intent: upstream, keep, or retire |
-| tests | How to test it beyond a build, if anything |
-| resolvers | Mechanical conflict resolvers that apply to its files |
+| Feature | Branch name and identity |
+| Description | What it does and why SmartOS needs it; feeds the README list of differences |
+| Owner | Who gets escalations |
+| Depends | Features it needs in order to build or work; sets the merge order |
+| Upstream | Intent: `keep`, `upstream` (offered, or carried until gate has it), or `landed` (retired) |
+| Upstream-Tickets | illumos tickets gate intake watches for |
+| Tests | How to test it beyond a build, if anything |
+| Retired | Written by gate intake: the gate commit that retired it |
+
+The resolvers apply by file type to every feature, so no per-feature field
+has been needed. The first files (2026-10-23) were generated from phase 1
+by `metadata_bootstrap.py`: descriptions from `buckets.py`, `Depends` from
+`data/deps.json` and the Makefile edges `stackplan.py` knows. Owners and
+tests are blank, for people to fill in.
 
 ### Two kinds of dependency
 
@@ -116,9 +126,11 @@ feature forces a rebase of everything above it, and a DAG of stacks is much
 harder to keep than a chain. I recommend all features on gate, with
 dependencies in metadata.
 
-The dependency graph must have no cycles. Two pairs still need each other
-today, boot/dboot and datalink/vnd. They should be merged or always tested
-together.
+The dependency graph must have no cycles. `metadata.py check` finds three
+pairs that need each other: boot/dboot and datalink/vnd, which should be
+merged or always tested together, and zfd/zones-admin, a known false pair
+from the static analysis that a person should break by editing `Depends`.
+Until then the merge order keeps each pair together, by name.
 
 ### Lifecycle and lock-in
 
@@ -152,7 +164,7 @@ because rebasing that history is pointless churn.
 | --- | --- | --- |
 | Tool code | `features/tooling` | Versioned with the tree; appears in every integrated build |
 | Docs: README-SmartOS.md and workflow docs | `features/tooling` | Belongs in the tree readers clone |
-| Feature list and dependency graph | `features/tooling` | Changes rarely; reviewed like code |
+| Feature metadata and dependency graph | `meta/state` (`features/<name>`) | Written by the tools too (stubs, retirements), so kept beside the other state (decided 2026-10-23) |
 | Shared rerere cache | `meta/state` | Grows every gate intake |
 | Last gate commit taken in, each feature's tip per intake | `meta/state` | Changes every gate intake |
 | Intake and dispatch reports, conflict log, decisions file | `meta/state` | History of what happened |
@@ -288,7 +300,8 @@ commits during a rebase. Three signals, cheapest first:
 1. **Ticket match.** illumos commit subjects start with ticket numbers. A
    feature's `upstream` field lists the illumos tickets it corresponds to.
    Each gate intake scans the new gate commits and flags a feature whose
-   ticket landed.
+   ticket landed (built: `Upstream-Tickets`, reported by `intake.py`, with
+   whether the feature retired or still differs and needs a review).
 2. **Patch match.** `git patch-id` finds gate commits identical to one of our
    commits, the case where we upstreamed the patch as is. `git cherry` does
    this per branch.
@@ -512,9 +525,10 @@ with tests:
 | `release.py cut`, `check` | Release cut checked against master; release-into-master check naming what master lacks |
 | `escalate.py` | Escalations as issue files, opened with `gh` only when asked |
 | `replay.py --divergence` | What the tools produced against what master had, per step |
+| `metadata.py check`, `order` | Feature metadata on `meta/state` checked against the branches; merge order by `Depends` (every command takes `--state`); intake marks retirements `landed`, dispatch writes stubs for new features |
 
-Not built yet: the feature metadata format, rerere (tier 2), and the CI
-wiring (the merge queue lock, running dry runs on pull requests).
+Not built yet: rerere (tier 2), and the CI wiring (the merge queue lock,
+running dry runs on pull requests).
 
 ### Working on one feature on purpose
 
@@ -680,7 +694,7 @@ resolution.
 
 These land on `features/tooling`, and replay is their first test:
 
-1. The feature list and metadata format.  Not built yet.
+1. The feature list and metadata format.  Built (`metadata.py`).
 2. `integrate`: the merge chain, and a tree comparison against a reference.
    Built (`ft.integrate`).
 3. gate intake: rebase every feature onto a gate commit through tiers 1 to 3,
@@ -790,8 +804,9 @@ Known gaps:
   was added that master leaves out.
 - Rerere (tier 2) is not built; ps.1 conflicted at two merges in a row.
 
-Next: live shadow mode, from da512a7e2e6 onward, and the feature metadata
-format.
+Next: live shadow mode, from da512a7e2e6 onward.  The feature metadata
+is built (2026-10-23): ordering the 79 features by `Depends` gives the same
+integration tree as ordering by name, with no conflicts.
 
 ## Open questions
 
