@@ -26,3 +26,14 @@ the build host: `dispatch.py dry-run` and `land --write` for OS-8771 (9 s);
 `intake.py --write` to gate 3581f14f537 (35.6 s), whose merge has exactly the
 tree of master's real merge ccbc1e1e426; `release.py cut`; and
 `release.py check` of release-20261023 against master: ok.
+
+## Correction, same day
+
+The first push of these results had a routing bug: in OS-8770, datafilt's
+`SO_BLOCK_FALLBACK_SAFE` macro in socketvar.h moved to lx (git placed the
+same insertion differently in two diffs, and routing compared positions).
+The integrated tree was still right, so the tree check did not catch it.
+Fixed in features/tooling 8e4fa498445 (ownership by held lines first, and a
+guard refusing any routing that takes lines from a feature); this run was
+redone from the phase 1 features, and `tips.tsv` and the fork's
+`features/*` now hold the corrected results. OS-8770 now goes to lx only.
