@@ -201,6 +201,32 @@ class LineMapTest(FtTest):
         self.assertEqual(ft.line_map(self.g, a, a), {1: 1, 2: 2})
 
 
+class TakenLinesTest(FtTest):
+    """taken_lines(): which features would lose lines they hold."""
+
+    def blob(self, *a):
+        return self.r.git('hash-object', '-w', '--stdin',
+                          input=lines(*a).encode())
+
+    def test_moving_a_block_is_caught(self):
+        gate = self.blob('a', 'b', 'c', 'd')
+        want = self.blob('a', 'M1', 'M2', 'b', 'c', 'L', 'd')
+        before = {'f': self.blob('a', 'M1', 'M2', 'b', 'c', 'd'),
+                  'lx': self.blob('a', 'b', 'c', 'L', 'd')}
+        after = {'f': self.blob('a', 'b', 'c', 'd'),
+                 'lx': self.blob('a', 'M1', 'M2', 'b', 'c', 'L', 'd')}
+        self.assertEqual(ft.taken_lines(self.g, gate, want, before, after),
+                         ['f'])
+
+    def test_lines_the_target_drops_may_go(self):
+        gate = self.blob('a', 'b')
+        want = self.blob('a', 'b')
+        before = {'f': self.blob('a', 'M', 'b')}
+        after = {'f': self.blob('a', 'b')}
+        self.assertEqual(ft.taken_lines(self.g, gate, want, before, after),
+                         [])
+
+
 class RouteTest(FtTest):
     """route() must make the integration equal the target tree."""
 
@@ -392,6 +418,48 @@ class RouteTest(FtTest):
         # feature holds X and Y together; the integration must stay
         # right through the round trip, with no duplicated lines.
         self.round_trip(4, ['a', 'b', 'c', 'X', 'Y', 'e', 'f', 'g', 'h'])
+
+    def test_lines_a_feature_holds_stay_with_it_when_diffs_slide(self):
+        # 516afaab248: git placed datafilt's 18-line macro in socketvar.h
+        # after gate line 344 in the gate-to-datafilt diff but after line
+        # 346 in the gate-to-target diff (its last lines repeat the lines
+        # before it).  Ownership must not depend on where a diff puts it.
+        head = ['/* Copyright Sun */', '']
+        body = ['a', 'b', '}', '', 'c', 'd', 'e', 'f']
+        block = ['#define M \\', '\tm(); \\', '}', '']
+        gate = self.r.commit(dict(GATE, **{'s.h': lines(*head, *body)}),
+                             msg='gate')
+        f = self.r.commit(dict(GATE, **{'s.h': lines(
+            *head, *body[:4], *block, *body[4:])}), parent=gate)
+        # lx touches the file too, a few lines below the block.
+        lx = self.r.commit(dict(GATE, **{'s.h': lines(
+            *head, *body[:7], 'LX', *body[7:])}), parent=gate)
+        target = self.r.commit(dict(GATE, **{'s.h': lines(
+            '/* Copyright Sun */', '/* Copyright Edgecast */', '',
+            *body[:4], *block, *body[4:7], 'LX', *body[7:])}), msg='t')
+        feature_blob = self.g.entries(f, ['s.h'])['s.h'][1]
+        real = ft.hunks
+
+        def slid(g, a, b):
+            # As git did: in the diff to the feature, the same block sits
+            # two lines earlier.
+            hs = real(g, a, b)
+            if b == feature_blob:
+                hs = [(os_ - 2, ol, ns - 2, nl) if nl == len(block) else
+                      (os_, ol, ns, nl) for os_, ol, ns, nl in hs]
+            return hs
+        ft.hunks = slid
+        try:
+            res = ft.route(self.g, gate, {'f': f, 'lx': lx},
+                           self.r.tree(target), msg='m',
+                           decide={ft.ANY: 'lx'})
+        finally:
+            ft.hunks = real
+        self.assertEqual(res.unrouted, [])
+        files = {n: self.r.files(res.commits.get(n, c))['s.h']
+                 for n, c in (('f', f), ('lx', lx))}
+        self.assertIn('#define M', files['f'])
+        self.assertNotIn('#define M', files['lx'])
 
     def test_decision_can_start_a_new_feature(self):
         # A fix carried ahead of gate (18158) starts its own feature.

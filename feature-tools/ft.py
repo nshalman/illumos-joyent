@@ -397,6 +397,33 @@ def route_moved(g, path, have, want, added):
             for n, hs in mine.items()}
 
 
+def held_lines(g, gate, blob, want):
+    """The lines of blob WANT that BLOB adds over blob GATE.
+
+    BLOB is aligned with WANT directly, so the answer does not depend on
+    where a gate-relative diff places an insertion.
+    """
+    where = line_map(g, blob, want)
+    return set(where[x] for x in added_lines(g, gate, blob) if x in where)
+
+
+def taken_lines(g, gate, want, before, after):
+    """Features that held lines of WANT in BEFORE but not in AFTER.
+
+    BEFORE and AFTER map feature name to blob.  Routing must never move a
+    feature's lines to another feature while the target still has them;
+    lines the target drops may go.
+    """
+    out = []
+    for n, b in sorted(before.items()):
+        a = after.get(n)
+        lost = held_lines(g, gate, b, want) - (
+            held_lines(g, gate, a, want) if a else set())
+        if lost:
+            out.append(n)
+    return out
+
+
 def span(hunk):
     """The gate lines a hunk covers, as (low, high); an insertion sits
     between two lines."""
@@ -418,11 +445,12 @@ def route_lines(g, path, base, have, want, features, decided=None):
     not overlap, so the features merge back to the target, and nothing
     a feature held before carries over unless the target still has it.
 
-    A hunk belongs to the features whose own changes to the file, in
-    gate's line numbers, overlap it, or else sit next to it.  When
-    several qualify, it goes to those that already hold its lines at that
-    place; when that is none of them, to those whose changes overlap it,
-    else to those just before it, else just after.  Lines of different
+    A hunk belongs to the features that already hold its lines at that
+    place, found by aligning each feature's file with the target.  Failing
+    that, to the features whose own changes to the file, in gate's line
+    numbers, overlap it, or else sit next to it; when several do, to
+    those whose changes overlap it, else to those just before it, else
+    just after.  Lines of different
     features that git can merge only together, such as both sides of a
     deleted gate line, end up in each of those features.  A copyright
     line nobody owns goes with the features whose file changes anyway.
@@ -441,9 +469,7 @@ def route_lines(g, path, base, have, want, features, decided=None):
         if fh is None:
             return Unrouted(path, 'shared binary file')
         foot[n] = [span(h) for h in fh]
-        where = line_map(g, entry[1], want[1])
-        held[n] = set(where[x] for x in added_lines(g, base[1], entry[1])
-                      if x in where)
+        held[n] = held_lines(g, base[1], entry[1], want[1])
     gate_lines = split_lines(g.blob(base[1]))
     new = split_lines(g.blob(want[1]))
     mine = collections.defaultdict(list)
@@ -451,16 +477,19 @@ def route_lines(g, path, base, have, want, features, decided=None):
     for h in hs:
         s = span(h)
         _, _, ns, nl = h
+        # Features already holding the hunk's lines at that place own it,
+        # whatever a gate-relative diff says: when lines repeat, git may
+        # place the same insertion differently in two diffs (516afaab248).
+        claim = [n for n in features if held[n] & set(range(ns, ns + nl))]
         over = [n for n in features if any(overlaps(s, t) for t in foot[n])]
         near = [n for n in features
                 if any(overlaps(s, t, 1) for t in foot[n])]
-        if not near:
+        if not claim and not near:
             orphans.append(h)
             continue
-        claim = [n for n in near if held[n] & set(range(ns, ns + nl))]
         before = [n for n in near if any(t[1] < s[0] for t in foot[n]
                                          if overlaps(s, t, 1))]
-        who = (near if len(near) == 1 else claim or over or before or near)
+        who = claim or (near if len(near) == 1 else over or before or near)
         for n in who:
             mine[n].append(h)
     current = {n: g.blob(e[1]) for n, e in features.items()}
@@ -482,6 +511,11 @@ def route_lines(g, path, base, have, want, features, decided=None):
     for n in set(features) | set(mine):
         data = apply_hunks(gate_lines, new, mine.get(n, []))
         out[n] = (want[0], g.hash_blob(data))
+    taken = taken_lines(g, base[1], want[1],
+                        {n: e[1] for n, e in features.items()},
+                        {n: e[1] for n, e in out.items()})
+    if taken:
+        return Unrouted(path, 'would take lines from %s' % ', '.join(taken))
     return out
 
 
