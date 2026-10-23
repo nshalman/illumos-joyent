@@ -29,6 +29,7 @@ import json
 import sys
 
 import ft
+import intake
 import manifest
 import resolve
 
@@ -75,27 +76,10 @@ def replay(g, features, gate, start, end, decide=None, gate_ref=None,
             if gate_ref and not ancestor(g, new_gate, gate_ref):
                 raise ReplayError('%s: %s is not on %s' %
                                   (m, new_gate, gate_ref))
-            for n in sorted(feats):
-                r = ft.rebase(g, gate, feats[n], new_gate, resolve=resolve)
-                feats[n] = r.tip
-                if r.conflicts:
-                    conflicts[n] = sorted(set(p for _, ps in r.conflicts
-                                              for p in ps))
-                if r.resolved:
-                    resolved[n] = [[p, names] for _, p, names in r.resolved]
-                if r.emptied:
-                    emptied[n] = r.emptied
-                if sync:
-                    commit, report = sync(g, gate, new_gate, feats[n])
-                    if commit:
-                        feats[n] = commit
-                        synced[n] = {k: len(v) for k, v in report.items()
-                                     if v and k in ('added', 'changed',
-                                                    'removed')}
-            retired = sorted(n for n in feats
-                             if g.tree(feats[n]) == g.tree(new_gate))
-            for n in retired:
-                del feats[n]
+            r = intake.intake(g, feats, gate, new_gate, resolve, sync)
+            feats = dict(r.features)
+            conflicts, resolved, synced = r.conflicts, r.resolved, r.synced
+            emptied, retired = r.emptied, r.retired
             gate = new_gate
             msg, author = 'Resolve as master did in %s\n' % m, None
         elif len(parents) == 1:
