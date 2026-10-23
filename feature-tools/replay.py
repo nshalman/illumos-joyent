@@ -33,6 +33,7 @@ import sys
 
 import dispatch
 import ft
+import metadata
 import intake
 import manifest
 import resolve
@@ -62,7 +63,7 @@ def replay(g, features, gate, start, end, decide=None, gate_ref=None,
     returns (new commit or None, report); see manifest.sync_feature.
     """
     feats = dict(features)
-    integ = ft.integrate(g, gate, sorted(feats.items()))
+    integ = ft.integrate(g, gate, ft.chain(feats))
     if integ.conflicts or g.tree(integ.commit) != g.tree(start):
         raise ReplayError('features on %s do not reproduce %s' %
                           (gate, start))
@@ -97,7 +98,7 @@ def replay(g, features, gate, start, end, decide=None, gate_ref=None,
             held, routed, unrouted = [], d.routed, d.unrouted
             integ = ft.Integration(d.integration, [])
         else:
-            first = ft.integrate(g, gate, sorted(feats.items()))
+            first = ft.integrate(g, gate, ft.chain(feats))
             held, before = first.conflicts, first.commit
             diverged = sorted(p for p in g.out(
                 'diff-tree', '-r', '--name-only', '--no-renames', before,
@@ -106,7 +107,7 @@ def replay(g, features, gate, start, end, decide=None, gate_ref=None,
                          dispatch.decisions_for(decide, m), integ=first)
             feats.update(r.commits)
             routed, unrouted = sorted(r.commits), r.unrouted
-            integ = ft.integrate(g, gate, sorted(feats.items()))
+            integ = ft.integrate(g, gate, ft.chain(feats))
         equal = (not integ.conflicts and not unrouted and
                  g.tree(integ.commit) == g.tree(m))
         step = Step(m, kind, conflicts, resolved, synced, emptied, retired,
@@ -170,6 +171,7 @@ def describe(g, step):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--repo', required=True)
+    ap.add_argument('--state', default=metadata.STATE)
     ap.add_argument('--gate', required=True)
     ap.add_argument('--from', dest='start', required=True)
     ap.add_argument('--to', dest='end', required=True)
@@ -187,6 +189,7 @@ def main():
                     'manifest sync')
     a = ap.parse_args()
     g = ft.Git(a.repo)
+    metadata.use_order(g, a.state)
     feats = intake.features_at(g, a.prefix, a.exclude)
     decide = dispatch.read_decisions(a.decide)
     logf = open(a.log, 'w') if a.log else None

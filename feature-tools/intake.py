@@ -38,6 +38,7 @@ import sys
 
 import escalate
 import ft
+import metadata
 import manifest
 import resolve as resolvers
 
@@ -89,7 +90,7 @@ def intake(g, features, old_gate, new_gate, resolve=None, sync=None):
     retired = sorted(n for n in feats if g.tree(feats[n]) == g.tree(new_gate))
     for n in retired:
         del feats[n]
-    integ = ft.integrate(g, new_gate, sorted(feats.items()))
+    integ = ft.integrate(g, new_gate, ft.chain(feats))
     ok = not conflicts and not integ.conflicts
     return Intake(new_gate, feats, conflicts, resolved, synced, emptied,
                   retired, integ.conflicts, integ.commit, ok)
@@ -246,6 +247,7 @@ def issue(g, res, name, candidates):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--repo', required=True)
+    ap.add_argument('--state', default=metadata.STATE)
     ap.add_argument('--to', required=True)
     ap.add_argument('--prefix', default='refs/heads/features/')
     ap.add_argument('--master', default='refs/heads/master')
@@ -261,13 +263,14 @@ def main():
                     metavar='FEATURE')
     a = ap.parse_args()
     g = ft.Git(a.repo)
+    metadata.use_order(g, a.state)
     feats = features_at(g, a.prefix, a.exclude)
     old = common_gate(g, feats)
     new = g.rev(a.to)
     if a.gate_ref and not ancestor(g, new, g.rev(a.gate_ref)):
         raise IntakeError('%s is not on %s' % (new, a.gate_ref))
     master = g.rev(a.master)
-    before = ft.integrate(g, old, sorted(feats.items()))
+    before = ft.integrate(g, old, ft.chain(feats))
     if before.conflicts or g.tree(before.commit) != g.tree(master):
         raise IntakeError('the features on %s do not give master\'s tree; '
                           'dispatch has not caught up' % old)

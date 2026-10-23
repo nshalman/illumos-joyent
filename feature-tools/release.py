@@ -35,6 +35,7 @@ import collections
 import sys
 
 import ft
+import metadata
 import intake
 import resolve
 
@@ -53,7 +54,7 @@ def cut(g, features, gate, master):
     Its tree must equal MASTER's, and merging it into MASTER must leave
     MASTER's tree unchanged; otherwise ReleaseError.
     """
-    integ = ft.integrate(g, gate, sorted(features.items()))
+    integ = ft.integrate(g, gate, ft.chain(features))
     if integ.conflicts:
         raise ReleaseError('the features do not merge: %s' % integ.conflicts)
     if g.tree(integ.commit) != g.tree(master):
@@ -141,7 +142,7 @@ def recut(g, features, gate, fork, tip, gate_ref):
             side = new_side
             backports.append(c)
         else:
-            integ = ft.integrate(g, side, sorted(feats.items())).commit
+            integ = ft.integrate(g, side, ft.chain(feats)).commit
             target, paths = ft.merge_tree(g, integ, c, base=c + '^')
             if paths:
                 unrouted += [ft.Unrouted(p, '%s conflicts' % c[:11])
@@ -151,7 +152,7 @@ def recut(g, features, gate, fork, tip, gate_ref):
             feats.update(r.commits)
             routed[c] = sorted(r.commits)
             unrouted += r.unrouted
-    final = ft.integrate(g, side, sorted(feats.items()))
+    final = ft.integrate(g, side, ft.chain(feats))
     equal = (not unrouted and not final.conflicts and
              g.tree(final.commit) == g.tree(tip))
     return Recut(final.commit, side, feats, backports, routed, unrouted,
@@ -178,8 +179,10 @@ def main():
         au.add_argument('--' + arg, required=True)
     for p in (c, k, au):
         p.add_argument('--repo', required=True)
+        p.add_argument('--state', default=metadata.STATE)
     a = ap.parse_args()
     g = ft.Git(a.repo)
+    metadata.use_order(g, a.state)
     if a.cmd == 'cut':
         feats = intake.features_at(g, a.prefix, a.exclude)
         gate = intake.common_gate(g, feats)

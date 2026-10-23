@@ -41,6 +41,7 @@ import sys
 
 import escalate
 import ft
+import metadata
 import intake
 
 RECORD = 'Dispatched-commit'
@@ -71,7 +72,7 @@ def dispatch(g, features, gate, commit, decide=None, message=None,
                  decisions, integ=integ)
     feats = dict(features)
     feats.update(r.commits)
-    out = ft.integrate(g, gate, sorted(feats.items()))
+    out = ft.integrate(g, gate, ft.chain(feats))
     equal = (not out.conflicts and not r.unrouted and
              g.tree(out.commit) == target)
     return Dispatch(feats, sorted(r.commits), r.unrouted, equal, out.commit)
@@ -190,7 +191,7 @@ def dry_run(a, g):
     feats = intake.features_at(g, a.prefix, a.exclude)
     gate = intake.common_gate(g, feats)
     base = g.rev(a.base)
-    integ = ft.integrate(g, gate, sorted(feats.items()))
+    integ = ft.integrate(g, gate, ft.chain(feats))
     if integ.conflicts or g.tree(integ.commit) != g.tree(base):
         raise DispatchError('the features do not give %s\'s tree; dispatch '
                             'has not caught up' % a.base)
@@ -210,7 +211,7 @@ def dry_run(a, g):
 def land(a, g):
     feats = intake.features_at(g, a.prefix, a.exclude)
     gate = intake.common_gate(g, feats)
-    integ = ft.integrate(g, gate, sorted(feats.items()))
+    integ = ft.integrate(g, gate, ft.chain(feats))
     if integ.conflicts:
         raise DispatchError('the features do not merge: %s' % integ.conflicts)
     tip = g.rev(a.master)
@@ -277,12 +278,14 @@ def main():
     ld.add_argument('--open-issues', metavar='OWNER/REPO')
     for p in (d, ld):
         p.add_argument('--repo', required=True)
+        p.add_argument('--state', default=metadata.STATE)
         p.add_argument('--decisions')
         p.add_argument('--prefix', default='refs/heads/features/')
         p.add_argument('--exclude', action='append', default=[],
                        metavar='FEATURE')
     a = ap.parse_args()
     g = ft.Git(a.repo)
+    metadata.use_order(g, a.state)
     return dry_run(a, g) if a.cmd == 'dry-run' else land(a, g)
 
 
