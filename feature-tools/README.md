@@ -27,7 +27,7 @@ given `--write`; `--push REMOTE` then pushes what they wrote.
 | --- | --- |
 | `dispatch.py dry-run --head PR-MERGE` | For a pull request: where each part of it would go, which placements need a `Feature:` trailer, and whether the features would give its tree |
 | `dispatch.py land` | Dispatches every master commit since the last dispatch record or gate intake; with `--write`, the features fast-forward and master gains a verified dispatch record |
-| `intake.py --to GATE-COMMIT` | Gate intake; on trouble, bisects to the first bad gate commit, takes gate in up to the one before it, and leaves the stuck features on `intake/<gate-commit>/features/<name>` |
+| `intake.py --to GATE-COMMIT` | Gate intake; on trouble, bisects to the first bad gate commit, takes gate in up to the one before it, and leaves the stuck features on `intake/<gate-commit>/features/<name>`; a person commits a fix there, and the next run takes it in |
 | `release.py cut --name NAME` | Branches a release from the features integrated on their gate commit, checked equal to master |
 | `release.py check --release REF` | Merges a release into master for real; names any release commit master lacks |
 | `release.py audit ...` | Rebuilds a past release from gate, backports and features |

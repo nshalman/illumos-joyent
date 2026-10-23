@@ -96,6 +96,61 @@ class IntakeTest(FtTest):
         self.assertEqual(res.bad, self.g2)
         self.assertIsNone(res.taken)
 
+    def candidate(self, fixed):
+        """f1's candidate at G2, as intake left it, or fixed by a person."""
+        res = intake.take_in(self.g, self.feats, self.gate, self.g3)
+        cand = res.candidates['f1']
+        if fixed:
+            files = self.r.files(cand)
+            files['b.c'] = lines('b1', 'GATE F1', 'b3')
+            cand = self.r.commit(files, parent=cand, msg='fix f1 at G2')
+        self.r.git('update-ref',
+                   'refs/heads/intake/%s/features/f1' % self.g2, cand)
+        return cand
+
+    def test_unfixed_candidate_is_not_picked_up(self):
+        self.candidate(fixed=False)
+        self.assertEqual(intake.fixed_candidates(
+            self.g, self.feats, self.gate, self.g3, 'refs/heads/intake/'), {})
+
+    def test_fixed_candidate_is_picked_up(self):
+        cand = self.candidate(fixed=True)
+        fixed = intake.fixed_candidates(self.g, self.feats, self.gate,
+                                        self.g3, 'refs/heads/intake/')
+        self.assertEqual(fixed, {'f1': (self.g2, cand)})
+        res = intake.take_in(self.g, self.feats, self.gate, self.g3,
+                             fixed=fixed)
+        self.assertIsNone(res.bad)
+        self.assertEqual(res.reached, self.g3)
+        files = self.r.files(res.taken.features['f1'])
+        self.assertEqual(files['b.c'], lines('b1', 'GATE F1', 'b3'))
+        self.assertEqual(files['a.c'], lines('A1', *A[1:]))
+        # The person's fix, rebased onto G3 as a commit of its own.
+        tip = res.taken.features['f1']
+        self.assertEqual(self.r.git('log', '-1', '--format=%s', tip),
+                         'fix f1 at G2')
+        self.assertEqual(self.r.git('merge-base', tip, self.g3), self.g3)
+
+    def test_fixed_candidate_waits_for_its_gate_commit(self):
+        cand = self.candidate(fixed=True)
+        self.assertEqual(intake.fixed_candidates(
+            self.g, self.feats, self.gate, self.g1, 'refs/heads/intake/'), {})
+        fixed = {'f1': (self.g2, cand)}
+        res = intake.intake(self.g, self.feats, self.gate, self.g1,
+                            fixed=fixed)
+        self.assertTrue(res.ok)
+        self.assertEqual(self.r.files(res.features['f1'])['b.c'],
+                         lines('b1', 'F1', 'b3'))
+
+    def test_candidate_not_on_its_gate_commit_is_ignored(self):
+        files = self.r.files(self.g3)
+        files['b.c'] = lines('b1', 'GATE F1', 'b3')
+        wrong = self.r.commit(files, parent=self.g3, msg='fix on G3')
+        self.r.git('update-ref',
+                   'refs/heads/intake/%s/features/f1' % self.g2, wrong)
+        self.assertEqual(intake.fixed_candidates(
+            self.g, self.feats, self.gate, self.g3, 'refs/heads/intake/'), {})
+
     def test_feature_gate_absorbs_retires(self):
         fix = {'gate.c': lines('g1', 'FIX', 'g3')}
         feats = dict(self.feats, fix=self.feature(fix))
@@ -227,6 +282,23 @@ class CommandTest(FtTest):
         self.assertEqual(p.returncode, 0, p.stderr)
         self.assertIn('upstream  9001 landed in', p.stdout)
         self.assertIn('f1 still differs from gate: review', p.stdout)
+
+    def test_write_picks_up_a_fixed_candidate_and_removes_it(self):
+        self.run_intake('--to', self.g2, '--write')
+        ref = 'refs/heads/intake/%s/features/f1' % self.g2
+        files = self.r.files(ref)
+        files['b.c'] = lines('b1', 'GATE F1', 'b3')
+        fix = self.r.commit(files, parent=self.r.git('rev-parse', ref),
+                            msg='fix f1 at gate 2')
+        self.r.git('update-ref', ref, fix)
+        p = self.run_intake('--to', self.g2, '--write')
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertIn('picked up f1 fixed at %s' % self.g2[:11], p.stdout)
+        self.assertEqual(self.r.git('rev-parse', 'features/f1'), fix)
+        self.assertEqual(self.r.git('for-each-ref', ref), '')
+        master = self.r.git('rev-parse', 'master')
+        self.assertEqual(self.r.files(master)['b.c'],
+                         lines('b1', 'GATE F1', 'b3'))
 
     def test_features_at_can_leave_some_out(self):
         self.r.git('update-ref', 'refs/heads/features/tooling', self.gate)

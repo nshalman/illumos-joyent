@@ -11,7 +11,9 @@ When the target cannot be reached cleanly, because a feature conflicts,
 features no longer merge, or the check fails, the first bad gate commit
 is found by bisecting, gate is taken in up to the commit before it, and
 the features stuck at the bad commit are left on candidate branches for
-a person.
+a person.  A person fixes one by committing on it; the next intake takes
+the fixed feature from there (a candidate whose tree is still the
+tool's attempt is not taken in), and --write removes it once used.
 
   intake.py --repo DIR --to GATE-COMMIT [--prefix refs/heads/features/]
             [--master refs/heads/master] [--gate-ref illumos/master]
@@ -71,6 +73,8 @@ def rebase_feature(g, tip, old_gate, new_gate, resolve=None, sync=None):
     `emptied`; and the manifest entries `synced` by SYNC, counted by kind
     (None when SYNC changed nothing).
     """
+    if old_gate == new_gate:
+        return Rebased(tip, [], [], [], None)
     r = ft.rebase(g, old_gate, tip, new_gate, resolve=resolve)
     tip = r.tip
     conflicts = sorted(set(p for _, ps in r.conflicts for p in ps))
@@ -85,19 +89,26 @@ def rebase_feature(g, tip, old_gate, new_gate, resolve=None, sync=None):
     return Rebased(tip, conflicts, resolved, r.emptied, synced)
 
 
-def intake(g, features, old_gate, new_gate, resolve=None, sync=None):
+def intake(g, features, old_gate, new_gate, resolve=None, sync=None,
+           fixed=None):
     """Rebase FEATURES from OLD_GATE onto NEW_GATE and integrate them.
 
     RESOLVE is passed to ft.rebase(); SYNC(g, old, new, feature) returns
-    (new commit or None, report), as manifest.sync_feature does.  The
-    result is ok when no conflict is left and the features merge.
+    (new commit or None, report), as manifest.sync_feature does.  FIXED,
+    from fixed_candidates(), gives features a person fixed at a gate
+    commit: {name: (gate commit, tip)}; such a feature is rebased from
+    that tip once NEW_GATE includes its gate commit.  The result is ok
+    when no conflict is left and the features merge.
     """
     if not ancestor(g, old_gate, new_gate):
         raise IntakeError('%s does not descend from %s' % (new_gate,
                                                           old_gate))
     feats, conflicts, resolved, synced, emptied = {}, {}, {}, {}, {}
     for n in sorted(features):
-        r = rebase_feature(g, features[n], old_gate, new_gate, resolve, sync)
+        base, tip = old_gate, features[n]
+        if fixed and n in fixed and ancestor(g, fixed[n][0], new_gate):
+            base, tip = fixed[n]
+        r = rebase_feature(g, tip, base, new_gate, resolve, sync)
         feats[n] = r.tip
         for out, value in ((conflicts, r.conflicts), (resolved, r.resolved),
                            (emptied, r.emptied)):
@@ -120,19 +131,20 @@ def gate_commits(g, old_gate, new_gate):
 
 
 def first_bad(g, features, old_gate, new_gate, resolve=None, sync=None,
-              check=None, cache=None):
+              check=None, cache=None, fixed=None):
     """The first gate commit after OLD_GATE that cannot be taken in.
 
     A commit cannot be taken in when intake onto it is not ok, or CHECK
     (given the integration commit) returns false.  Bisects gate's
     first-parent history, assuming that once bad it stays bad.  None if
     NEW_GATE itself is good.  CACHE, a dict, keeps each probe's Intake.
+    FIXED is passed to intake().
     """
     cache = {} if cache is None else cache
 
     def good(c):
         if c not in cache:
-            r = intake(g, features, old_gate, c, resolve, sync)
+            r = intake(g, features, old_gate, c, resolve, sync, fixed)
             cache[c] = (r, r.ok and (check is None or check(r.integration)))
         return cache[c][1]
     commits = gate_commits(g, old_gate, new_gate)
@@ -150,7 +162,7 @@ def first_bad(g, features, old_gate, new_gate, resolve=None, sync=None,
 
 
 def take_in(g, features, old_gate, new_gate, resolve=None, sync=None,
-            check=None):
+            check=None, fixed=None):
     """Take gate in as far toward NEW_GATE as it can go cleanly.
 
     Returns TakeIn: `taken`, the Intake for the commit reached (None if
@@ -159,14 +171,14 @@ def take_in(g, features, old_gate, new_gate, resolve=None, sync=None,
     features that conflict or do not merge there; `candidates`, their
     attempts at `bad` (keeping the feature's side of each conflict) for
     a person to finish; and `check_failed`, true when `bad` failed only
-    the check.
+    the check.  FIXED is passed to intake().
     """
     cache = {}
     bad = first_bad(g, features, old_gate, new_gate, resolve, sync, check,
-                    cache)
+                    cache, fixed)
     if bad is None:
         full = cache[new_gate][0] if new_gate in cache else intake(
-            g, features, old_gate, new_gate, resolve, sync)
+            g, features, old_gate, new_gate, resolve, sync, fixed)
         return TakeIn(full, new_gate, None, [], {}, False)
     at_bad = cache[bad][0]
     stuck = sorted(set(at_bad.conflicts) | set(n for n, _ in at_bad.held))
@@ -178,8 +190,40 @@ def take_in(g, features, old_gate, new_gate, resolve=None, sync=None,
     taken = None
     if reached != old_gate:
         taken = cache[reached][0] if reached in cache else intake(
-            g, features, old_gate, reached, resolve, sync)
+            g, features, old_gate, reached, resolve, sync, fixed)
     return TakeIn(taken, reached, bad, stuck, candidates, at_bad.ok)
+
+
+def fixed_candidates(g, features, old_gate, new_gate, prefix, resolve=None,
+                     sync=None):
+    """Candidates a person fixed: {name: (gate commit, tip)}.
+
+    A candidate is PREFIX<gate commit>/features/<name>, for a gate
+    commit after OLD_GATE up to NEW_GATE.  It counts as fixed when it
+    sits on that gate commit, with no later gate commit in it, and its
+    tree differs from the attempt intake makes there; an unchanged
+    attempt is not taken in.  The latest fixed one per feature wins.
+    """
+    commits = gate_commits(g, old_gate, new_gate)
+    at = {c: i for i, c in enumerate(commits)}
+    out = {}
+    refs = g.out('for-each-ref', '--format=%(refname)', prefix).split()
+    for ref in refs:
+        parts = ref[len(prefix):].split('/')
+        if len(parts) != 3 or parts[1] != 'features':
+            continue
+        c, n = parts[0], parts[2]
+        if c not in at or n not in features:
+            continue
+        tip = g.rev(ref)
+        if g.out('merge-base', tip, new_gate) != c:
+            continue
+        if n in out and at[out[n][0]] > at[c]:
+            continue
+        attempt = rebase_feature(g, features[n], old_gate, c, resolve, sync)
+        if g.tree(attempt.tip) != g.tree(tip):
+            out[n] = (c, tip)
+    return out
 
 
 def write_gate_merge(g, master, gate_commit, integration, message=None):
@@ -222,13 +266,16 @@ def common_gate(g, features):
     return base
 
 
-def describe(g, res, landed=()):
-    """RES as text; LANDED is metadata.watch's watched tickets taken in."""
+def describe(g, res, landed=(), used=()):
+    """RES as text; LANDED is metadata.watch's watched tickets taken in,
+    USED the fixed candidates taken in, as (name, gate commit)."""
     out = []
     taken = res.taken
     if taken:
         out.append('took gate in to %s' % g.out('log', '-1', '--format=%h %s',
                                                 res.reached))
+        for n, c in used:
+            out.append('    picked up %s fixed at %s' % (n, c[:11]))
         for n, paths in sorted(taken.conflicts.items()):
             out.append('    conflict  %s: %s' % (n, ' '.join(paths)))
         for n, rs in sorted(taken.resolved.items()):
@@ -305,14 +352,17 @@ def main():
             return subprocess.run(a.check, shell=True, env=env).returncode == 0
     tools = {} if a.no_resolvers else dict(resolve=resolvers.resolve_file,
                                            sync=manifest.sync_feature)
-    res = take_in(g, feats, old, new, check=check, **tools)
+    fixed = fixed_candidates(g, feats, old, new, a.candidates, **tools)
+    res = take_in(g, feats, old, new, check=check, fixed=fixed, **tools)
+    used = sorted((n, c) for n, (c, _) in fixed.items()
+                  if res.taken and ancestor(g, c, res.reached))
     meta = metadata.load(g, a.state) if has_state else {}
     landed = metadata.watch(g, meta, old, res.reached) if res.taken else []
-    print(describe(g, res, landed))
+    print(describe(g, res, landed, used))
     if a.report:
         os.makedirs(os.path.join(a.report, 'issues'), exist_ok=True)
         with open(os.path.join(a.report, 'intake.txt'), 'w') as f:
-            f.write(describe(g, res, landed) + '\n')
+            f.write(describe(g, res, landed, used) + '\n')
         if res.taken:
             with open(os.path.join(a.report, 'tips.tsv'), 'w') as f:
                 for n, c in sorted(res.taken.features.items()):
@@ -339,6 +389,10 @@ def main():
         for n in res.taken.retired:
             g.run('update-ref', '-d', a.prefix + n, feats[n])
             pushes.append((':%s%s' % (a.prefix, n), feats[n]))
+        for n, c in used:
+            ref = '%s%s/features/%s' % (a.candidates, c, n)
+            g.run('update-ref', '-d', ref, fixed[n][1])
+            pushes.append((':' + ref, fixed[n][1]))
         retired = metadata.retire(meta, res.taken.retired, res.reached)
         if retired:
             state = g.rev(a.state)
