@@ -257,7 +257,25 @@ Unrouted = collections.namedtuple('Unrouted', 'path reason')
 Route = collections.namedtuple('Route', 'commits unrouted')
 
 
-def route(g, gate, features, target, msg, author=None, decide=None):
+ANY = '*'
+TRAILER = re.compile(r'^Feature:[ \t]*(\S+)(?:[ \t]+(\S+))?[ \t]*$', re.M)
+
+
+def decisions_from_message(message):
+    """Placement decisions given as trailers in a commit message.
+
+    "Feature: NAME" sends whatever the routing rules cannot place to NAME;
+    "Feature: NAME PATH" does so for PATH only.  Returns a dict for
+    route()'s DECIDE, with ANY as the key of the catch-all.
+    """
+    out = {}
+    for name, path in TRAILER.findall(message):
+        out[path or ANY] = name
+    return out
+
+
+def route(g, gate, features, target, msg, author=None, decide=None,
+          integ=None):
     """Change FEATURES so their integration on GATE has tree TARGET.
 
     Features that do not merge with the others are routed like the
@@ -271,14 +289,17 @@ def route(g, gate, features, target, msg, author=None, decide=None):
     that feature had changed.  DECIDE maps a path to the feature that
     takes all of its change when no feature touches it; it covers what
     the rules cannot place: new files, and the rest of the files no
-    feature touches.  A feature it
-    names that does not exist yet is started on GATE, as for a gate fix
-    carried until gate lands it.  Returns the new commit for each changed
-    feature, made on top of it with MSG and AUTHOR, and the paths left
-    unrouted.
+    feature touches.  The key ANY names the feature for any such path
+    not named itself.  A feature DECIDE names that does not exist yet is
+    started on GATE, as for a gate fix carried until gate lands it.
+    INTEG, if given, is integrate()'s result for these FEATURES on GATE,
+    saving the work of merging them again.  Returns the new commit for
+    each changed feature, made on top of it with MSG and AUTHOR, and the
+    paths left unrouted.
     """
     decide = decide or {}
-    integ = integrate(g, gate, sorted(features.items()))
+    if integ is None:
+        integ = integrate(g, gate, sorted(features.items()))
     # Features that do not merge are left out of the integration here;
     # their files then differ from the target and are routed afresh.
     itree = g.tree(integ.commit)
@@ -303,10 +324,11 @@ def route(g, gate, features, target, msg, author=None, decide=None):
     for path in paths:
         touched = sorted(n for n in features
                          if feat[n].get(path) != base.get(path))
-        if path in decide and not touched:
+        decided = decide.get(path, decide.get(ANY))
+        if decided and not touched:
             # No feature has the file, so it is gate's: the decided
             # feature takes the target's version whole.
-            changes[decide[path]][path] = want.get(path)
+            changes[decided][path] = want.get(path)
         elif not touched:
             routed = None
             if path in have and path in want:
@@ -325,7 +347,7 @@ def route(g, gate, features, target, msg, author=None, decide=None):
         else:
             owners = {n: feat[n][path] for n in touched if path in feat[n]}
             routed = route_lines(g, path, base.get(path), have.get(path),
-                                 want.get(path), owners, decide.get(path))
+                                 want.get(path), owners, decided)
             if isinstance(routed, Unrouted):
                 unrouted.append(routed)
             else:

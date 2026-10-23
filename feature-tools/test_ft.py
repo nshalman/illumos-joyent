@@ -168,6 +168,21 @@ class IntegrateTest(FtTest):
         self.assertEqual(res.conflicts, [('f2', ['b.c'])])
 
 
+class TrailerTest(unittest.TestCase):
+
+    def test_feature_trailers(self):
+        msg = ('18158 bhyve leaks AMD PQOS leaf\n\nSome text.\n\n'
+               'Reviewed by: Someone <a@b>\n'
+               'Feature: upstream-18158\n'
+               'Feature: smartos-test usr/src/test/Makefile.com\n')
+        self.assertEqual(ft.decisions_from_message(msg), {
+            ft.ANY: 'upstream-18158',
+            'usr/src/test/Makefile.com': 'smartos-test'})
+
+    def test_no_trailers(self):
+        self.assertEqual(ft.decisions_from_message('Fix a thing\n'), {})
+
+
 class LineMapTest(FtTest):
 
     def blob(self, *a):
@@ -422,6 +437,26 @@ class RouteTest(FtTest):
                            sorted(dict(feats, **res.commits).items()))
         self.assertEqual(out.conflicts, [])
         self.assertEqual(self.r.tree(out.commit), self.r.tree(target))
+
+    def test_catch_all_decision(self):
+        # A bare "Feature: name" trailer covers whatever the rules cannot
+        # place in that commit.
+        target = self.target({'new.c': lines('n'),
+                              'gate.c': lines('g1', 'CHANGED', 'g3')})
+        res = ft.route(self.g, self.gate, self.feats, self.r.tree(target),
+                       msg='m', decide={ft.ANY: 'f2'})
+        self.assertEqual(res.unrouted, [])
+        self.assertEqual(sorted(res.commits), ['f2'])
+
+    def test_given_integration_gives_the_same_result(self):
+        target = self.target({'b.c': lines('b1', 'b2', 'b3', 'F1 fixed')})
+        integ = ft.integrate(self.g, self.gate, sorted(self.feats.items()))
+        a = ft.route(self.g, self.gate, self.feats, self.r.tree(target),
+                     msg='m')
+        b = ft.route(self.g, self.gate, self.feats, self.r.tree(target),
+                     msg='m', integ=integ)
+        self.assertEqual({n: self.r.tree(c) for n, c in a.commits.items()},
+                         {n: self.r.tree(c) for n, c in b.commits.items()})
 
     def test_decision_does_not_override_owners(self):
         # 0821a720ccf: a decision for a file features now touch must not
