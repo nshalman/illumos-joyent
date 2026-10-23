@@ -32,10 +32,36 @@ given `--write`; `--push REMOTE` then pushes what they wrote.
 | `release.py check --release REF` | Merges a release into master for real; names any release commit master lacks |
 | `release.py audit ...` | Rebuilds a past release from gate, backports and features |
 | `replay.py --from A --to B` | Runs gate intake and dispatch over past master history with master as the answer key; `--divergence DIR` writes where the tools differed from master |
+| `metadata.py check` | Checks the features' metadata against the feature branches: missing or stray files, unknown dependencies, cycles |
+| `metadata.py order` | Lists the features in merge order |
 
 Escalations (a stuck feature, a commit dispatch cannot place) are written as
 issue files under `--report DIR`, and opened on GitHub only with
 `--open-issues OWNER/REPO`.
+
+## Feature metadata
+
+Each feature has a file `features/<name>` on `meta/state`, of `Key: value`
+lines (a line starting with a space continues the value):
+
+    Feature: lx
+    Description: The lx brand: Linux binary compatibility in a zone.
+    Owner: someone@example.com
+    Depends: brand-ops, brand-process, hyprlofs
+    Upstream: keep
+    Upstream-Tickets:
+    Tests:
+
+- `Depends` sets the merge order: every command takes `--state REF`
+  (default `refs/heads/meta/state`) and merges features after the ones
+  they depend on, by name otherwise. Without the ref, it is by name.
+- `Upstream` is the intent: `keep`, `upstream` (offered to illumos, or
+  carried until gate has it) or `landed`.
+- Gate intake reports each of the `Upstream-Tickets` it takes in, and
+  whether the feature retired. With `--write` it marks retired features
+  `Upstream: landed` and records the gate commit as `Retired`.
+- Dispatch writes a stub for a feature a commit starts, for a person to
+  complete.
 
 ## Placement decisions
 
@@ -62,6 +88,7 @@ feature touches, a new file), a person decides:
 | `dispatch.py` | Dispatch, dry run, dispatch records |
 | `release.py` | Release cut, check and audit |
 | `escalate.py` | Issues for a person |
+| `metadata.py` | Feature metadata on `meta/state` |
 | `replay.py` | Replay and shadow mode |
 
 ## Tests

@@ -182,6 +182,27 @@ class CommandTest(Base):
         self.assertEqual(self.r.git('merge-base', '--is-ancestor', self.f1,
                                     feats['f1']), '')
 
+    def test_new_feature_gets_a_metadata_stub(self):
+        import metadata
+        state = self.r.commit({'README.md': 'state\n'}, msg='state')
+        self.r.git('update-ref', 'refs/heads/meta/state', state)
+        metadata.save(self.g, 'refs/heads/meta/state', {
+            'f1': {'Feature': 'f1'}, 'f2': {'Feature': 'f2'}}, 'meta\n')
+        c1 = self.land({'new.c': lines('n')},
+                       msg='OS-3 bge driver from FreeBSD\n\nFeature: bge\n')
+        p = self.run_dispatch('dry-run', '--head', c1)
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertIn('new feature bge', p.stdout)
+        self.r.git('update-ref', 'refs/heads/master', c1)
+        p = self.run_dispatch('land', '--write')
+        self.assertEqual(p.returncode, 0, p.stderr)
+        meta = metadata.load(self.g, 'refs/heads/meta/state')
+        self.assertEqual(sorted(meta), ['bge', 'f1', 'f2'])
+        self.assertIn('OS-3 bge driver from FreeBSD',
+                      meta['bge']['Description'])
+        self.assertEqual(meta['bge']['Upstream'], '')
+        self.assertEqual(meta['f1'], {'Feature': 'f1'})
+
     def test_land_stops_at_an_unplaceable_commit(self):
         import tempfile
         c1 = self.land({'new.c': lines('n')})

@@ -202,6 +202,9 @@ def dry_run(a, g):
     print('Dispatch dry run for %s' % head[:11])
     for n, paths in placement(g, feats, r.features).items():
         print('    %s: %s' % (n, ' '.join(paths)))
+    for n in sorted(set(r.features) - set(feats)):
+        print('    new feature %s, starting on gate; landing it writes its '
+              'metadata for a person to complete' % n)
     for line in describe_unrouted(r.unrouted):
         print(line)
     print('    integration matches: %s' % ('yes' if r.equal else 'NO'))
@@ -220,6 +223,9 @@ def land(a, g):
         raise DispatchError('the features do not give the tree before %s' %
                             todo[0])
     decide = read_decisions(a.decisions)
+    has_state = metadata.use_order(g, a.state)
+    meta = metadata.load(g, a.state) if has_state else {}
+    state = g.rev(a.state) if has_state else None
     pushed = {}
     for c in todo:
         r = dispatch(g, feats, gate, c, decide)
@@ -255,11 +261,21 @@ def land(a, g):
             g.run('update-ref', a.prefix + n, new, *([old] if old else []))
             pushed[n] = new
         g.run('update-ref', a.master, rec, master)
+        stubs = {n: metadata.stub(n, 'Started by %s; say what it is.' %
+                                  subject, upstream='')
+                 for n in r.features if n not in feats and n not in meta}
+        if stubs:
+            metadata.save(g, a.state, stubs, 'Start %s, from %s\n' % (
+                ', '.join(sorted(stubs)), c))
+            meta.update(stubs)
         feats = r.features
     if a.write and a.push:
         for n, c in sorted(pushed.items()):
             g.run('push', a.push, '%s:%s%s' % (c, a.prefix, n))
         g.run('push', a.push, '%s:%s' % (g.rev(a.master), a.master))
+        if state and g.rev(a.state) != state:
+            g.run('push', '--force-with-lease=%s:%s' % (a.state, state),
+                  a.push, '%s:%s' % (g.rev(a.state), a.state))
     return 0
 
 
