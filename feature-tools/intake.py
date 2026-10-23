@@ -59,6 +59,32 @@ def ancestor(g, a, b):
                  ok=(0, 1)).returncode == 0
 
 
+Rebased = collections.namedtuple('Rebased',
+                                 'tip conflicts resolved emptied synced')
+
+
+def rebase_feature(g, tip, old_gate, new_gate, resolve=None, sync=None):
+    """One feature's TIP rebased from OLD_GATE onto NEW_GATE, as intake does.
+
+    Returns Rebased: the new `tip`; the paths left in `conflicts`; the
+    paths `resolved` by RESOLVE, as [path, resolver names]; the commits
+    `emptied`; and the manifest entries `synced` by SYNC, counted by kind
+    (None when SYNC changed nothing).
+    """
+    r = ft.rebase(g, old_gate, tip, new_gate, resolve=resolve)
+    tip = r.tip
+    conflicts = sorted(set(p for _, ps in r.conflicts for p in ps))
+    resolved = [[p, names] for _, p, names in r.resolved]
+    synced = None
+    if sync:
+        commit, report = sync(g, old_gate, new_gate, tip)
+        if commit:
+            tip = commit
+            synced = {k: len(v) for k, v in report.items()
+                      if v and k in ('added', 'changed', 'removed')}
+    return Rebased(tip, conflicts, resolved, r.emptied, synced)
+
+
 def intake(g, features, old_gate, new_gate, resolve=None, sync=None):
     """Rebase FEATURES from OLD_GATE onto NEW_GATE and integrate them.
 
@@ -71,22 +97,14 @@ def intake(g, features, old_gate, new_gate, resolve=None, sync=None):
                                                           old_gate))
     feats, conflicts, resolved, synced, emptied = {}, {}, {}, {}, {}
     for n in sorted(features):
-        r = ft.rebase(g, old_gate, features[n], new_gate, resolve=resolve)
-        tip = r.tip
-        if r.conflicts:
-            conflicts[n] = sorted(set(p for _, ps in r.conflicts
-                                      for p in ps))
-        if r.resolved:
-            resolved[n] = [[p, names] for _, p, names in r.resolved]
-        if r.emptied:
-            emptied[n] = r.emptied
-        if sync:
-            commit, report = sync(g, old_gate, new_gate, tip)
-            if commit:
-                tip = commit
-                synced[n] = {k: len(v) for k, v in report.items()
-                             if v and k in ('added', 'changed', 'removed')}
-        feats[n] = tip
+        r = rebase_feature(g, features[n], old_gate, new_gate, resolve, sync)
+        feats[n] = r.tip
+        for out, value in ((conflicts, r.conflicts), (resolved, r.resolved),
+                           (emptied, r.emptied)):
+            if value:
+                out[n] = value
+        if r.synced is not None:
+            synced[n] = r.synced
     retired = sorted(n for n in feats if g.tree(feats[n]) == g.tree(new_gate))
     for n in retired:
         del feats[n]
