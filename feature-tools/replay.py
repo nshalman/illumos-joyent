@@ -28,6 +28,7 @@ import collections
 import json
 import sys
 
+import dispatch
 import ft
 import intake
 import manifest
@@ -83,15 +84,21 @@ def replay(g, features, gate, start, end, decide=None, gate_ref=None,
             gate = new_gate
             msg, author = 'Resolve as master did in %s\n' % m, None
         elif len(parents) == 1:
-            kind, msg, author = 'joyent', g.message(m), g.author(m)
+            kind = 'joyent'
         else:
             raise ReplayError('%s: %d parents' % (m, len(parents)))
-        held = ft.integrate(g, gate, sorted(feats.items())).conflicts
-        r = ft.route(g, gate, feats, g.tree(m), msg, author, decide)
-        feats.update(r.commits)
-        routed, unrouted = sorted(r.commits), r.unrouted
-        integ = ft.integrate(g, gate, sorted(feats.items()))
-        equal = (not integ.conflicts and
+        if kind == 'joyent':
+            d = dispatch.dispatch(g, feats, gate, m, decide)
+            feats = d.features
+            held, routed, unrouted = [], d.routed, d.unrouted
+            integ = ft.Integration(d.integration, [])
+        else:
+            held = ft.integrate(g, gate, sorted(feats.items())).conflicts
+            r = ft.route(g, gate, feats, g.tree(m), msg, author, decide)
+            feats.update(r.commits)
+            routed, unrouted = sorted(r.commits), r.unrouted
+            integ = ft.integrate(g, gate, sorted(feats.items()))
+        equal = (not integ.conflicts and not unrouted and
                  g.tree(integ.commit) == g.tree(m))
         step = Step(m, kind, conflicts, resolved, synced, emptied, retired,
                     held, routed, unrouted, equal, integ.commit)
@@ -150,12 +157,7 @@ def main():
                       a.prefix).splitlines():
         ref, oid = line.split()
         feats[ref[len(a.prefix):]] = oid
-    decide = {}
-    if a.decide:
-        for line in open(a.decide):
-            line = line.split('#')[0].split()
-            if line:
-                decide[line[0]] = line[1]
+    decide = dispatch.read_decisions(a.decide)
     logf = open(a.log, 'w') if a.log else None
 
     def log(step):

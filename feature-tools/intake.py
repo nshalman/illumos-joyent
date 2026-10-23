@@ -166,8 +166,8 @@ def write_gate_merge(g, master, gate_commit, integration, message=None):
         raise IntakeError('%s is not built on %s' % (integration,
                                                      gate_commit))
     tree = g.tree(integration)
-    msg = message or ('[illumos-gate merge]\n\nGate intake of %s.\n' %
-                      gate_commit)
+    msg = (message or '[illumos-gate merge]\n') + (
+        '\nGate-intake: %s\n' % gate_commit)
     merge = g.commit_tree(tree, [master, gate_commit], msg)
     if g.tree(merge) != tree:
         raise IntakeError('gate merge %s lost the integration tree' % merge)
