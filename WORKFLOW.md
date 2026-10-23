@@ -38,6 +38,49 @@ check. It goes away once development moves to features, though it stays
 useful while the new tooling runs beside master-based development, and it is
 the answer key for replaying history (below).
 
+## The process at a glance
+
+Agreed 2026-10-23; the sections below give the detail.
+
+- **Developers keep landing on `master`.** A pull request is squash-merged
+  after a person approves it, exactly as today.
+- **Dispatch keeps the features in step with master.** After each commit
+  lands, CI routes its pieces to the feature branches it touches, integrates
+  the features, and checks the result equals master. On success it pushes the
+  features and records the dispatch on master. Before the merge, the same
+  dispatch runs as a dry run on the pull request, so placement problems show
+  up in review.
+- **Gate intake takes in illumos-gate.** At a gate commit we choose, every
+  feature is rebased onto it and all are merged; once checked and built, that
+  integration becomes master's gate-merge commit. Conflicts the tools cannot
+  resolve are escalated per feature, to the feature's owner.
+- **Releases are cut at a gate intake.** A release branch is the gate commit
+  plus the merge of all features; its tree equals master's at that moment.
+  Later fixes land on master first and are cherry-picked to the release.
+
+The invariant behind all of it: after every dispatch and every gate intake,
+the features, merged on master's gate commit, give exactly master's tree.
+
+## Glossary
+
+| Term | Meaning |
+| --- | --- |
+| gate | illumos-gate, our upstream |
+| feature | a branch on a gate commit holding one coherent part of our delta (`features/<name>`), plus its metadata |
+| integration | the chain of merges of every feature onto one gate commit, and its tree |
+| gate intake | taking in a new gate commit: rebase every feature onto it, integrate, check and build, and write master's gate-merge commit |
+| dispatch | after a commit lands on master, routing its pieces into the features and checking the integration equals master |
+| dry-run dispatch | the same, run in CI on a pull request before it merges, writing nothing |
+| routing | deciding which features own each piece of a change |
+| decision | a person's placement choice where routing cannot decide: a `Feature:` trailer in the commit message, or an entry in the decisions file |
+| resolver | a mechanical conflict fixer, such as for copyright lines or Makefile lists |
+| manifest sync | bringing the top-level `manifest` in line with gate's package manifests at each gate intake |
+| escalation | handing a stuck gate intake or dispatch to a person, as an issue on the fork |
+| retire | dropping a feature that gate has absorbed completely |
+| release cut | a release branch made at a gate intake: the gate commit plus the merge of every feature |
+| replay | running gate intake and dispatch over past master history, with master as the answer key |
+| shadow mode | replay run on master's new commits as they arrive |
+
 ## Features as the unit
 
 A feature is a branch `features/<name>` based on a gate commit, plus a
@@ -95,13 +138,14 @@ The ongoing tooling should not depend on them.
 
 Today each feature branch is one commit. Over time, a feature should be a
 short, curated series of commits, like a patch queue. Fixes land as `fixup!`
-commits and get squashed at the next sync, so the series stays reviewable.
+commits and get squashed at the next gate intake, so the series stays
+reviewable.
 `git range-diff` shows reviewers how a series changed.
 
 ## Where the tooling and its state live
 
 The tooling is a feature like any other, `features/tooling`, rebased onto gate
-with the rest. State that changes on every sync should not live there,
+with the rest. State that changes on every gate intake should not live there,
 because rebasing that history is pointless churn.
 
 | What | Where | Why |
@@ -109,9 +153,9 @@ because rebasing that history is pointless churn.
 | Tool code | `features/tooling` | Versioned with the tree; appears in every integrated build |
 | Docs: README-SmartOS.md and workflow docs | `features/tooling` | Belongs in the tree readers clone |
 | Feature list and dependency graph | `features/tooling` | Changes rarely; reviewed like code |
-| Shared rerere cache | `meta/state` | Grows every sync |
-| Last synced gate commit, per-feature tags | `meta/state` and tags | Changes every sync |
-| Sync reports and conflict log | `meta/state` | History of what happened |
+| Shared rerere cache | `meta/state` | Grows every gate intake |
+| Last gate commit taken in, each feature's tip per intake | `meta/state` | Changes every gate intake |
+| Intake and dispatch reports, conflict log, decisions file | `meta/state` | History of what happened |
 | This design document and the phase 1 analysis | `meta/restructure` | Working material; may be abandoned once phase 2 settles |
 
 On `nshalman/illumos-joyent`:
@@ -137,7 +181,7 @@ in every branch, which then need special handling to stay out of the merged
 tree. I would avoid it.
 
 Open point: the tooling must run before the integrated tree exists, so the
-sync job checks out `features/tooling` on its own and runs from there.
+gate intake job checks out `features/tooling` on its own and runs from there.
 
 ### Dan's README
 
@@ -149,29 +193,49 @@ list. Otherwise the doc and the feature set drift apart. Because his commits
 stay unchanged on `features/tooling`, that generation or check lands as a
 later commit on top.
 
-## Syncing with illumos-gate
+## Gate intake
 
-A sync moves every feature from the old gate base to a new one, then
-integrates, builds and reports. Because features are textually independent,
-each rebases alone, and a conflict in one does not block the others. A
-feature that reaches the last tier of the escalation ladder is held back from
-integration while the rest proceed.
+Gate intake takes in a new illumos-gate commit. The goal is that it runs on its
+own and escalates only what the tools cannot resolve. Because features are
+textually independent, each rebases alone, and a conflict in one does not stop
+the others.
 
 ### Steps
 
-1. Fetch gate and pick the target commit.
-2. Check for upstream absorption (next section) before rebasing, so expected
-   conflicts are labelled.
-3. Rebase each feature onto the target, climbing the escalation ladder until
-   it succeeds or reaches a human.
-4. Merge all features that rebased into an integration branch. A merge
-   conflict here means two features overlap in text. The known case is
-   copyright lines, which several features carry identically until their
-   rebases resolve them differently. Anything else is reported as a bug in
-   the split.
-5. Build the integration. If it fails, bisect along the merge chain to the
-   feature responsible.
-6. Publish the delta report and the per-feature range-diffs.
+1. Fetch gate and pick the target commit. Not every gate commit: intake runs at
+   points we choose, about as often as master takes gate today (a few times a
+   week), or daily.
+2. Wait until dispatch has caught up with master, and hold further merges
+   (one lock, such as GitHub's merge queue, covers both). Intake rebuilds
+   master's tree from the features, so a change on master not yet in the
+   features would be lost.
+3. Check for upstream absorption (see Detecting features landing upstream), so
+   expected conflicts are labelled.
+4. Rebase each feature onto the target, through the escalation ladder; run
+   the manifest sync on the feature that carries the manifest.
+5. Integrate: merge all features, in a chain, onto the target.
+6. Build the integration, and run the tests. A clean rebase is not enough: the
+   replays found changes that raise no conflict yet still need a person, such
+   as smartos-test after gate's 18295.
+7. Write master's gate-merge commit: parents master and the gate commit, tree
+   the checked integration, written explicitly (`git commit-tree`) and
+   asserted equal. Force-push the rebased features, and record each feature's
+   new tip on `meta/state`.
+8. Publish the delta report and the per-feature range-diffs.
+
+### When intake cannot finish
+
+A conflict the tools cannot resolve, a build failure, or a test failure:
+
+1. Find the first gate commit responsible by bisecting the new gate commits
+   (next sections).
+2. Take gate in up to the commit before it, so master keeps moving and the
+   problem is one gate commit wide (recommended; see Open questions).
+3. Publish the half-done feature on a candidate branch,
+   `intake/<gate-commit>/features/<name>`, and open an issue on the fork naming
+   the feature, its owner, the conflict, and the gate commit.
+4. A person fixes the candidate branch; the next intake run picks it up,
+   re-checks it, and continues.
 
 ### Escalation ladder
 
@@ -201,11 +265,12 @@ that commit's parent first also shrinks the conflict to one upstream change.
 
 ### The delta report
 
-The reference tree goes away, so a sync needs a different check. The useful
-one is how our delta changed: compare `diff(old gate, old integration)` with
-`diff(new gate, new integration)`. If only gate moved, the changed lines
-match, though diff context and line numbers shift. Whatever differs is what
-the sync did to our code, and that is what a reviewer reads.
+Beside the tree check against master, a reviewer needs to see what changed.
+The useful one is how our delta changed: compare `diff(old gate, old
+integration)` with `diff(new gate, new integration)`. If only gate moved, the
+changed lines match, though diff context and line numbers shift. Whatever
+differs is what the gate intake did to our code, and that is what a reviewer
+reads.
 
 ### Conflict hotspots
 
@@ -222,14 +287,14 @@ commits during a rebase. Three signals, cheapest first:
 
 1. **Ticket match.** illumos commit subjects start with ticket numbers. A
    feature's `upstream` field lists the illumos tickets it corresponds to.
-   Each sync scans the new gate commits and flags a feature whose ticket
-   landed.
+   Each gate intake scans the new gate commits and flags a feature whose
+   ticket landed.
 2. **Patch match.** `git patch-id` finds gate commits identical to one of our
    commits, the case where we upstreamed the patch as is. `git cherry` does
    this per branch.
 3. **Shrinkage.** After a rebase, compare each feature's diff size with the
-   previous sync's. A feature that shrank sharply, or a commit that became
-   empty, probably met an equivalent upstream change, even one with a
+   previous gate intake's. A feature that shrank sharply, or a commit that
+   became empty, probably met an equivalent upstream change, even one with a
    different ticket or rewritten code.
 
 A flagged feature gets a report, not an automatic drop: the upstream version
@@ -251,81 +316,76 @@ Open point: features whose changes came from a joyent ticket (OS-xxxx) rather
 than an illumos one have no illumos ticket to watch. When we upstream one, its
 metadata should gain the illumos ticket number then.
 
-## Publishing and release branches
+## Master, releases and history
 
-Not decided. Today release branches fork from illumos-joyent `master`. One
-direction is to fork them from a gate commit and apply all features. That is a
-suggestion, and the options below are for discussion.
+Agreed 2026-10-23. Developers keep landing on `master`; the feature branches
+follow master through dispatch; master's gate merges are written by gate
+intake; releases are cut from gate plus features.
 
-### What any option must provide
+### Master
 
-- A release is reproducible from a short record: one gate commit plus one
-  commit per feature.
-- A fix to a feature can reach an existing release branch without pulling in a
-  new gate.
-- Feature history stays reachable even though feature branches are rebased.
-  Tagging each feature at each sync, such as `features/lx@<sync-id>`, covers
-  this.
-- Consumers that pull illumos-joyent, smartos-live first, keep working or get
-  a clear migration. I have not checked how smartos-live picks its
-  illumos-joyent branch; that needs a look.
+Master stays the branch developers clone, branch from and build, and it is
+never rewritten. It gains three kinds of commit:
 
-### Options
+- squash-merged pull requests, as today;
+- dispatch records: after a commit is dispatched, a merge into master of the
+  integration that dispatch verified (see Dispatch records, below);
+- gate-merge commits written by gate intake, whose tree is the checked
+  integration.
 
-| Option | master | Release branch | Cost |
-| --- | --- | --- | --- |
-| A. master fed by integration | Kept, forward-only: each sync adds a commit whose tree equals the integration and whose parents are old master and the new integration | Forked from master, as today | Least change downstream; master history becomes a series of sync points |
-| B. Releases built from gate plus features | Optional, or a regenerated integration branch | Gate commit, then a merge of each feature at its tagged version | Cleanest record of what a release is; release fixes need a defined path (below) |
-| C. Both during transition | Kept as today; integration built beside it and compared | From master until we trust B | Two systems to run for a while |
+The feature branches are rebased at each gate intake and force-pushed then;
+dispatch only adds commits to them. Each feature's tip at each gate intake is
+recorded on `meta/state`, so every past state stays reachable and
+`git range-diff` can show what an intake did to a feature.
 
-### Fixes to a release under option B
+### Dispatch records
 
-Two shapes seem workable:
+A dispatch record must never hide a mismatch, so nothing about it is taken on
+trust:
 
-- The fix lands on the feature branch, and the release branch merges or
-  cherry-picks that commit. Simple, but the release then diverges from any
-  recorded feature version.
-- The release keeps frozen copies of its feature branches,
-  `release/<id>/features/<name>`. The fix lands there and the release
-  integration is rebuilt. Exact, but it doubles the branches to keep.
+1. Before writing it, dispatch requires the integration's tree to equal the
+   tree of the master commit it dispatched (`git diff --quiet <commit>
+   <integration>`). If not, nothing is written or pushed, and it becomes an
+   issue.
+2. The merge queue holds the next pull request until the record is written,
+   so the record sits directly on the dispatched commit and both its parents
+   have the same tree. It is then a plain merge, and dispatch checks that the
+   merge's tree equals each parent's before pushing.
+3. If master has moved anyway, say by a direct push, the record goes on top of
+   master keeping master's tree (`-s ours`), names the dispatched commit in its
+   message, and is written only after check 1 passed for that commit. A
+   record's second parent is always an integration verified against the
+   commit it names.
 
-Some release fixes are gate commits backported ahead of the release's gate
-base, as release-20260430 and release-20260514 show (see Replaying history).
-Those belong to no feature. The release records them as part of its gate side,
-and they need no routing back: the next sync onto a gate that includes them
-absorbs them.
+### Release cuts
 
-Either way, bug fixes do get applied to release branches from time to time and
-the release is recut, so this path has to be routine, not an exception. The
-routing in the developer workflow carries each release fix back to its
-feature branches.
+A release is cut at a gate intake: the release branch is the integration
+commit itself, the gate commit plus the chain of feature merges. Its history
+says exactly which gate commit and which feature versions it holds, and its
+tree equals master's at that moment. Merging it into master is then trivial
+(identical trees always merge to that tree), and that is checked rather than
+assumed: the merge's tree must equal master's, or the cut is wrong. Cutting from a gate commit newer than master's means running
+gate intake first.
 
-### A forward-only integration branch, which can be master
+### Fixes to a release
 
-Developers branch from the integration branch, so it must never be rewritten.
-Each sync therefore adds one commit on top of it:
+By the time a release needs a fix, the features have moved on to newer gate
+commits, so a release is not rebuilt from them; it is an ordinary whole-tree
+branch from the cut onwards, and a recut is a new tag on it.
 
-- its tree is the new integration (gate plus the merge chain of features),
-  already checked;
-- its parents are the previous integration tip, the new merge chain, and the
-  tips of any releases cut since the last sync.
+- **Fix master first (the default).** The fix lands on master and is
+  dispatched to its features as usual; the original squash commit is then
+  cherry-picked onto the release with `-x`.
+- **Fix the release first (urgent).** The fix must also land on master. The
+  check: merging the release into master must leave master's tree unchanged.
+  A change means a release fix never reached master, or a gate backport has
+  not reached gate yet; `release.py` tells the two apart by patch-id.
+- **Gate backports** are cherry-picked from gate onto the release, as now
+  (release-20260430 took gate's 17903 revert; release-20260514 took 18118).
+  They belong to no feature and need no routing back.
 
-The commit is written with that tree explicitly (`git commit-tree`), not by
-asking git to merge, and the tree is asserted equal to the checked one. Two
-commits with the same tree always merge to that tree, so nothing about this
-depends on a merge doing the right thing. This is option A above, and the
-branch can simply be `master`.
-
-Releases are merged in as parents for history (`git branch --contains` then
-shows master holding every release), and the merge doubles as a check. A
-release forked earlier and carries its own commits, so merging it is a real
-three-way merge, but it should change nothing: each fix on the release was
-also routed to its features, and each gate backport arrives with gate. Before
-writing the commit, the sync does that merge for real and requires the tree to
-stay the same. If it changes, either a release fix never reached its feature
-(a bug to report) or a backport is not in gate yet (expected for a while:
-release-20260430 took gate's 17903 revert the same day gate made it); the
-report says which.
+`release.py` checks that a release equals its cut plus its backports and
+fixes, as the replay did for the two 2026 releases with commits of their own.
 
 ### Octopus or sequential merges
 
@@ -357,8 +417,8 @@ for narrowing a failure.
 
 | When | What gets built | Purpose |
 | --- | --- | --- |
-| Pull request to a feature | The integration with that change | Feedback for the author |
-| Every sync | The integration on the new gate | Catch gate changes that break us |
+| Pull request | Dry-run dispatch, then the integration with the change | Feedback for the author and reviewer |
+| Every gate intake | The integration on the new gate, and the tests | Catch gate changes that break us before master moves |
 | A build fails | Bisect: rebuild with subsets of features, or along the merge chain, until one feature is to blame | Point at the feature and owner |
 | Release | Clean DEBUG and non-DEBUG builds, a platform image, and a boot test | What we ship |
 | On demand | A feature with its dependency closure | Check a split, a new feature, or a dependency claim |
@@ -390,64 +450,64 @@ integration.
 
 ## Developer workflow
 
-A developer works in a whole tree and lands whole commits; the tooling
+A developer works in master, a whole tree, and lands whole commits; dispatch
 decides which features a commit touches, and asks only when it cannot. Nobody
 needs to know the feature graph to fix a bug.
 
 ### From idea to landed commit
 
-1. **Get a tree.** Branch from the integration branch: gate plus every
-   feature, merged in a chain, published at each sync. It builds and boots in
-   smartos-live like `master` does today. It can be `master` (see Publishing:
-   a forward-only integration branch). During shadow mode its tree equals
-   master's, so developers simply keep using master.
-2. **Make the change.** Edit, build and test as usual; commit with a ticket in
-   the message.
-3. **See where it goes.** A routing preview (`ft.route`, without writing
-   anything) says which features each part of the commit belongs to, for
-   example "lx: 2 files, brand-ops: 1 hunk". Three outcomes:
+1. **Get a tree.** Branch from master. It builds and boots in smartos-live as
+   it does today.
+2. **Make the change.** Edit, build and test as usual; the pull request becomes
+   one commit when squash-merged, with a ticket in its message.
+3. **Dry-run dispatch on the pull request.** CI routes the pull request's
+   merge result onto the features, integrates them, and compares the result
+   with what master would become, writing nothing. It posts where each part
+   goes ("lx: 2 files, brand-ops: 1 hunk"), so placement is reviewed with the
+   code. Three outcomes:
     - clear: nothing to do;
-    - ambiguous (a gate file no feature touches, or a new file): the developer
-      names the feature with a commit trailer, `Feature: brand-ops`. A
-      trailer naming a feature that does not exist starts it on gate, as
-      `Feature: upstream-18158` would for a fix carried until gate lands it;
-    - several features: fine; landing splits the commit, and each part keeps
+    - ambiguous (a gate file no feature touches, or a new file): the author
+      names the feature with a trailer in the squash message,
+      `Feature: brand-ops`. A trailer naming a feature that does not exist
+      starts it on gate, as `Feature: upstream-18158` would for a fix carried
+      until gate lands it;
+    - several features: fine; dispatch splits the commit, and each part keeps
       the author and message, plus a trailer naming the original commit.
-   The trailer is how a placement decision is made and reviewed in live work;
-   replay's decide file is the same thing kept outside the commit.
-4. **Review.** A pull request against the integration branch, where the
-   developer already works. The routing preview is posted on it, so the
-   placement is reviewed along with the code. CI builds the integration with
-   the change.
-5. **Land.** One change at a time: bring the commit up to date with the
-   integration branch, route it onto the feature branches, check that the
-   features now integrate to exactly the integration plus the commit (the
-   same tree check replay makes), then push the features and the new
-   integration. If the check fails nothing is pushed, and it becomes an
-   issue on the fork.
+4. **Review and merge.** A person approves; the pull request is
+   squash-merged to master.
+5. **Dispatch.** CI takes master's new commits in order, one at a time:
+   routes the commit onto the features as the previous dispatch left them,
+   integrates, and checks the tree equals master's. On success it pushes the
+   features (a fast-forward: dispatch only adds commits) and adds the
+   dispatch record to master, checked as described in Dispatch records.
 
-Replay and shadow mode already exercise step 5's routing: every joyent commit
-on master is a developer commit that went through steps 1 and 2. In the wide
-replay 10 of 13 routed with no help and 3 needed a placement decision. What
-they cannot exercise is the preview, trailers as decisions, and a landing that
-pushes; those need tools:
+Dispatch failing after the merge (an unforeseen ambiguity, or a tree that does
+not match) leaves the commit on master and the features behind. CI opens an
+issue; the decision, which can no longer go in the commit, goes in the
+decisions file on `meta/state`; dispatch reruns. Later commits queue behind
+it, and gate intake waits. The dry run is what keeps this rare.
+
+### Cost of the dry run
+
+Measured 2026-10-22 on nshalman-builds for three real joyent commits from the
+replay: 11.6 to 13.9 s each (integrate 3.4 s, route 4.9 to 6.9 s, integrate
+again 3.4 s), all correct. About 3.4 s of `route` is a second integration
+that can be shared, giving roughly 8 to 10 s. Getting the repository is the
+larger cost: its pack is about 720 MB, which a fresh hosted runner would have
+to clone each time (not measured). So the dry run belongs on a runner with a
+persistent clone, for now the build host, the same place gate intake and
+dispatch run.
+
+### Tools still to build
 
 | Tool | Does |
 | --- | --- |
-| Route preview | Shows, for a commit, where each part would go |
+| Dry-run dispatch | Routes a pull request's merge result, integrates, compares, posts the placement |
 | Trailer decisions | `ft.route` reads `Feature:` trailers as decisions |
-| `land` | Routes, checks the tree, pushes; refuses on any mismatch |
-| Integration publisher | Builds the merge chain at each sync and adds it to the forward-only integration branch |
-
-### Fixes on a release
-
-A bug found in a release is fixed on the release branch, which is a whole tree
-like the integration branch. The fix lands there and the release is recut;
-the same commit is then routed to the current feature branches. Those may sit
-on a newer gate than the release, so that is a cherry-pick that can conflict,
-and it climbs the same escalation ladder as a sync. Merging the release back
-into the integration branch then changes nothing (see Publishing), which
-checks that the fix arrived.
+| Dispatch | Routes a landed commit, checks the tree, pushes the features, records the dispatch on master |
+| Gate intake driver | Rebases, integrates, builds, writes master's gate-merge commit, escalates per feature |
+| Release cut | Branches a release from an intake's integration commit |
+| Divergence report | For replay and shadow mode: what the tools produced, what master had, the diff |
 
 ### Working on one feature on purpose
 
@@ -463,15 +523,15 @@ A new feature starts as a branch on the current gate base, either by a
 `Feature:` trailer naming it on its first commit or by creating it outright,
 with its metadata entry (description, owner, `depends`, `upstream`). Examples
 are a FreeBSD driver import, or a fix carried until gate takes it. From then on
-it is synced, built and reported like any other, and it retires on its own
-if gate ends up with all of it.
+it is taken through gate intake, built and reported like any other, and it
+retires on its own if gate ends up with all of it.
 
 ### Open questions here
 
 - Routed commits accumulate on feature branches as small commits. Do features
   keep full history, or get curated (squashed) periodically? A split commit is
-  not a `fixup!`, so the earlier plan of squashing fixups at each sync does not
-  cover it.
+  not a `fixup!`, so the earlier plan of squashing fixups at each gate intake
+  does not cover it.
 - How smartos-live is pointed at an integration branch other than master,
   for developers testing a feature branch's effect before landing.
 
@@ -485,9 +545,9 @@ Shadow mode is replay pointed at the present: `replay.py` over master's new
 first-parent commits since the last run.
 
 1. Fetch master and gate (both public; no credentials needed to read).
-2. For each new master commit: a gate merge rebases every feature onto the new
+2. For each new master commit: a gate merge becomes a gate intake onto its
    gate commit, through the resolvers and the manifest sync; a joyent commit
-   is routed to the features it touches; whatever still differs from master
+   is dispatched to the features it touches; whatever still differs from master
    is routed too and recorded as work a person did.
 3. Check that the integration's tree equals master's at every step.
 4. When a release branch appears or gains commits, rebuild it with
@@ -502,22 +562,30 @@ README-SmartOS.md.
 Decided 2026-10-22:
 
 - Runs are manual for now.
-- Per-sync tags of each feature are recorded on `meta/state` (a list of
-  commit ids), not as tags on the fork.
+- Each feature's tip at each gate intake is recorded on `meta/state` (a list
+  of commit ids), not as tags on the fork.
 - When a run stops, it becomes an issue on the fork naming the commit, the
   paths and the reason; the placement decision goes into a decisions file on
   `meta/state` (today it is on the build host) and the run resumes.
 - Exit: every master commit reproduced over about a month including at least
   one release, with every case that needed a person being a real conflict, a
   placement decision or a mistake in master, and none a tool failure. Then
-  the direction flips: features become the source, and master is the
-  forward-only integration branch.
+  gate intake and dispatch take over from people merging gate and routing by
+  hand, as described in The process at a glance.
 
 Still open: how commits made by the tools are attributed and signed (today
 they carry the original author for routed joyent commits and are unsigned).
 
-Before shadow mode runs live, we replay history (next section). Replay is
-shadow mode run over the past, so the same tools serve both.
+Replay forces equality at every step, so a divergence from master shows up
+only as a "Resolve as master did" commit; two real master bugs in the wide
+replay were found by reading those by hand. The divergence report (Tools still
+to build) lists each one directly: what the tools produced, what master had,
+and the diff, for a person to review after each run.
+
+Replay is shadow mode run over the past, and both can start from any master
+commit: phase 1 bootstraps the features there (tested six weeks and six
+months back). Simulation cannot reproduce the person (master's answer stands
+in), races between pull requests, or builds.
 
 ## Replaying history
 
@@ -538,9 +606,9 @@ is a one-to-one test, because master's tree at that commit is the answer.
       08292a06bdf) and OS-8741 ("Pull in OmniOS inotify enhancement"), the
       same patch as master's ec67518b999.
 - So release fixes come in two kinds: a gate commit backported ahead of the
-  release's gate base, and a joyent change that master also gets. The design
-  above covers only the second. Under option B, a release is a gate commit,
-  plus any gate commits backported onto it, plus the features.
+  release's gate base, and a joyent change that master also gets. A release
+  is therefore a gate commit, plus any gate commits backported onto it, plus
+  the features.
 - Starting at release-20260416's branch point (06ea1eb6c40, 2026-04-15), there
   are 73 first-parent master commits up to our reference da512a7e2e6. 60 of
   them are gate merges; the other 13 are joyent changes, committed directly
@@ -551,11 +619,11 @@ is a one-to-one test, because master's tree at that commit is the answer.
   from that commit's last gate merge, so the analysis can be rerun at an
   earlier point.
 
-That window exercises dozens of syncs, ordinary joyent changes, a release fix
-also carried on master, and two gate backports onto releases. It does not
-obviously contain a feature landing upstream; whether any joyent change in
-the window later reached gate is worth checking before relying on replay to
-test upstream detection.
+That window exercises dozens of gate intakes, ordinary joyent changes, a
+release fix also carried on master, and two gate backports onto releases. It
+does not obviously contain a feature landing upstream; whether any joyent
+change in the window later reached gate is worth checking before relying on
+replay to test upstream detection.
 
 ### Method
 
@@ -566,12 +634,12 @@ test upstream detection.
    how robust the split is.
 2. **Walk master's first-parent history** to da512a7e2e6, one commit at a
    time:
-    - a gate merge becomes a sync onto its second parent, climbing the
-      escalation ladder;
-    - a joyent commit is routed to the features that own its lines;
+    - a gate merge becomes a gate intake onto its second parent, climbing
+      the escalation ladder;
+    - a joyent commit is dispatched to the features that own its lines;
     - after each step, the integration's tree must equal that master commit's
       tree.
-3. **Use master as the human.** When a sync reaches the human tier, or
+3. **Use master as the human.** When gate intake reaches the human tier, or
    routing is ambiguous, take the resolution from master's actual commit so
    the replay can continue, and record that a person would have been needed.
    The count of those, per tier, is the main result. Phase 1-style placement
@@ -582,7 +650,8 @@ test upstream detection.
    apply their own commits as release fixes, recut, and check the tip's tree.
    The OS-8741 fix routes back to its feature. The two gate backports belong
    to no feature: they become part of the release's gate side, and they
-   disappear from it once a later sync reaches a gate that includes them.
+   disappear from it once a later gate intake reaches a gate that includes
+   them.
 5. **Compare the ends.** The replayed features at da512a7e2e6 and the 78 from
    phase 1 describe the same tree. Where their split differs, the difference
    shows how much the split depends on where the analysis starts.
@@ -599,7 +668,7 @@ These land on `features/tooling`, and replay is their first test:
 1. The feature list and metadata format.  Not built yet.
 2. `integrate`: the merge chain, and a tree comparison against a reference.
    Built (`ft.integrate`).
-3. `sync`: rebase every feature onto a gate commit through tiers 1 to 3,
+3. gate intake: rebase every feature onto a gate commit through tiers 1 to 3,
    recording the tier for each feature.  Built as `ft.rebase` with
    `resolve.py` and `manifest.py`; tier 2 (rerere) is not.
 4. `route`: assign a commit's hunks to features by line ownership, splitting
@@ -608,7 +677,7 @@ These land on `features/tooling`, and replay is their first test:
    test for the other tools.  Built (`replay.py`), with `release.py` for the
    release rebuilds.
 
-Results go to `meta/state` under a replay directory, kept apart from live sync
+Results go to `meta/state` under a replay directory, kept apart from live
 state.
 
 ### First run: release-20260903 to da512a7e2e6 (2026-10-21)
@@ -638,8 +707,8 @@ What this changes:
   next tools to build, and replay can measure them, since a resolver must
   reproduce master's choice.
 - Changes that raise no conflict still need people (smartos-test) or
-  resolvers (manifest). Sync cannot stop at "rebase was clean"; the manifest
-  check and the tests are part of it.
+  resolvers (manifest). Gate intake cannot stop at "rebase was clean"; the
+  manifest check and the tests are part of it.
 
 ### Second run: the same window with resolvers (2026-10-21)
 
@@ -711,11 +780,19 @@ format.
 
 ## Open questions
 
-- [ ] Publishing: leaning to option A, master as the forward-only
-      integration branch with releases merged in as a check (see
-      Publishing); not yet decided.
-- [ ] Releases: fork from master or from gate plus features? Which shape for
-      release fixes and recuts?
+- [x] Publishing: master stays the developer branch; features follow it by
+      dispatch; master's gate merges come from gate intake (decided
+      2026-10-23).
+- [x] Releases: cut at a gate intake from gate plus features; later fixes
+      land on master first and are cherry-picked (decided 2026-10-23).
+- [ ] When gate intake hits trouble, take gate in up to the last good commit,
+      or stop until a person resolves it? Recommended: up to the last good
+      commit.
+- [x] Dispatch record: a merge on master, verified against the dispatched
+      commit before it is written; serialized by the merge queue so it is a
+      plain merge of identical trees (decided 2026-10-23).
+- [ ] How commits made by the tools are attributed and signed.
+- [ ] Do feature branches keep full history, or get curated periodically?
 - [ ] How does smartos-live choose its illumos-joyent branch, and what must
       change there?
 - [ ] Build infrastructure: nshalman-builds for now; what after the
@@ -724,14 +801,14 @@ format.
       release, and after the experiment?
 - [ ] Should AI-proposed conflict resolutions exist at all, and is "proposes,
       never lands alone" the right limit?
-- [ ] Sync cadence: every gate push, or batched? Bisecting conflicts makes
-      larger batches affordable.
+- [x] Gate intake cadence: at points we choose, a few times a week or daily,
+      not every gate commit (decided 2026-10-23).
 - [x] Where escalations go: issues on the fork (decided 2026-10-22).
-- [ ] How commits made by the tools are attributed and signed.
-- [ ] Do feature branches keep full history, or get curated periodically?
 - [ ] boot/dboot and datalink/vnd: merge each pair, or test them together?
 - [ ] Conflict hotspots: measure them, then decide whether to restructure any,
       such as the top-level `manifest`.
 - [ ] Ownership: who owns each of the 78 features?
+- [ ] zhyve.c: keep it in zone-brands, where replay kept it, or move it to
+      bhyve, where phase 1 puts it?
 - [x] Replay: start small (release-20260903), then widen to
       release-20260416. Both done; see Replaying history.
