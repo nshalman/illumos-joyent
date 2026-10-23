@@ -526,7 +526,7 @@ with tests:
 | `dispatch.py dry-run` | Routes a pull request's merge result, integrates, compares, prints the placement and any trailers needed |
 | `Feature:` trailers | `ft.route` reads them as decisions; the decisions file also takes `commit:SHA FEATURE` for a landed commit |
 | `dispatch.py land` | Dispatches pending master commits, checks each tree, fast-forwards the features, writes verified dispatch records |
-| `intake.py` | Gate intake: rebase, integrate, optional build/test check, master's gate-merge commit; bisects and takes gate in up to the last good commit, with candidate branches for stuck features |
+| `intake.py` | Gate intake: rebase, integrate, optional build/test check, master's gate-merge commit; bisects and takes gate in up to the last good commit, with candidate branches for stuck features; picks up a candidate a person fixed (its tree differs from the tool's attempt) and removes it once used |
 | `release.py cut`, `check` | Release cut checked against master; release-into-master check naming what master lacks |
 | `escalate.py` | Escalations as issue files, opened with `gh` only when asked |
 | `replay.py --divergence` | What the tools produced against what master had, per step |
