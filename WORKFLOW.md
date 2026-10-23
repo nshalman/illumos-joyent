@@ -364,8 +364,8 @@ commit itself, the gate commit plus the chain of feature merges. Its history
 says exactly which gate commit and which feature versions it holds, and its
 tree equals master's at that moment. Merging it into master is then trivial
 (identical trees always merge to that tree), and that is checked rather than
-assumed: the merge's tree must equal master's, or the cut is wrong. Cutting from a gate commit newer than master's means running
-gate intake first.
+assumed: the merge's tree must equal master's, or the cut is wrong. Cutting
+from a gate commit newer than master's means running gate intake first.
 
 ### Fixes to a release
 
