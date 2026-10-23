@@ -84,6 +84,18 @@ class CheckTest(unittest.TestCase):
             'metadata for stray, but no such feature branch'])
 
 
+class RetireTest(unittest.TestCase):
+
+    def test_retired_features_are_marked_landed(self):
+        meta = {'upstream-8391': metadata.stub('upstream-8391', 'x',
+                                               tickets=['8391']),
+                'lx': {'Feature': 'lx'}}
+        out = metadata.retire(meta, ['upstream-8391', 'gone'], 'abc123')
+        self.assertEqual(list(out), ['upstream-8391'])
+        self.assertEqual(out['upstream-8391']['Upstream'], 'landed')
+        self.assertEqual(out['upstream-8391']['Retired'], 'abc123')
+        self.assertEqual(meta['upstream-8391']['Upstream'], 'upstream')
+
 class WatchTest(FtTest):
 
     def test_ticket_landing_in_gate_is_flagged(self):

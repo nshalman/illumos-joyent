@@ -204,7 +204,8 @@ def common_gate(g, features):
     return base
 
 
-def describe(g, res):
+def describe(g, res, landed=()):
+    """RES as text; LANDED is metadata.watch's watched tickets taken in."""
     out = []
     taken = res.taken
     if taken:
@@ -221,6 +222,11 @@ def describe(g, res):
         if taken.retired:
             out.append('    retired   %s (gate has all of it)' %
                        ' '.join(taken.retired))
+        for n, ticket, commit in landed:
+            out.append('    upstream  %s landed in %s (%s)' % (
+                ticket, g.out('log', '-1', '--format=%h', commit),
+                '%s retired' % n if n in taken.retired else
+                '%s still differs from gate: review' % n))
     else:
         out.append('took nothing in')
     if res.bad:
@@ -263,7 +269,7 @@ def main():
                     metavar='FEATURE')
     a = ap.parse_args()
     g = ft.Git(a.repo)
-    metadata.use_order(g, a.state)
+    has_state = metadata.use_order(g, a.state)
     feats = features_at(g, a.prefix, a.exclude)
     old = common_gate(g, feats)
     new = g.rev(a.to)
@@ -282,11 +288,13 @@ def main():
     tools = {} if a.no_resolvers else dict(resolve=resolvers.resolve_file,
                                            sync=manifest.sync_feature)
     res = take_in(g, feats, old, new, check=check, **tools)
-    print(describe(g, res))
+    meta = metadata.load(g, a.state) if has_state else {}
+    landed = metadata.watch(g, meta, old, res.reached) if res.taken else []
+    print(describe(g, res, landed))
     if a.report:
         os.makedirs(os.path.join(a.report, 'issues'), exist_ok=True)
         with open(os.path.join(a.report, 'intake.txt'), 'w') as f:
-            f.write(describe(g, res) + '\n')
+            f.write(describe(g, res, landed) + '\n')
         if res.taken:
             with open(os.path.join(a.report, 'tips.tsv'), 'w') as f:
                 for n, c in sorted(res.taken.features.items()):
@@ -313,6 +321,13 @@ def main():
         for n in res.taken.retired:
             g.run('update-ref', '-d', a.prefix + n, feats[n])
             pushes.append((':%s%s' % (a.prefix, n), feats[n]))
+        retired = metadata.retire(meta, res.taken.retired, res.reached)
+        if retired:
+            state = g.rev(a.state)
+            metadata.save(g, a.state, retired, 'Retire %s: gate has all of '
+                          'it as of %s\n' % (', '.join(sorted(retired)),
+                                             res.reached))
+            pushes.append(('%s:%s' % (g.rev(a.state), a.state), state))
     for n, c in res.candidates.items():
         ref = '%s%s/features/%s' % (a.candidates, res.bad, n)
         g.run('update-ref', ref, c)

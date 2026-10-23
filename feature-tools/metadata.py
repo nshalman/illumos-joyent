@@ -16,6 +16,7 @@ Upstream is the intent: keep (ours for good), upstream (to be offered to
 illumos, or carried until gate lands it) or landed (gate has it; the
 feature is retired).  Upstream-Tickets are the illumos tickets gate
 intake watches for.  Depends orders the merge chain and the builds.
+Retired, written by gate intake, is the gate commit that retired it.
 
   metadata.py check --repo DIR [--state refs/heads/meta/state]
               [--prefix refs/heads/features/] [--exclude FEATURE]...
@@ -29,7 +30,7 @@ import sys
 import ft
 
 FIELDS = ['Feature', 'Description', 'Owner', 'Depends', 'Upstream',
-          'Upstream-Tickets', 'Tests']
+          'Upstream-Tickets', 'Tests', 'Retired']
 DIR = 'features/'
 STATE = 'refs/heads/meta/state'
 TICKET = re.compile(r'^(\d+)\s', re.M)
@@ -153,6 +154,12 @@ def check(meta, branches):
     for c in cycles({n: m for n, m in meta.items() if n in branches}):
         out.append('features %s depend on each other' % ', '.join(c))
     return out
+
+
+def retire(meta, names, gate_commit):
+    """Metadata for the retired NAMES, marked landed at GATE_COMMIT."""
+    return {n: dict(meta[n], Upstream='landed', Retired=gate_commit)
+            for n in names if n in meta}
 
 
 def watch(g, meta, old_gate, new_gate):

@@ -185,6 +185,49 @@ class CommandTest(FtTest):
             intake.features_at(self.g, 'refs/heads/features/').items()))
         self.assertEqual(self.r.tree(out.commit), self.r.tree(master))
 
+    def test_watched_ticket_landing_retires_and_marks_the_feature(self):
+        import metadata
+        fix = {'gate.c': lines('g1', 'FIX', 'g3')}
+        f3 = self.feature(fix)
+        self.r.git('update-ref', 'refs/heads/features/upstream-8391', f3)
+        master = ft.integrate(self.g, self.r.git('rev-parse', 'master'),
+                              [('upstream-8391', f3)]).commit
+        self.r.git('update-ref', 'refs/heads/master', master)
+        state = self.r.commit({'README.md': 'state\n'}, msg='state')
+        self.r.git('update-ref', 'refs/heads/meta/state', state)
+        metadata.save(self.g, 'refs/heads/meta/state', {
+            'f1': {'Feature': 'f1'}, 'f2': {'Feature': 'f2'},
+            'upstream-8391': metadata.stub('upstream-8391', 'x',
+                                           tickets=['8391'])}, 'meta\n')
+        files = self.r.files(self.gate)
+        files.update(fix)
+        g = self.r.commit(files, parent=self.gate, msg='8391 mr_sas lockup')
+        p = self.run_intake('--to', g, '--write')
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertIn('upstream  8391 landed in', p.stdout)
+        self.assertIn('upstream-8391 retired', p.stdout)
+        meta = metadata.load(self.g, 'refs/heads/meta/state')
+        self.assertEqual(meta['upstream-8391']['Upstream'], 'landed')
+        self.assertEqual(meta['upstream-8391']['Retired'], g)
+        self.assertEqual(meta['f1'], {'Feature': 'f1'})
+        self.assertEqual(self.r.git('for-each-ref',
+                                    'refs/heads/features/upstream-8391'), '')
+
+    def test_watched_ticket_landing_without_retiring_asks_for_review(self):
+        import metadata
+        state = self.r.commit({'README.md': 'state\n'}, msg='state')
+        self.r.git('update-ref', 'refs/heads/meta/state', state)
+        metadata.save(self.g, 'refs/heads/meta/state', {
+            'f1': {'Feature': 'f1', 'Upstream-Tickets': '9001'},
+            'f2': {'Feature': 'f2'}}, 'meta\n')
+        files = self.r.files(self.gate)
+        files['gate.c'] = lines('g1', 'G1', 'g3')
+        g = self.r.commit(files, parent=self.gate, msg='9001 part of f1')
+        p = self.run_intake('--to', g)
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertIn('upstream  9001 landed in', p.stdout)
+        self.assertIn('f1 still differs from gate: review', p.stdout)
+
     def test_features_at_can_leave_some_out(self):
         self.r.git('update-ref', 'refs/heads/features/tooling', self.gate)
         self.assertEqual(sorted(intake.features_at(
