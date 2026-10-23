@@ -102,8 +102,8 @@ def replay(g, features, gate, start, end, decide=None, gate_ref=None,
             diverged = sorted(p for p in g.out(
                 'diff-tree', '-r', '--name-only', '--no-renames', before,
                 m).split('\n') if p)
-            r = ft.route(g, gate, feats, g.tree(m), msg, author, decide,
-                         integ=first)
+            r = ft.route(g, gate, feats, g.tree(m), msg, author,
+                         dispatch.decisions_for(decide, m), integ=first)
             feats.update(r.commits)
             routed, unrouted = sorted(r.commits), r.unrouted
             integ = ft.integrate(g, gate, sorted(feats.items()))

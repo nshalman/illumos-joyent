@@ -65,6 +65,20 @@ class DispatchTest(Base):
         self.assertTrue(res.equal)
         self.assertEqual(res.routed, ['f1'])
 
+    def test_commit_scoped_decision(self):
+        # A decision about one landed commit, like a trailer it lacked
+        # (OS-8770): only that commit's unplaced parts are affected.
+        c1 = self.land({'new.c': lines('n')})
+        c2 = self.land({'other.c': lines('o')}, parent=c1)
+        decide = dispatch.read_decisions_text(
+            'commit:%s f2   # OS-8770-style\n' % c1[:11])
+        res = dispatch.dispatch(self.g, self.feats, self.gate, c1, decide)
+        self.assertTrue(res.equal)
+        self.assertEqual(res.routed, ['f2'])
+        res2 = dispatch.dispatch(self.g, res.features, self.gate, c2, decide)
+        self.assertFalse(res2.equal)
+        self.assertEqual([u.path for u in res2.unrouted], ['other.c'])
+
     def test_placement_lists_paths_per_feature(self):
         c = self.land({'b.c': lines('b1', 'F1 fixed', 'b3'),
                        'a.c': lines(*A[:7], 'F2 fixed', *A[7:])})

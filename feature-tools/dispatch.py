@@ -64,7 +64,7 @@ def dispatch(g, features, gate, commit, decide=None, message=None,
     is FEATURES' integration on GATE, already computed.
     """
     msg = g.message(commit) if message is None else message
-    decisions = dict(decide or {})
+    decisions = decisions_for(decide, commit)
     decisions.update(ft.decisions_from_message(msg))
     target = g.tree(commit)
     r = ft.route(g, gate, features, target, msg, g.author(commit),
@@ -135,15 +135,43 @@ def pending(g, tip, stop_tree=None, limit=5000):
                         'commits of %s' % (limit, tip))
 
 
-def read_decisions(path):
-    """{path: feature} from a decisions file of "path feature" lines."""
+COMMIT = 'commit:'
+
+
+def read_decisions_text(text):
+    """Decisions from a decisions file's TEXT.
+
+    Each line is "PATH FEATURE", for that path whenever the routing rules
+    cannot place it, or "commit:SHA FEATURE", for whatever they cannot
+    place in that one commit, as a Feature: trailer it lacked would have
+    said.  "#" starts a comment.
+    """
     decide = {}
-    if path:
-        for line in open(path):
-            words = line.split('#')[0].split()
-            if words:
-                decide[words[0]] = words[1]
+    for line in text.splitlines():
+        words = line.split('#')[0].split()
+        if words:
+            decide[words[0]] = words[1]
     return decide
+
+
+def read_decisions(path):
+    """Decisions from the file at PATH, or none if PATH is None."""
+    return read_decisions_text(open(path).read()) if path else {}
+
+
+def decisions_for(decide, commit):
+    """DECIDE as it applies to COMMIT, for ft.route().
+
+    Path decisions stand; a commit-scoped one for COMMIT becomes the
+    catch-all, and those for other commits are dropped.
+    """
+    out = {}
+    for key, feature in (decide or {}).items():
+        if not key.startswith(COMMIT):
+            out[key] = feature
+        elif commit.startswith(key[len(COMMIT):]):
+            out[ft.ANY] = feature
+    return out
 
 
 def describe_unrouted(unrouted):

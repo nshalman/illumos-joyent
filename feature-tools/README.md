@@ -45,8 +45,11 @@ feature touches, a new file), a person decides:
 - in a pull request, with a trailer in the squash message:
   `Feature: NAME` for everything unplaced, or `Feature: NAME PATH` for one
   path. A name that is not a feature yet starts a new one on gate.
-- for a commit already on master, in a decisions file of `PATH FEATURE`
-  lines, passed with `--decisions` (or `--decide` to `replay.py`).
+- for a commit already on master, in a decisions file passed with
+  `--decisions` (or `--decide` to `replay.py`): `commit:SHA FEATURE` for
+  whatever the rules cannot place in that one commit, as a trailer it
+  lacked would have said, or `PATH FEATURE` for a path whenever the rules
+  cannot place it.
 
 ## Modules
 
