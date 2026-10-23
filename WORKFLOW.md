@@ -72,7 +72,7 @@ the features, merged on master's gate commit, give exactly master's tree.
 | dispatch | after a commit lands on master, routing its pieces into the features and checking the integration equals master |
 | dry-run dispatch | the same, run in CI on a pull request before it merges, writing nothing |
 | routing | deciding which features own each piece of a change |
-| decision | a person's placement choice where routing cannot decide: a `Feature:` trailer in the commit message, or an entry in the decisions file |
+| decision | a person's placement choice where routing cannot decide: a `Feature:` trailer in the commit message, or an entry in the decisions file on `meta/state` (`PATH FEATURE`, or `commit:SHA FEATURE` for one landed commit) |
 | resolver | a mechanical conflict fixer, such as for copyright lines or Makefile lists |
 | manifest sync | bringing the top-level `manifest` in line with gate's package manifests at each gate intake |
 | escalation | handing a stuck gate intake or dispatch to a person, as an issue on the fork |
@@ -498,16 +498,23 @@ to clone each time (not measured). So the dry run belongs on a runner with a
 persistent clone, for now the build host, the same place gate intake and
 dispatch run.
 
-### Tools still to build
+### Tools
+
+Built 2026-10-23 on `features/tooling` (see `feature-tools/README.md`), each
+with tests:
 
 | Tool | Does |
 | --- | --- |
-| Dry-run dispatch | Routes a pull request's merge result, integrates, compares, posts the placement |
-| Trailer decisions | `ft.route` reads `Feature:` trailers as decisions |
-| Dispatch | Routes a landed commit, checks the tree, pushes the features, records the dispatch on master |
-| Gate intake driver | Rebases, integrates, builds, writes master's gate-merge commit, escalates per feature |
-| Release cut | Branches a release from an intake's integration commit |
-| Divergence report | For replay and shadow mode: what the tools produced, what master had, the diff |
+| `dispatch.py dry-run` | Routes a pull request's merge result, integrates, compares, prints the placement and any trailers needed |
+| `Feature:` trailers | `ft.route` reads them as decisions; the decisions file also takes `commit:SHA FEATURE` for a landed commit |
+| `dispatch.py land` | Dispatches pending master commits, checks each tree, fast-forwards the features, writes verified dispatch records |
+| `intake.py` | Gate intake: rebase, integrate, optional build/test check, master's gate-merge commit; bisects and takes gate in up to the last good commit, with candidate branches for stuck features |
+| `release.py cut`, `check` | Release cut checked against master; release-into-master check naming what master lacks |
+| `escalate.py` | Escalations as issue files, opened with `gh` only when asked |
+| `replay.py --divergence` | What the tools produced against what master had, per step |
+
+Not built yet: the feature metadata format, rerere (tier 2), and the CI
+wiring (the merge queue lock, running dry runs on pull requests).
 
 ### Working on one feature on purpose
 
@@ -581,6 +588,14 @@ only as a "Resolve as master did" commit; two real master bugs in the wide
 replay were found by reading those by hand. The divergence report (Tools still
 to build) lists each one directly: what the tools produced, what master had,
 and the diff, for a person to review after each run.
+
+The first shadow run, 2026-10-23, reproduced all 8 of master's commits since
+da512a7e2e6 (4 gate merges, 4 joyent commits) and needed two placement
+decisions: 8391, a fix carried ahead of gate (new feature `upstream-8391`), and
+OS-8770, an lx fix in generic socket code (`commit:516afaab248 lx`). Its one
+divergence was master choosing to ship gate's new efi driver package. The
+record is `shadow/2026-10-23/` on `meta/state`; the updated features have not
+been pushed.
 
 Replay is shadow mode run over the past, and both can start from any master
 commit: phase 1 bootstraps the features there (tested six weeks and six
