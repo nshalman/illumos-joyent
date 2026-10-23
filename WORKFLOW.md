@@ -96,7 +96,7 @@ and writes it.
 | --- | --- |
 | Feature | Branch name and identity |
 | Description | What it does and why SmartOS needs it; feeds the README list of differences |
-| Owner | Who gets escalations |
+| Owner | Who gets escalations; for now `@TritonDataCenter/triton-engineering` for every feature |
 | Depends | Features it needs in order to build or work; sets the merge order |
 | Upstream | Intent: `keep`, `upstream` (offered, or carried until gate has it), or `landed` (retired) |
 | Upstream-Tickets | illumos tickets gate intake watches for |
@@ -165,7 +165,6 @@ because rebasing that history is pointless churn.
 | Tool code | `features/tooling` | Versioned with the tree; appears in every integrated build |
 | Docs: README-SmartOS.md and workflow docs | `features/tooling` | Belongs in the tree readers clone |
 | Feature metadata and dependency graph | `meta/state` (`features/<name>`) | Written by the tools too (stubs, retirements), so kept beside the other state (decided 2026-10-23) |
-| Shared rerere cache | `meta/state` | Grows every gate intake |
 | Last gate commit taken in, each feature's tip per intake | `meta/state` | Changes every gate intake |
 | Intake and dispatch reports, conflict log, decisions file | `meta/state` | History of what happened |
 | This design document and the phase 1 analysis | `meta/restructure` | Working material; may be abandoned once phase 2 settles |
@@ -255,7 +254,13 @@ Each feature records which tier resolved it, so we learn where the effort
 goes.
 
 1. Plain `git rebase`.
-2. rerere, using the shared cache from the state branch.
+2. rerere, using the shared cache from the state branch.  Skipped for now
+   (decided 2026-10-23): in the wide replay's 60 gate merges there were 15
+   conflicts, and the one file that conflicted twice (ps.1) did so at
+   different gate commits (18085/17868, then 18096), so a cache keyed by the
+   conflicting sides would never have hit.  A person's fix is committed into
+   the feature, so the same conflict does not come back.  Picking up fixed
+   candidate branches covers the case that matters.
 3. Mechanical resolvers for conflicts we already know are mechanical:
     - copyright blocks, which phase 1 copied into every feature that touches a
       file;
@@ -527,7 +532,7 @@ with tests:
 | `replay.py --divergence` | What the tools produced against what master had, per step |
 | `metadata.py check`, `order` | Feature metadata on `meta/state` checked against the branches; merge order by `Depends` (every command takes `--state`); intake marks retirements `landed`, dispatch writes stubs for new features |
 
-Not built yet: rerere (tier 2), and the CI wiring (the merge queue lock,
+Not built yet: the CI wiring (the merge queue lock,
 running dry runs on pull requests).
 
 ### Working on one feature on purpose
@@ -699,7 +704,7 @@ These land on `features/tooling`, and replay is their first test:
    Built (`ft.integrate`).
 3. gate intake: rebase every feature onto a gate commit through tiers 1 to 3,
    recording the tier for each feature.  Built as `ft.rebase` with
-   `resolve.py` and `manifest.py`; tier 2 (rerere) is not.
+   `resolve.py` and `manifest.py`; tier 2 (rerere) is skipped for now.
 4. `route`: assign a commit's hunks to features by line ownership, splitting
    where needed and reporting what it cannot place.  Built (`ft.route`).
 5. `replay`: the driver for this section, which then stays as a regression
@@ -802,7 +807,9 @@ Known gaps:
 - The manifest sync judges a package shipped by any listed file or link;
   libc-tests ships a few test locale files, so one /opt/libc-tests directory
   was added that master leaves out.
-- Rerere (tier 2) is not built; ps.1 conflicted at two merges in a row.
+- Rerere (tier 2) is not built; ps.1 conflicted at two merges in a row, but
+  from different gate commits, so it would not have helped (see the
+  escalation ladder).
 
 Next: live shadow mode, from da512a7e2e6 onward.  The feature metadata
 is built (2026-10-23): ordering the 79 features by `Depends` gives the same
