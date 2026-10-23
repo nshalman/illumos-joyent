@@ -15,10 +15,12 @@ stops at the first step where it does not.
   replay.py --repo DIR --gate GATE --from FROM --to TO
             [--prefix refs/heads/features/] [--gate-ref illumos/master]
             [--decide FILE] [--log FILE] [--out-prefix refs/replay/]
-            [--no-resolvers]
+            [--no-resolvers] [--divergence DIR]
 
 --decide names a file of "path feature" lines for changes the routing
-rules cannot place.  --log writes each step as JSON.  The replayed
+rules cannot place.  --log writes each step as JSON.  --divergence DIR
+writes, for each gate merge where the tools' own result differed from
+master, the diff between the two, for a person to review.  The replayed
 features are written under --out-prefix.  At gate merges the
 conflict resolvers (resolve.py) and the manifest sync (manifest.py)
 run unless --no-resolvers is given.
@@ -26,6 +28,7 @@ run unless --no-resolvers is given.
 import argparse
 import collections
 import json
+import os
 import sys
 
 import dispatch
@@ -41,7 +44,7 @@ class ReplayError(Exception):
 
 Step = collections.namedtuple(
     'Step', 'commit kind conflicts resolved synced emptied retired held '
-    'routed unrouted equal integration')
+    'routed unrouted equal integration diverged before')
 Result = collections.namedtuple('Result', 'steps features gate')
 
 
@@ -87,27 +90,53 @@ def replay(g, features, gate, start, end, decide=None, gate_ref=None,
             kind = 'joyent'
         else:
             raise ReplayError('%s: %d parents' % (m, len(parents)))
+        diverged, before = [], None
         if kind == 'joyent':
             d = dispatch.dispatch(g, feats, gate, m, decide)
             feats = d.features
             held, routed, unrouted = [], d.routed, d.unrouted
             integ = ft.Integration(d.integration, [])
         else:
-            held = ft.integrate(g, gate, sorted(feats.items())).conflicts
-            r = ft.route(g, gate, feats, g.tree(m), msg, author, decide)
+            first = ft.integrate(g, gate, sorted(feats.items()))
+            held, before = first.conflicts, first.commit
+            diverged = sorted(p for p in g.out(
+                'diff-tree', '-r', '--name-only', '--no-renames', before,
+                m).split('\n') if p)
+            r = ft.route(g, gate, feats, g.tree(m), msg, author, decide,
+                         integ=first)
             feats.update(r.commits)
             routed, unrouted = sorted(r.commits), r.unrouted
             integ = ft.integrate(g, gate, sorted(feats.items()))
         equal = (not integ.conflicts and not unrouted and
                  g.tree(integ.commit) == g.tree(m))
         step = Step(m, kind, conflicts, resolved, synced, emptied, retired,
-                    held, routed, unrouted, equal, integ.commit)
+                    held, routed, unrouted, equal, integ.commit, diverged,
+                    before)
         steps.append(step)
         if log:
             log(step)
         if not equal:
             break
     return Result(steps, feats, gate)
+
+
+def write_divergence(g, step, n, directory):
+    """Write where the tools' result differed from master at STEP.
+
+    The file, DIRECTORY/NNN-COMMIT.diff, holds the diff from the
+    integration the tools produced to master's commit, for a person to
+    review: each one is either work a person did or a mistake in master.
+    """
+    path = os.path.join(directory, '%03d-%s.diff' % (n, step.commit[:11]))
+    subject = g.out('log', '-1', '--format=%h %s', step.commit)
+    stat = g.out('diff', '--no-ext-diff', '--stat=100', step.before,
+                 step.commit)
+    diff = g.run('diff', '--no-ext-diff', '--no-color', step.before,
+                 step.commit).stdout.decode(errors='replace')
+    with open(path, 'w') as f:
+        f.write('# %s\n# tools %s -> master %s\n\n%s\n\n%s' % (
+            subject, step.before, step.commit, stat, diff))
+    return path
 
 
 def describe(g, step):
@@ -133,6 +162,8 @@ def describe(g, step):
         out.append('    routed    %s' % ' '.join(step.routed))
     for u in step.unrouted:
         out.append('    unrouted  %s (%s)' % (u.path, u.reason))
+    if step.diverged:
+        out.append('    diverged  %d path(s) from master' % len(step.diverged))
     return '\n'.join(out)
 
 
@@ -147,6 +178,8 @@ def main():
     ap.add_argument('--decide')
     ap.add_argument('--log')
     ap.add_argument('--out-prefix', default='refs/replay/')
+    ap.add_argument('--divergence',
+                    help='write each step\'s divergence from master here')
     ap.add_argument('--no-resolvers', action='store_true',
                     help='plain rebase only: no conflict resolvers or '
                     'manifest sync')
@@ -160,8 +193,14 @@ def main():
     decide = dispatch.read_decisions(a.decide)
     logf = open(a.log, 'w') if a.log else None
 
+    count = [0]
+
     def log(step):
+        count[0] += 1
         print(describe(g, step), flush=True)
+        if a.divergence and step.diverged:
+            os.makedirs(a.divergence, exist_ok=True)
+            write_divergence(g, step, count[0], a.divergence)
         if logf:
             d = step._asdict()
             d['unrouted'] = [list(u) for u in step.unrouted]

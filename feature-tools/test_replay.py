@@ -59,6 +59,7 @@ class ReplayTest(FtTest):
         self.assertTrue(all(s.equal for s in res.steps))
         self.assertEqual(res.steps[0].conflicts, {})
         self.assertEqual(res.steps[0].routed, [])
+        self.assertEqual(res.steps[0].diverged, [])
         self.assertEqual(res.steps[1].routed, ['f1'])
         self.assertEqual(res.gate, g1)
         self.assertEqual(self.r.git('log', '-1', '--format=%an|%s',
@@ -94,6 +95,11 @@ class ReplayTest(FtTest):
         self.assertEqual(res.steps[0].conflicts, {})
         self.assertEqual(res.steps[0].routed, ['f2'])
         self.assertTrue(res.steps[0].equal)
+        # Where the tools' own result differed from master, for review.
+        step = res.steps[0]
+        self.assertEqual(step.diverged, ['a.c'])
+        self.assertIn('F2a', self.r.files(step.before)['a.c'])
+        self.assertNotIn('F2a fixed', self.r.files(step.before)['a.c'])
 
     def test_stops_at_a_change_it_cannot_route(self):
         m1 = self.joyent(self.m0, {'new.c': lines('n')})
@@ -186,6 +192,23 @@ class ReplayTest(FtTest):
                             resolve=resolve.resolve_file)
         self.assertTrue(res.steps[0].held)
         self.assertTrue(res.steps[0].equal)
+
+    def test_divergence_files(self):
+        import tempfile
+        resolved = {'gate.c': lines('g1', 'G2', 'g3'),
+                    'a.c': lines(*A[:2], 'F1a', 'F1b', *A[2:7], 'F2a fixed',
+                                 *A[7:])}
+        m1, _ = self.gate_merge(self.m0, self.gate,
+                                {'gate.c': lines('g1', 'G2', 'g3')},
+                                resolved=resolved)
+        res = replay.replay(self.g, self.feats, self.gate, self.m0, m1)
+        with tempfile.TemporaryDirectory() as d:
+            replay.write_divergence(self.g, res.steps[0], 1, d)
+            names = os.listdir(d)
+            self.assertEqual(names, ['001-%s.diff' % m1[:11]])
+            text = open(os.path.join(d, names[0])).read()
+            self.assertIn('-F2a', text)
+            self.assertIn('+F2a fixed', text)
 
     def test_start_must_match(self):
         other = self.joyent(self.m0, {'b.c': lines('x')})
