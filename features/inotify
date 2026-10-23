@@ -1,0 +1,9 @@
+Feature: inotify
+Description: Inotify(7) and file event monitoring.
+ inotify, the fem changes it depends on, and vnode event emission across
+ filesystems.
+Owner:
+Depends:
+Upstream: keep
+Upstream-Tickets:
+Tests:

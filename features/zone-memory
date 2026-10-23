@@ -1,0 +1,10 @@
+Feature: zone-memory
+Description: Zones: memory caps, RSS tracking and page invalidation.
+ Physical memory caps as an rctl with kstats, accurate in-kernel zone
+ RSS, in-kernel page invalidation for capped zones, vm_getusage
+ performance, per-process segment limits, and rcapd/rcapstat.
+Owner:
+Depends: zone-kernel
+Upstream: keep
+Upstream-Tickets:
+Tests:

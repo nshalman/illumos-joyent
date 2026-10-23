@@ -1,0 +1,8 @@
+Feature: dump-encryption
+Description: Encrypted kernel crash dumps and arc4random.
+ Kernel crash dump encryption (OS-7828) and the chacha changes it uses.
+Owner:
+Depends:
+Upstream: keep
+Upstream-Tickets:
+Tests:

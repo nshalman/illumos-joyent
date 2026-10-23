@@ -1,0 +1,10 @@
+Feature: datalink
+Description: Per-zone datalinks.
+ Per-zone datalink names (every zone has its own net0) through dlmgmtd,
+ libdladm, dls and dld; link kstats by zone; ipmgmtd and libipadm in
+ branded zones; flowadm, flowstat and dlstat zone support.
+Owner:
+Depends: brand-native, vnd
+Upstream: keep
+Upstream-Tickets:
+Tests:

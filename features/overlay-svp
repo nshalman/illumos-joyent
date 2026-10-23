@@ -1,0 +1,9 @@
+Feature: overlay-svp
+Description: Overlay: SVP varpd plugin and supporting pieces.
+ Triton fabric networking: the SVP varpd plugin, refhash, snoop SVP
+ decoding, and overlay changes not yet upstream.
+Owner:
+Depends: bunyan
+Upstream: keep
+Upstream-Tickets:
+Tests:

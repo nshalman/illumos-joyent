@@ -1,0 +1,10 @@
+Feature: zfs
+Description: ZFS: other fixes.
+ dbuf read behavior (OS-1792), abd chunk size guidance (OS-6387), a zone
+ reference leak on forced unmount (OS-1439), and a zfs_write/zfs_putpage
+ deadlock (OS-1811).
+Owner:
+Depends:
+Upstream: keep
+Upstream-Tickets:
+Tests:

@@ -1,0 +1,9 @@
+Feature: ctf
+Description: CTF tooling differences.
+ ctf conversion uses the native root; libproc can convert CTF on the fly
+ (OS-4573).
+Owner:
+Depends: brand-native
+Upstream: keep
+Upstream-Tickets:
+Tests:

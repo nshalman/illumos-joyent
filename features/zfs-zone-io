@@ -1,0 +1,10 @@
+Feature: zfs-zone-io
+Description: ZFS: zone I/O throttling and observability.
+ Per-zone ZFS I/O throttling and prioritization (zfs_zone.c and its hooks
+ in dmu_tx, dsl_dir, dsl_pool, txg and vdev_queue), plus vfsstat,
+ ziostat, arcstat and zfscache.
+Owner:
+Depends: zone-kernel
+Upstream: keep
+Upstream-Tickets:
+Tests:

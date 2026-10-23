@@ -1,0 +1,8 @@
+Feature: dboot
+Description: Dboot memory mapping changes.
+ Early boot changes for difficult hardware and iPXE.
+Owner:
+Depends: boot
+Upstream: keep
+Upstream-Tickets:
+Tests:

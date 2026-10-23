@@ -1,0 +1,8 @@
+Feature: smf
+Description: SMF changes.
+ svc.startd, svc.configd and svcs changes.
+Owner:
+Depends:
+Upstream: keep
+Upstream-Tickets:
+Tests:

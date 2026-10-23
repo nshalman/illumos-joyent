@@ -1,0 +1,8 @@
+Feature: nvpair-json
+Description: Nvlist JSON output.
+ nvlist_dump_json() and friends.
+Owner:
+Depends:
+Upstream: keep
+Upstream-Tickets:
+Tests:

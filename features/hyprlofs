@@ -1,0 +1,8 @@
+Feature: hyprlofs
+Description: Hyprlofs file system.
+ Fast namespace virtual file system.
+Owner:
+Depends:
+Upstream: keep
+Upstream-Tickets:
+Tests:

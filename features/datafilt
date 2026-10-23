@@ -1,0 +1,8 @@
+Feature: datafilt
+Description: Datafilt socket filter.
+ Server-side TCP accept filter (illumos#1403), from OmniOS.
+Owner:
+Depends:
+Upstream: keep
+Upstream-Tickets:
+Tests:

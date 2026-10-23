@@ -1,0 +1,11 @@
+Feature: lx
+Description: Lx brand: illumos-joyent changes on top of OmniOS.
+ Brings the lx files from OmniOS's versions to illumos-joyent's, and adds
+ what OmniOS does not carry: the lx zone brand scripts and configuration,
+ the legacy lxproc file system, and the lx(7) and lxproc(4FS) manual
+ pages.
+Owner:
+Depends: brand-events, brand-native, brand-net, brand-nfs, brand-ops, brand-process, bunyan, hyprlofs, inotify, ptools, zone-kernel, zones-tools
+Upstream: keep
+Upstream-Tickets:
+Tests:

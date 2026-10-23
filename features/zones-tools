@@ -1,0 +1,10 @@
+Feature: zones-tools
+Description: Zones: zonecfg, libzonecfg and zoneadm extensions.
+ Additional zonecfg resources and properties (net, device, and more),
+ native-root awareness in libzonecfg, zoneadm changes, and the zones SMF
+ services.
+Owner:
+Depends: brand-native
+Upstream: keep
+Upstream-Tickets:
+Tests:

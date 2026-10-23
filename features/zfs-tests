@@ -1,0 +1,8 @@
+Feature: zfs-tests
+Description: ZFS test suite adjustments for SmartOS.
+ zfstest scaffolding and test changes for running on SmartOS.
+Owner:
+Depends:
+Upstream: keep
+Upstream-Tickets:
+Tests:

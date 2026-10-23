@@ -1,0 +1,9 @@
+Feature: brand-fs
+Description: File and terminal syscalls for lx.
+ open/close/fcntl moved into the kernel for lx, O_PATH emulation, chdir
+ with CLONE_FS, umount and uadmin locking fixes, pty changes.
+Owner:
+Depends: lx
+Upstream: keep
+Upstream-Tickets:
+Tests:

@@ -1,0 +1,9 @@
+Feature: zfs-cli
+Description: ZFS: zfs and zpool command changes.
+ `zfs destroy -F` and clone creation retry on EBUSY (OS-604, OS-993), and
+ `zpool import -m` printing the last txg time (OS-6417).
+Owner:
+Depends: zfs-props
+Upstream: keep
+Upstream-Tickets:
+Tests:

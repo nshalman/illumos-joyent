@@ -1,0 +1,8 @@
+Feature: column
+Description: Column(1).
+ From BSD.
+Owner:
+Depends:
+Upstream: keep
+Upstream-Tickets:
+Tests:

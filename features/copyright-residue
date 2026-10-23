@@ -1,0 +1,10 @@
+Feature: copyright-residue
+Description: Copyright and whitespace residue.
+ Files whose only differences from illumos-gate are copyright lines,
+ blank comment lines or whitespace: leftovers of changes that were
+ reverted or upstreamed.  Candidates for restoring to upstream.
+Owner:
+Depends:
+Upstream: keep
+Upstream-Tickets:
+Tests:

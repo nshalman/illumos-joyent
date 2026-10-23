@@ -1,0 +1,10 @@
+Feature: zfs-props
+Description: ZFS: cached-only property listing and pool history.
+ `zfs list/get -c` returning only cached properties (OS-1048, OS-1104)
+ through libzfs and zfs_ioctl, plus logging zpool modify ioctls to the
+ pool history (OS-7443).
+Owner:
+Depends: zfs-zone-io
+Upstream: keep
+Upstream-Tickets:
+Tests:

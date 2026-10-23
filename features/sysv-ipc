@@ -1,0 +1,9 @@
+Feature: sysv-ipc
+Description: System V IPC: deferred shared memory removal.
+ SHM_RMID marks a shared memory segment for removal at its last detach
+ instead of removing it immediately (OS-5223).
+Owner:
+Depends:
+Upstream: keep
+Upstream-Tickets:
+Tests:

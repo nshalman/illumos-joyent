@@ -1,0 +1,8 @@
+Feature: smartos-test
+Description: Smartos-test and test suite adjustments.
+ The smartos-test runner and SmartOS-specific test changes.
+Owner:
+Depends:
+Upstream: keep
+Upstream-Tickets:
+Tests:

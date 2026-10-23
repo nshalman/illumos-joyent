@@ -1,0 +1,11 @@
+Feature: zone-kernel
+Description: Zones: kernel zone core.
+ zone.c/zone.h extensions: persistent zone IDs, init exit status and
+ restart control, zone datalink restrictions, VFS and ZFS I/O kstats,
+ sysevents, contract handling, zone_did for DTrace, and the resource
+ control documentation.
+Owner:
+Depends:
+Upstream: keep
+Upstream-Tickets:
+Tests:

@@ -1,0 +1,9 @@
+Feature: integration-manifest
+Description: Integration: platform image manifests.
+ The SmartOS platform image `manifest` and boot image `boot.manifest`:
+ every file, directory and link delivered into the ramdisk root.
+Owner:
+Depends:
+Upstream: keep
+Upstream-Tickets:
+Tests:

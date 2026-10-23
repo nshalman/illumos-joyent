@@ -1,0 +1,9 @@
+Feature: zfd
+Description: Zfd(4D) zone file descriptor devices.
+ Zone fd devices used to connect zone stdio (e.g. docker-style
+ containers) to zoneadmd.
+Owner:
+Depends: zone-kernel, zones-admin
+Upstream: keep
+Upstream-Tickets:
+Tests:

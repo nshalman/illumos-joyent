@@ -1,0 +1,9 @@
+Feature: link-protection
+Description: VNIC link protection.
+ Link protection properties allowed-ips (with dynamic methods) and
+ allowed-dhcp-cids, enforced in mac_protect and ip, with tests.
+Owner:
+Depends:
+Upstream: keep
+Upstream-Tickets:
+Tests:

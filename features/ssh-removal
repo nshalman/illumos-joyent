@@ -1,0 +1,8 @@
+Feature: ssh-removal
+Description: Remove SunSSH.
+ SSH is delivered from illumos-extra.
+Owner:
+Depends:
+Upstream: keep
+Upstream-Tickets:
+Tests:

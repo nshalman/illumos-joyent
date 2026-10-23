@@ -1,0 +1,8 @@
+Feature: smartlogin
+Description: Libzdoor and libsmartsshd.
+ Support for Triton smartlogin.
+Owner:
+Depends:
+Upstream: keep
+Upstream-Tickets:
+Tests:

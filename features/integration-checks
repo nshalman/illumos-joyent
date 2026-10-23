@@ -1,0 +1,9 @@
+Feature: integration-checks
+Description: Integration: checker and repository configuration.
+ Exception lists for the build checks, mancheck.conf, .gitignore files
+ and the Jenkinsfile.
+Owner:
+Depends:
+Upstream: keep
+Upstream-Tickets:
+Tests:

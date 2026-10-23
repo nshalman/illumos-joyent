@@ -1,0 +1,9 @@
+Feature: brand-native
+Description: Native userland inside branded zones.
+ Native-root aware libc, libcurses and system(3C); truss decoding of lx-
+ related calls; prstat changes.
+Owner:
+Depends: zone-kernel
+Upstream: keep
+Upstream-Tickets:
+Tests:

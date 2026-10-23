@@ -1,0 +1,9 @@
+Feature: icmp-bpf
+Description: SO_ATTACH_FILTER for ICMP sockets.
+ Move the BPF filter functions into ip and allow attaching BPF filters to
+ ICMP sockets.
+Owner:
+Depends:
+Upstream: keep
+Upstream-Tickets:
+Tests:

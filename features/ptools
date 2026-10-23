@@ -1,0 +1,8 @@
+Feature: ptools
+Description: Ptools and procfs enhancements.
+ Service FMRIs, process arguments via procfs, ps/pgrep/ptools additions.
+Owner:
+Depends: brand-native, brand-ops
+Upstream: keep
+Upstream-Tickets:
+Tests:

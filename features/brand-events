@@ -1,0 +1,10 @@
+Feature: brand-events
+Description: Poll, epoll, eventfd, signalfd, timers and pipes.
+ Kernel support for Linux-flavored event semantics: nested epoll, eventfd
+ overflow, SIGEV_THREAD_ID timers, larger pipe buffers and splice
+ support, ppoll overflow fixes.
+Owner:
+Depends: brand-ops
+Upstream: keep
+Upstream-Tickets:
+Tests:

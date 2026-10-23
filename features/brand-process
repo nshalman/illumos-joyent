@@ -1,0 +1,10 @@
+Feature: brand-process
+Description: Process, LWP and signal hooks for branded processes.
+ Brand hooks in fork, exit, lwp creation and signal delivery; more real-
+ time signals; ptrace support (OS-3820); Linux accounting; per-process
+ RLIMIT_MEMLOCK; MAP_32BIT; contract and init handling.
+Owner:
+Depends: brand-native, brand-ops, zone-kernel
+Upstream: keep
+Upstream-Tickets:
+Tests:

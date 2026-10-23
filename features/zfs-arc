@@ -1,0 +1,8 @@
+Feature: zfs-arc
+Description: ZFS: zfs_arc_max tunable.
+ Allow the ARC maximum to be specified (OS-8638).
+Owner:
+Depends: zfs-zone-io
+Upstream: keep
+Upstream-Tickets:
+Tests:

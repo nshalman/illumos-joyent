@@ -1,0 +1,8 @@
+Feature: resolver
+Description: Libresolv2_joy and nsswitch dns.
+ See OS-2115.
+Owner:
+Depends:
+Upstream: keep
+Upstream-Tickets:
+Tests:

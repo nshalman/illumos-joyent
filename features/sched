@@ -1,0 +1,9 @@
+Feature: sched
+Description: Dispatcher: fewer thread migrations.
+ Reduce thread migrations caused by pg_cmt_can_migrate() and by high-
+ priority threads (OS-2250, OS-2251).
+Owner:
+Depends:
+Upstream: keep
+Upstream-Tickets:
+Tests:

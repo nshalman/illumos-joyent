@@ -1,0 +1,9 @@
+Feature: zone-security
+Description: Zones: privileges and kernel memory access.
+ New privileges (hyprlofs, zfs receive), kmem/physmem/ksyms access
+ disabled from non-global zones, and a hardened random pool for zones.
+Owner:
+Depends:
+Upstream: keep
+Upstream-Tickets:
+Tests:

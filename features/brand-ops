@@ -1,0 +1,19 @@
+Feature: brand-ops
+Description: Brand framework: brand operations, exec hooks and x86 entry.
+ The brand operations vector and its plumbing as extended for lx
+ (sys/brand.h, os/brand.c, machbrand.h, brandsys), with the sn1 and
+ solaris10 brands updated to fill in the new operations.  Exec and ELF
+ loading for branded binaries: interpreter (.interp) handling and native-
+ root lookup, auxv additions (AT_RANDOM, AT_SECURE, brand aux entries),
+ PT_GNU_STACK, prelinked binaries, shebang and nested interpreter
+ behavior, and core-file changes.  x86 entry for lx: system call entry
+ points (int80 and fast paths), signal frames on an alternate stack,
+ ucontext brand data, comm page/vdso support, CPUID limits for glibc, and
+ descriptor table entries.  These are one change to the brand interface:
+ every new or changed operation has to land together with all of its
+ callers and implementations.
+Owner:
+Depends: brand-native
+Upstream: keep
+Upstream-Tickets:
+Tests:

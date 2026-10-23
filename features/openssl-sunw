@@ -1,0 +1,8 @@
+Feature: openssl-sunw
+Description: Link platform OpenSSL consumers with sunw_ libraries.
+ The platform OpenSSL is delivered with sunw_ prefixed names.
+Owner:
+Depends:
+Upstream: keep
+Upstream-Tickets:
+Tests:

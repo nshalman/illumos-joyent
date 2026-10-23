@@ -1,0 +1,9 @@
+Feature: zfs-zvol
+Description: ZFS: zvol kstats and probes.
+ Per-zvol kstats and SDT probes for zvol_read/zvol_write (OS-525,
+ OS-530).
+Owner:
+Depends: zone-kernel
+Upstream: keep
+Upstream-Tickets:
+Tests:

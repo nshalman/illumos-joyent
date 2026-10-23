@@ -1,0 +1,8 @@
+Feature: ipf-cfw
+Description: Ipfilter: Cloud Firewall logging.
+ Hooks in ipfilter for Triton Cloud Firewall (cfw) logging.
+Owner:
+Depends: zone-kernel, zones-tools
+Upstream: keep
+Upstream-Tickets:
+Tests:

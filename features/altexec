@@ -1,0 +1,8 @@
+Feature: altexec
+Description: Altexec(8).
+ Wrappers for tools delivered from pkgsrc.
+Owner:
+Depends:
+Upstream: keep
+Upstream-Tickets:
+Tests:
