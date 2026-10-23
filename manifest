@@ -1332,6 +1332,8 @@ s lib/amd64/libdoor.so=libdoor.so.1
 f lib/amd64/libdwarf.so.1 0755 root bin
 f lib/amd64/libefi.so.1 0755 root bin
 s lib/amd64/libefi.so=libefi.so.1
+f lib/amd64/libefivar.so.1 0755 root bin
+s lib/amd64/libefivar.so=libefivar.so.1
 f lib/amd64/libelf.so.1 0755 root bin
 s lib/amd64/libelf.so=libelf.so.1
 f lib/amd64/libfakekernel.so.1 0755 root bin
@@ -4308,6 +4310,7 @@ f usr/include/sys/ecppsys.h 0644 root bin
 f usr/include/sys/ecppvar.h 0644 root bin
 f usr/include/sys/edonr.h 0644 root bin
 f usr/include/sys/efi_partition.h 0644 root bin
+f usr/include/sys/efiio.h 0644 root bin
 f usr/include/sys/elf.h 0644 root bin
 f usr/include/sys/elf_386.h 0644 root bin
 f usr/include/sys/elf_SPARC.h 0644 root bin
@@ -5484,6 +5487,8 @@ s usr/lib/amd64/libdtrace_jni.so=libdtrace_jni.so.1
 s usr/lib/amd64/libdwarf.so.1=../../../lib/amd64/libdwarf.so.1
 s usr/lib/amd64/libefi.so.1=../../../lib/amd64/libefi.so.1
 s usr/lib/amd64/libefi.so=../../../lib/amd64/libefi.so.1
+s usr/lib/amd64/libefivar.so.1=../../../lib/amd64/libefivar.so.1
+s usr/lib/amd64/libefivar.so=../../../lib/amd64/libefivar.so.1
 s usr/lib/amd64/libelf.so.1=../../../lib/amd64/libelf.so.1
 s usr/lib/amd64/libelf.so=../../../lib/amd64/libelf.so.1
 f usr/lib/amd64/libexacct.so.1 0755 root bin
@@ -11121,6 +11126,7 @@ f usr/sbin/dumpadm 0555 root bin
 f usr/sbin/editmap 0555 root bin
 s usr/sbin/edquota=../lib/fs/ufs/edquota
 f usr/sbin/eeprom 2555 root sys
+f usr/sbin/efibootmgr 0555 root sys
 f usr/sbin/etrn 0555 root bin
 f usr/sbin/exportfs 0555 root bin
 f usr/sbin/fcadm 0555 root bin
@@ -19958,6 +19964,7 @@ f usr/share/man/man8/dumpadm.8 0444 root bin
 f usr/share/man/man8/editmap.8 0444 root bin
 f usr/share/man/man8/edquota.8 0444 root bin
 f usr/share/man/man8/eeprom.8 0444 root bin
+f usr/share/man/man8/efibootmgr.8 0444 root bin
 f usr/share/man/man8/embedded_su.8 0444 root bin
 f usr/share/man/man8/etrn.8 0444 root bin
 s usr/share/man/man8/fcadm.8=fcinfo.8
